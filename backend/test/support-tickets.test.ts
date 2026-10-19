@@ -28,7 +28,8 @@ describe('client support tickets', () => {
     const key = k()
     const res = await call('POST', '/client/support-tickets', 'client', ticket(), key)
     expect(res.status, JSON.stringify(res.json)).toBe(201)
-    expect(res.json.data).toMatchObject({ status: 'assigned', assignedTo: ownerId, category: 'operational', priority: 'high' })
+    expect(res.json.data).toMatchObject({ status: 'assigned', assignedTo: null, category: 'operational', priority: 'high' })
+    expect((await t.db.query<{ assigned_to: string }>('select assigned_to from support_tickets where id = $1', [res.json.data.id]))[0]!.assigned_to).toBe(ownerId)
     expect((await call('POST', '/client/support-tickets', 'client', ticket(), key)).json.data.id).toBe(res.json.data.id)
     expect(await notes(ownerId)).toBe(n0 + 1)
     const act = await t.db.query("select 1 from project_activities where project_id = 'PRJ-201' and source_entity_id = $1", [res.json.data.id])
@@ -43,6 +44,27 @@ describe('client support tickets', () => {
     const after = await Promise.all(admins.map(notes))
     expect(after.every((v, i) => v === before[i]! + 1)).toBe(true)
     expect(await notes('USR-008')).toBeGreaterThan(0)
+  })
+
+  test('review: an owner who cannot handle tickets leaves it in the queue; a stale assignee falls back to the admins; the client never sees staff ids', async () => {
+    const admins = (await t.db.query<{ id: string }>("select id from users where role = 'admin' and status = 'active' order by id")).map(r => r.id)
+    const ownerId = await owner('PRJ-201')
+    await t.db.query("update projects set owner_user_id = 'USR-008' where id = 'PRJ-201'")
+    try {
+      const before = await Promise.all(admins.map(notes))
+      const res = await call('POST', '/client/support-tickets', 'client', ticket(), k())
+      expect(res.json.data).toMatchObject({ status: 'open', assignedTo: null })
+      expect((await Promise.all(admins.map(notes))).every((v, i) => v === before[i]! + 1)).toBe(true)
+    } finally {
+      await t.db.query('update projects set owner_user_id = $1 where id = \'PRJ-201\'', [ownerId])
+    }
+    const id = (await call('POST', '/client/support-tickets', 'client', ticket(), k())).json.data.id as string
+    expect((await mine(id)).assignedTo).toBeNull()
+    expect((await mine(id)).assignedToName).toBeTruthy()
+    await t.db.query("update support_tickets set assigned_to = 'USR-008' where id = $1", [id])
+    const before = await Promise.all(admins.map(notes))
+    expect((await call('POST', `/client/support-tickets/${id}/replies`, 'client', { message: 'Masih belum datang' }, k())).status).toBe(201)
+    expect((await Promise.all(admins.map(notes))).every((v, i) => v === before[i]! + 1)).toBe(true)
   })
 
   test('validation, another party’s project and other roles', async () => {

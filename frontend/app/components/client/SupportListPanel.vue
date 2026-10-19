@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { Search, Plus, LifeBuoy, AlertTriangle } from 'lucide-vue-next'
 import { getProjectsByParty, getSupportTicketsByParty, getSupportTicketSlaDueDate, isSupportTicketSlaBreached } from '~/data'
-import { clientCreateTicket } from '~/data/support-sync'
+import { clientCreateTicket, useClientSupportSync } from '~/data/support-sync'
 import { createSaveGate } from '~/lib/save-gate'
 import { SUPPORT_TICKET_CATEGORIES, SUPPORT_TICKET_PRIORITIES, SUPPORT_TICKET_STATUSES, findStatusOption } from '~/constants/status'
 import { formatDate } from '~/utils/format'
@@ -18,6 +18,8 @@ import type { SupportTicketCategory, SupportTicketPriority, SupportTicketStatus 
 const route = useRoute()
 const { canView, clientScopeId } = usePermissions()
 const api = useApi()
+/** S12c-2 review: staff may have answered or resolved since the last load — read the tickets again when the tab opens. */
+const supportSync = useClientSupportSync()
 const { showToast } = useToast()
 const gate = createSaveGate((title, message, tone) => showToast(title, message, tone))
 
@@ -64,6 +66,7 @@ function openCreateForm (prefillProjectId?: string) {
 
 /** "Create issue" dari Trip Center (`?project=<id>`) — buka form dengan project sudah terisi, bukan shell tanpa konteks. */
 onMounted(() => {
+  supportSync.load(true)
   const projectId = String(route.query.project ?? '')
   if (projectId && projects.value.some(project => project.id === projectId)) {
     openCreateForm(projectId)

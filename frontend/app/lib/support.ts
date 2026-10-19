@@ -36,3 +36,7 @@ export function inboxSummary (tickets: { status: SupportTicketStatus; assignedTo
     resolved: tickets.filter(t => t.status === 'resolved').length
   }
 }
+
+/** The client portal page a support-ticket notification opens. */
+export const clientSupportRoute = (entityType?: string, entityId?: string) =>
+  (entityType === 'support-ticket' && entityId ? `/client/support/${entityId}` : undefined)

@@ -1,4 +1,4 @@
-import type { Actor } from '../../auth/rbac'
+import { ROLE_IDS, hasCapability, type Actor } from '../../auth/rbac'
 import type { Queryable } from '../../db/client'
 import { AppError, errors, type FieldErrors } from '../../http/errors'
 import { recordAudit } from '../../shared/audit'
@@ -81,7 +81,7 @@ export type SupportTicketView = Awaited<ReturnType<typeof listSupportTickets>>[n
 
 /** The client's view: no internal notes (already filtered) and no internal flags or staff ids except the handler's name. */
 export const clientSupportTicket = (t: SupportTicketView) => ({
-  ...t, resolvedBy: null, replies: t.replies.map(({ internal: _internal, ...reply }) => ({ ...reply, authorId: reply.fromClient ? reply.authorId : null }))
+  ...t, assignedTo: null, resolvedBy: null, replies: t.replies.map(({ internal: _internal, ...reply }) => ({ ...reply, authorId: reply.fromClient ? reply.authorId : null }))
 })
 
 const text = (v: unknown, field: string, label: string, problems: FieldErrors, max: number, required = true) => {
@@ -100,8 +100,17 @@ async function lockClientTicket(tx: Queryable, partyId: string, id: string) {
 }
 
 /** Tells whoever handles the ticket — its assignee, or every active Admin while it waits in the queue. */
+/** Roles that can open the staff inbox (`support.manage-ticket`). */
+const HANDLER_ROLES = ROLE_IDS.filter(role => hasCapability(role, 'support.manage-ticket'))
+/** The user when they are active and can work the inbox — otherwise null, so the ticket goes to the queue / the admins. */
+async function handler(tx: Queryable, userId: string | null | undefined) {
+  if (!userId) return null
+  const [row] = await tx.query<{ id: string }>("select id from users where id = $1 and status = 'active' and role = any($2::text[])", [userId, HANDLER_ROLES])
+  return row?.id ?? null
+}
 async function tellHandlers(tx: Queryable, actor: Actor, assignedTo: string | null, n: { title: string; body: string; ticketId: string }) {
-  const targets = assignedTo ? [assignedTo] : await activeAdmins(tx)
+  const current = await handler(tx, assignedTo)
+  const targets = current ? [current] : await activeAdmins(tx)
   for (const userId of targets) await notifyInternal(tx, actor, userId, { type: 'assignment', title: n.title, body: n.body, entityType: 'support-ticket', entityId: n.ticketId })
 }
 
@@ -114,7 +123,7 @@ export async function clientCreateTicket(tx: Queryable, actor: Actor, partyId: s
   if (typeof input.priority !== 'string' || !TICKET_PRIORITIES.includes(input.priority)) problems.priority = ['Prioritas tidak dikenal.']
   if (Object.keys(problems).length) throw errors.validation(problems)
   const project = input.projectId ? await ownProject(tx, partyId, input.projectId) : null
-  const assignedTo = project?.ownerUserId ?? null
+  const assignedTo = await handler(tx, project?.ownerUserId)
   const id = await nextId(tx, 'TCK-')
   await tx.query(
     `insert into support_tickets (id, party_id, project_id, category, priority, status, subject, description, attachment_name, created_by, assigned_to)

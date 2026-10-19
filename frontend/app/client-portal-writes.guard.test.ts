@@ -41,6 +41,7 @@ const FORBIDDEN = [
   'createSupportTicket(', 'replySupportTicket(', 'confirmSupportTicketResolution(', 'reopenSupportTicket(', 'rateSupportTicketResolution(',
   'saveFeedbackDraft(', 'submitFeedback('
 ]
+const read = (file: string) => readFileSync(join(__dirname, file), 'utf8')
 const used = (source: string, name: string) => new RegExp(`(?<![.\\w])${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(source)
 
 describe('client portal writes go to the server (S12b-1)', () => {
@@ -50,14 +51,20 @@ describe('client portal writes go to the server (S12b-1)', () => {
   })
 
   it.each(FILES)('%s', (file) => {
-    const source = readFileSync(join(__dirname, file), 'utf8')
+    const source = read(file)
     expect(FORBIDDEN.filter(name => used(source, name))).toEqual([])
   })
 })
 
 describe('the vendor portal never shows MANOVA selling prices (S12d review)', () => {
   it('pages/supplier/service-orders/[id]/index.vue', () => {
-    const source = readFileSync(join(__dirname, 'pages/supplier/service-orders/[id]/index.vue'), 'utf8')
+    const source = read('pages/supplier/service-orders/[id]/index.vue')
     expect(source.includes('sellPriceIdr')).toBe(false)
+  })
+})
+
+describe('the client support screens follow staff changes (S12c-2 review)', () => {
+  it.each(['components/client/SupportListPanel.vue', 'pages/client/support/[id]/index.vue'])('%s reloads tickets from the server when opened', (file) => {
+    expect(read(file)).toMatch(/useClientSupportSync\(\)[\s\S]*load\(true\)/)
   })
 })

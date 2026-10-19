@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { Search, CheckCheck, Bell, ClipboardCheck, FolderKanban, Users, CalendarClock, FileText, Receipt, PlaneTakeoff, LifeBuoy } from 'lucide-vue-next'
 import type { Component } from 'vue'
+import { clientSupportRoute } from '~/lib/support'
 import {
   getPartyById, getNotificationsForUser, getUnreadNotificationCount, markNotificationRead,
   markAllNotificationsRead, TRAVELERS, INVOICES
@@ -83,6 +84,9 @@ function notificationRoute (notification: Notification): string | undefined {
   if (notification.entityType === 'travel-request' && notification.entityId) {
     return `/client/travel-requests/${notification.entityId}`
   }
+  // S12c-2: tiket support (diselesaikan, dibalas staf).
+  const ticketRoute = clientSupportRoute(notification.entityType, notification.entityId)
+  if (ticketRoute) { return ticketRoute }
   if (notification.entityType === 'quotation' && notification.entityId) {
     return `/client/quotations/${notification.entityId}`
   }

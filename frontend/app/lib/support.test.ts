@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { feedbackActions, inboxSummary, ticketActions } from './support'
+import { clientSupportRoute, feedbackActions, inboxSummary, ticketActions } from './support'
 
 describe('staff support helpers (S12c-2)', () => {
   it('an open ticket can be assigned, moved, answered and resolved — not closed', () => {
@@ -33,5 +33,12 @@ describe('staff support helpers (S12c-2)', () => {
       { status: 'closed', assignedTo: undefined }
     ] as const
     expect(inboxSummary([...tickets], 'USR-002')).toEqual({ open: 3, unassigned: 1, mine: 1, resolved: 1 })
+  })
+})
+
+describe('the client portal follows staff changes (S12c-2 review)', () => {
+  it('a support-ticket notification opens the ticket', () => {
+    expect(clientSupportRoute('support-ticket', 'TCK-012')).toBe('/client/support/TCK-012')
+    expect(clientSupportRoute('project', 'PRJ-201')).toBeUndefined()
   })
 })

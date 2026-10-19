@@ -6,7 +6,7 @@ import {
   getSupportTicketById, getSupportTicketReplies, getProjectById, getUserById,
   getSupportTicketSlaDueDate, isSupportTicketSlaBreached
 } from '~/data'
-import { clientConfirmTicket, clientRateTicket, clientReopenTicket, clientReplyTicket } from '~/data/support-sync'
+import { clientConfirmTicket, clientRateTicket, clientReopenTicket, clientReplyTicket, useClientSupportSync } from '~/data/support-sync'
 import { createSaveGate } from '~/lib/save-gate'
 import { SUPPORT_TICKET_CATEGORIES, SUPPORT_TICKET_PRIORITIES, SUPPORT_TICKET_STATUSES, findStatusOption } from '~/constants/status'
 import { formatDate, formatDateTime } from '~/utils/format'
@@ -23,6 +23,9 @@ const { canView, clientScopeId } = usePermissions()
 const { showToast } = useToast()
 const api = useApi()
 const gate = createSaveGate((title, message, tone) => showToast(title, message, tone))
+/** S12c-2 review: opened from a notification, the ticket may have changed on the server — read it again. */
+const supportSync = useClientSupportSync()
+onMounted(() => { supportSync.load(true) })
 
 const ticket = computed(() => getSupportTicketById(String(route.params.id)))
 const isOwnCompany = computed(() => Boolean(ticket.value && clientScopeId.value && ticket.value.clientPartyId === clientScopeId.value))
