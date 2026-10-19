@@ -158,8 +158,12 @@ export async function sendMessage(tx: Queryable, actor: Actor, input: Record<str
   )
   // A message that leaves the company (client / supplier) is part of the project's history.
   if (projectId && !internal) {
+    // S12b-1: a client writes in its own portal — the line names it as the sender, not as the recipient.
+    const fromClient = actor.role === 'client'
     await recordProjectActivity(tx, { projectId, actorUserId: actor.userId, sourceAction: 'message.sent', sourceEntityId: id,
-      message: `Pesan ${id} ke ${input.channel === 'client-message' ? 'client' : 'supplier'} dikirim oleh ${await actorName(tx, actor.userId)} (${deliveryChannel}).` })
+      message: fromClient
+        ? `Pesan ${id} dari client dikirim oleh ${await actorName(tx, actor.userId)}.`
+        : `Pesan ${id} ke ${input.channel === 'client-message' ? 'client' : 'supplier'} dikirim oleh ${await actorName(tx, actor.userId)} (${deliveryChannel}).` })
   }
   // S9b: each mentioned user gets a notification (never the sender).
   const sender = await actorName(tx, actor.userId)

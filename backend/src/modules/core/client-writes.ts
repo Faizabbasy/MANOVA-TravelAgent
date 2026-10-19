@@ -3,6 +3,7 @@ import type { Queryable } from '../../db/client'
 import { ID_PATTERN } from '../../http/envelope'
 import { errors } from '../../http/errors'
 import { actorName, recordProjectActivity } from './activities'
+import { createDocument, listDocuments, sendMessage } from './documents'
 import { notify } from './notifications'
 import { cancelTraveler, createRoom, createTraveler, importTravelers, replaceTraveler, rule, setRoomTravelers, updateTraveler } from './travelers'
 
@@ -120,4 +121,80 @@ export async function clientSetRoomTravelers(tx: Queryable, actor: Actor, partyI
   await setRoomTravelers(tx, actor, roomId, travelerIds, requestId)
   await tellProject(tx, actor, project, { type: 'change', sourceAction: 'room.travelers_set', sourceEntityId: roomId, title: `Penghuni kamar diubah di ${project.name}`,
     message: `Penghuni kamar ${room.room_label} (${roomId}) diubah oleh ${await by(tx, actor)}.` })
+}
+
+/* ---------- documents & messages ---------- */
+
+const accountOwnerOf = async (tx: Queryable, partyId: string) =>
+  (await tx.query<{ account_owner_user_id: string | null }>('select account_owner_user_id from parties where id = $1', [partyId]))[0]?.account_owner_user_id ?? null
+
+/** Where a client document goes: its own project, a traveler of its projects, or its own company (party). */
+async function documentTarget(tx: Queryable, partyId: string, input: Record<string, unknown>) {
+  if (input.entityType === 'project') {
+    const project = await ownProject(tx, partyId, input.entityId)
+    return { entityType: 'project', entityId: project.id, project }
+  }
+  if (input.entityType === 'traveler') {
+    if (typeof input.entityId !== 'string' || !ID_PATTERN.test(input.entityId)) throw errors.notFound('Traveler')
+    const tr = await travelerOf(tx, partyId, input.entityId)
+    return { entityType: 'traveler', entityId: input.entityId, project: await ownProject(tx, partyId, tr.projectId) }
+  }
+  if (input.entityType === 'party') {
+    if (input.entityId !== partyId) throw errors.notFound('Customer')
+    return { entityType: 'party', entityId: partyId, project: null }
+  }
+  throw errors.validation({ entityType: ['Dokumen client hanya untuk project, peserta, atau perusahaan.'] })
+}
+
+async function tellDocument(tx: Queryable, actor: Actor, partyId: string, project: OwnProject | null, id: string, name: string, verb: string) {
+  const message = `Dokumen ${name} (${id}) ${verb} oleh ${await by(tx, actor)} — menunggu verifikasi.`
+  if (project) await tellProject(tx, actor, project, { type: 'document', sourceAction: 'document.created', sourceEntityId: id, title: `Dokumen client di ${project.name}`, message })
+  else await notifyInternal(tx, actor, await accountOwnerOf(tx, partyId), { type: 'document', title: 'Dokumen perusahaan dari client', body: message, entityType: 'party', entityId: partyId })
+}
+
+export async function clientCreateDocument(tx: Queryable, actor: Actor, partyId: string, input: Record<string, unknown>, requestId: string) {
+  const target = await documentTarget(tx, partyId, input)
+  const { id } = await createDocument(tx, actor, {
+    entityType: target.entityType, entityId: target.entityId, projectId: target.project?.id ?? null,
+    name: input.name, category: input.category, expiresOn: input.expiresOn, accessLevel: 'client'
+  }, requestId)
+  await tellDocument(tx, actor, partyId, target.project, id, String(input.name).trim(), 'diunggah')
+  return { id }
+}
+
+/** A new version of a client document: same entity, version + 1, `supersedes_id` the old one. */
+export async function clientReplaceDocument(tx: Queryable, actor: Actor, partyId: string, id: string, input: Record<string, unknown>, requestId: string) {
+  const [old] = await listDocuments(tx, { id, partyId })
+  if (!old) throw errors.notFound('Dokumen')
+  await tx.query('select id from documents where id = $1 for update', [id])
+  if (old.sourceType !== 'uploaded') throw rule('Dokumen buatan sistem tidak bisa diganti dari portal.')
+  if ((await tx.query('select 1 from documents where supersedes_id = $1', [id])).length) throw rule('Dokumen ini sudah digantikan versi yang lebih baru.')
+  const { id: newId } = await createDocument(tx, actor, {
+    entityType: old.entityType, entityId: old.entityId, projectId: old.projectId,
+    name: input.name ?? old.name, category: input.category ?? old.category, expiresOn: input.expiresOn ?? old.expiresAt, accessLevel: 'client'
+  }, requestId)
+  await tx.query('update documents set version = $2, supersedes_id = $3 where id = $1', [newId, old.version + 1, id])
+  const project = old.projectId ? await ownProject(tx, partyId, old.projectId) : null
+  await tellDocument(tx, actor, partyId, project, newId, String(input.name ?? old.name).trim(), `(versi ${old.version + 1}) diunggah`)
+  return { id: newId }
+}
+
+export async function clientSendMessage(tx: Queryable, actor: Actor, partyId: string, input: Record<string, unknown>, requestId: string) {
+  const mentions = input.mentions
+  if (mentions !== undefined && mentions !== null && !(Array.isArray(mentions) && mentions.length === 0)) throw errors.validation({ mentions: ['Client tidak bisa me-mention.'] })
+  const project = await ownProject(tx, partyId, input.projectId)
+  const { id } = await sendMessage(tx, actor, {
+    entityType: 'project', entityId: project.id, projectId: project.id, channel: 'client-message', body: input.body, attachmentName: input.attachmentName
+  }, requestId)
+  await notifyInternal(tx, actor, project.ownerUserId, { type: 'message', title: `Pesan client di ${project.name}`, body: String(input.body).trim(), entityType: 'project', entityId: project.id })
+  return { id }
+}
+
+export async function clientMarkMessagesRead(tx: Queryable, actor: Actor, partyId: string, projectId: string) {
+  const project = await ownProject(tx, partyId, projectId)
+  const rows = await tx.query<{ id: string }>(
+    `update messages set read_by = read_by || $2::text::jsonb
+      where project_id = $1 and channel = 'client-message' and not (read_by ? $3) returning id`,
+    [project.id, JSON.stringify([actor.userId]), actor.userId])
+  return { updated: rows.length }
 }

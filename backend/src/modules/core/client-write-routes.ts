@@ -4,10 +4,12 @@ import type { AuthContext } from '../../auth/context'
 import { assertIdParam, ok, requestIdOf } from '../../http/envelope'
 import { errors } from '../../http/errors'
 import { requireIdempotencyKey, withIdempotency } from '../../shared/idempotency'
-import { clientTraveler } from './client-scope'
+import { clientDocument, clientMessage, clientTraveler } from './client-scope'
 import {
-  clientCancelTraveler, clientCreateRoom, clientCreateTraveler, clientImportTravelers, clientReplaceTraveler, clientSetRoomTravelers, clientUpdateTraveler
+  clientCancelTraveler, clientCreateDocument, clientCreateRoom, clientCreateTraveler, clientImportTravelers, clientMarkMessagesRead, clientReplaceDocument,
+  clientReplaceTraveler, clientSendMessage, clientSetRoomTravelers, clientUpdateTraveler
 } from './client-writes'
+import { listDocuments, listMessages } from './documents'
 import { listRoomAssignments, listTravelers } from './travelers'
 
 /** Client portal writes (S12b-1): only a client, only its own party (from the session). */
@@ -22,6 +24,8 @@ export function clientWriteRoutes(deps: AppDeps, auth: AuthContext) {
   }
   const travelerView = async (id: string) => clientTraveler((await listTravelers(db, { id }))[0]!)
   const roomView = async (id: string) => (await listRoomAssignments(db, { id }))[0]!
+  const documentView = async (id: string) => clientDocument((await listDocuments(db, { id }))[0]!)
+  const messageView = async (id: string) => clientMessage((await listMessages(db, { id }))[0]!)
 
   return new Elysia({ prefix: '/api/v1/client' })
     .post('/projects/:id/travelers', async ({ request, params, body, set }) => {
@@ -78,4 +82,37 @@ export function clientWriteRoutes(deps: AppDeps, auth: AuthContext) {
       await db.transaction(tx => clientSetRoomTravelers(tx, actor, partyId, id, (body as Record<string, unknown>).travelerIds, requestIdOf(request)))
       return ok(request, await roomView(id))
     }, body)
+    .post('/documents', async ({ request, body, set }) => {
+      const { actor, partyId } = await clientActor(request)
+      const key = requireIdempotencyKey(request)
+      const result = await withIdempotency(db, { actorUserId: actor.userId, route: 'POST /client/documents', key, body }, tx =>
+        clientCreateDocument(tx, actor, partyId, body as Record<string, unknown>, requestIdOf(request)))
+      if (result.replayed) set.headers['idempotent-replayed'] = 'true'
+      set.status = 201
+      return ok(request, await documentView(result.data.id))
+    }, body)
+    .post('/documents/:id/replace', async ({ request, params, body, set }) => {
+      const { actor, partyId } = await clientActor(request)
+      const id = assertIdParam(params.id, 'Dokumen')
+      const key = requireIdempotencyKey(request)
+      const result = await withIdempotency(db, { actorUserId: actor.userId, route: 'POST /client/documents/:id/replace', key, body: { id, ...(body as object) } }, tx =>
+        clientReplaceDocument(tx, actor, partyId, id, body as Record<string, unknown>, requestIdOf(request)))
+      if (result.replayed) set.headers['idempotent-replayed'] = 'true'
+      set.status = 201
+      return ok(request, await documentView(result.data.id))
+    }, body)
+    .post('/messages', async ({ request, body, set }) => {
+      const { actor, partyId } = await clientActor(request)
+      const key = requireIdempotencyKey(request)
+      const result = await withIdempotency(db, { actorUserId: actor.userId, route: 'POST /client/messages', key, body }, tx =>
+        clientSendMessage(tx, actor, partyId, body as Record<string, unknown>, requestIdOf(request)))
+      if (result.replayed) set.headers['idempotent-replayed'] = 'true'
+      set.status = 201
+      return ok(request, await messageView(result.data.id))
+    }, body)
+    .post('/projects/:id/messages/read', async ({ request, params }) => {
+      const { actor, partyId } = await clientActor(request)
+      const projectId = assertIdParam(params.id, 'Project')
+      return ok(request, await db.transaction(tx => clientMarkMessagesRead(tx, actor, partyId, projectId)))
+    })
 }

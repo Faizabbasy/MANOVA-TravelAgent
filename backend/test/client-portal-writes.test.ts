@@ -90,3 +90,64 @@ describe('client participants', () => {
     if (foreign) expect((await call('PUT', `/client/room-assignments/${room.json.data.id}/travelers`, 'client', { travelerIds: [foreign.id] })).status).toBe(400)
   })
 })
+
+describe('client documents & messages', () => {
+  test('upload to own project, traveler or company: always client-level and unverified; another party is not found', async () => {
+    const ownerId = await owner('PRJ-201')
+    const n0 = await notes(ownerId)
+    const res = await call('POST', '/client/documents', 'client', { entityType: 'project', entityId: 'PRJ-201', name: 'Rundown Final', category: 'Rundown', accessLevel: 'internal' }, k())
+    expect(res.status, JSON.stringify(res.json)).toBe(201)
+    expect(res.json.data).toMatchObject({ accessLevel: 'client', verified: false, projectId: 'PRJ-201', uploadedBy: null })
+    expect(await notes(ownerId)).toBe(n0 + 1)
+    const tr = (await call('POST', '/client/projects/PRJ-201/travelers', 'client', { name: 'Dok Peserta' }, k())).json.data.id as string
+    const trDoc = await call('POST', '/client/documents', 'client', { entityType: 'traveler', entityId: tr, name: 'Paspor', category: 'Paspor', projectId: other }, k())
+    expect(trDoc.json.data.projectId).toBe('PRJ-201')
+    const company = await call('POST', '/client/documents', 'client', { entityType: 'party', entityId: 'PTY-005', name: 'Akta', category: 'Legal' }, k())
+    expect(company.status).toBe(201)
+    expect(company.json.data.projectId).toBeNull()
+    expect((await call('POST', '/client/documents', 'client', { entityType: 'project', entityId: other, name: 'X', category: 'X' }, k())).status).toBe(404)
+    expect((await call('POST', '/client/documents', 'client', { entityType: 'party', entityId: 'PTY-001', name: 'X', category: 'X' }, k())).status).toBe(404)
+    expect((await call('POST', '/client/documents', 'client', { entityType: 'invoice', entityId: 'X', name: 'X', category: 'X' }, k())).status).toBe(400)
+    expect((await call('POST', '/client/documents', 'admin', { entityType: 'project', entityId: 'PRJ-201', name: 'X', category: 'X' }, k())).status).toBe(403)
+  })
+
+  test('replace: new version supersedes the old; generated, superseded and foreign documents refused', async () => {
+    const first = (await call('POST', '/client/documents', 'client', { entityType: 'project', entityId: 'PRJ-201', name: 'Daftar Hadir', category: 'Lainnya' }, k())).json.data
+    const v2 = await call('POST', `/client/documents/${first.id}/replace`, 'client', { name: 'Daftar Hadir v2' }, k())
+    expect(v2.status, JSON.stringify(v2.json)).toBe(201)
+    expect(v2.json.data).toMatchObject({ version: first.version + 1, supersedesId: first.id, name: 'Daftar Hadir v2', category: 'Lainnya', accessLevel: 'client' })
+    expect((await call('POST', `/client/documents/${first.id}/replace`, 'client', {}, k())).status).toBe(422)
+    const generated = (await t.db.query<{ id: string }>("select d.id from documents d join projects p on p.id = d.project_id where p.party_id = 'PTY-005' and d.access_level = 'client' and d.source_type = 'generated' limit 1"))[0]
+    if (generated) expect((await call('POST', `/client/documents/${generated.id}/replace`, 'client', {}, k())).status).toBe(422)
+    const foreign = (await t.db.query<{ id: string }>("select d.id from documents d join projects p on p.id = d.project_id where p.party_id <> 'PTY-005' limit 1"))[0]
+    if (foreign) expect((await call('POST', `/client/documents/${foreign.id}/replace`, 'client', {}, k())).status).toBe(404)
+  })
+
+  test('messages: client-message only, no mentions, own project; read marks only that project’s client messages', async () => {
+    const ownerId = await owner('PRJ-201')
+    const n0 = await notes(ownerId)
+    const sent = await call('POST', '/client/messages', 'client', { projectId: 'PRJ-201', body: 'Mohon info jadwal check-in.', channel: 'internal-note' }, k())
+    expect(sent.status, JSON.stringify(sent.json)).toBe(201)
+    expect(sent.json.data).toMatchObject({ channel: 'client-message', projectId: 'PRJ-201', mentions: [], readBy: [] })
+    expect(await notes(ownerId)).toBe(n0 + 1)
+    const act = await t.db.query<{ message: string }>("select message from project_activities where source_action = 'message.sent' and source_entity_id = $1", [sent.json.data.id])
+    expect(act[0]!.message).toContain('dari client')
+    expect((await call('POST', '/client/messages', 'client', { projectId: 'PRJ-201', body: 'Halo', mentions: ['USR-002'] }, k())).status).toBe(400)
+    expect((await call('POST', '/client/messages', 'client', { projectId: other, body: 'Halo' }, k())).status).toBe(404)
+
+    await t.db.query("insert into messages (id, entity_type, entity_id, project_id, channel, sender_id, body, mentions, delivery_status, read_by) values ('MSG-T12B1', 'project', 'PRJ-201', 'PRJ-201', 'client-message', 'USR-002', 'Dari staf', '[]'::jsonb, 'delivered', '[\"USR-002\"]'::jsonb), ('MSG-T12B2', 'project', 'PRJ-201', 'PRJ-201', 'internal-note', 'USR-002', 'Internal', '[]'::jsonb, 'sent', '[\"USR-002\"]'::jsonb)")
+    const read = await call('POST', '/client/projects/PRJ-201/messages/read', 'client', {})
+    expect(read.status).toBe(200)
+    expect(read.json.data.updated).toBeGreaterThan(0)
+    const rows = await t.db.query<{ id: string; read_by: string[] }>("select id, read_by from messages where id in ('MSG-T12B1', 'MSG-T12B2') order by id")
+    expect(rows[0]!.read_by).toContain('USR-021')
+    expect(rows[1]!.read_by).not.toContain('USR-021')
+    expect((await call('POST', '/client/projects/PRJ-201/messages/read', 'client', {})).json.data.updated).toBe(0)
+  })
+
+  test('a project without an owner: the write succeeds without a notification', async () => {
+    await t.db.query("update projects set owner_user_id = null where id = 'PRJ-204'")
+    const res = await call('POST', '/client/documents', 'client', { entityType: 'project', entityId: 'PRJ-204', name: 'Tanpa Owner', category: 'Lainnya' }, k())
+    expect(res.status, JSON.stringify(res.json)).toBe(201)
+  })
+})
