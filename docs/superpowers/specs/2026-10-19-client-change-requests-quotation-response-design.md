@@ -1,6 +1,6 @@
 # Portal client — change request & respons quotation di server (S12b-2) — desain
 
-Tanggal: 19 Oktober 2026 · Branch: `production` · Status: disetujui (eksekusi native)
+Tanggal: 19 Oktober 2026 · Branch: `production` · Status: diimplementasikan (plan 2026-10-19-client-change-requests-quotation-response)
 
 Lanjutan S12b-1. Change request dari client dan respons client atas quotation (setuju / tolak / minta revisi) pindah dari
 mock lokal ke server. Draft, komentar dan lampiran CR tetap lokal (S12c).

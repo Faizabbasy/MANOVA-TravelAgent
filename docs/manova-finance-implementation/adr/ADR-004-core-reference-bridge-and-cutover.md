@@ -311,3 +311,14 @@ project & notifikasi owner/account owner/Finance dibuat server. Frontend `data/c
 (SO + quotation vendor, sudah dibatasi), bookings (layanan + booking, DTO tanpa harga jual) dan `vendorPortal` (profil +
 produk; `data/vendor-portal-sync.ts`). RFQ (S12e), komoditas (S12f), amandemen SO, kontak/dokumen/pesan/tagihan vendor
 tetap lokal/tanpa UI portal.
+
+## Update 2026-10-19 — CR & respons quotation client (S12b-2)
+
+Migrasi 0039: `change_requests` + status `waiting-client-approval` & `cancelled`, `change_type`, `cancellation_fee_minor`,
+`client_decided_*`, `cancel_reason`/`cancelled_*`; `quotations` + `client_response` (+ catatan, versi, oleh, waktu). Alur
+CR (keputusan pengguna, disederhanakan): submitted → under-review → (CR client berbiaya: staf `send-to-client`)
+waiting-client-approval → approved → implemented; staf tidak bisa approve langsung CR client berbiaya; client setuju/tolak
+dampak atau batal (`/client/change-requests/:id/{approve,reject,cancel}`), mengajukan lewat
+`/client/projects/:id/change-requests`; gerbang completed juga menahan `waiting-client-approval`. Respons quotation:
+`/client/quotations/:id/respond` (setuju/tolak/minta revisi, sekali per versi, staf diberi tahu; Won tetap staf). Mock
+review CR & revisi quotation otomatis di portal dihapus; draft/komentar/lampiran CR tetap lokal (S12c).

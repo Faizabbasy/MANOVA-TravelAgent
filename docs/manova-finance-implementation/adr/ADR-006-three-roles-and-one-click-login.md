@@ -83,3 +83,9 @@ approval, support, feedback, bukti bayar, perubahan profil sensitif) tetap lokal
 Di dev/staging, portal vendor membaca SO, quotation, layanan/booking dan profilnya dari server, bisa mengonfirmasi dan
 menandai selesai SO miliknya (membatalkan tetap hak staf), dan menambah produk ke katalognya lewat server. RFQ dan
 komoditas tetap lokal sampai S12e/S12f.
+
+## Update 2026-10-19 — CR & respons quotation client di server (S12b-2)
+
+Client mengajukan change request, menyetujui/menolak dampak biaya yang dikirim staf, membatalkan permintaan, dan
+merespons quotation (setuju/tolak/minta revisi) lewat server. Pembuatan project (Won) dan versi revisi quotation tetap
+dilakukan tim internal.
