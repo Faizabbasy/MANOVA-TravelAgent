@@ -186,3 +186,72 @@ export async function notifyTicketClient(tx: Queryable, actor: Actor, ticketId: 
   const [t] = await tx.query<{ created_by: string }>('select created_by from support_tickets where id = $1', [ticketId])
   if (t) await notify(tx, { userId: t.created_by, actorUserId: actor.userId, type: 'message', title: n.title, body: n.body, entityType: 'support-ticket', entityId: ticketId })
 }
+
+/* ---------- staff (support.manage-ticket) ---------- */
+
+async function lockTicket(tx: Queryable, id: string) {
+  const [row] = await tx.query<{ id: string; status: string; subject: string; assigned_to: string | null }>(
+    'select id, status, subject, assigned_to from support_tickets where id = $1 for update', [id])
+  if (!row) throw errors.notFound('Tiket')
+  return row
+}
+const OPEN_STATUSES = ['open', 'assigned', 'in-progress', 'waiting-for-client', 'reopened']
+
+export async function staffAssignTicket(tx: Queryable, actor: Actor, id: string, userIdInput: unknown, requestId: string) {
+  const [user] = typeof userIdInput === 'string'
+    ? await tx.query<{ id: string }>("select id from users where id = $1 and status = 'active' and role not in ('client', 'vendor')", [userIdInput])
+    : []
+  if (!user) throw errors.validation({ userId: ['Pilih staf internal yang aktif.'] })
+  const ticket = await lockTicket(tx, id)
+  if (!OPEN_STATUSES.includes(ticket.status)) throw rule('Tiket yang sudah diselesaikan atau ditutup tidak bisa ditugaskan ulang.')
+  await tx.query(`update support_tickets set assigned_to = $2, status = case when status in ('open', 'reopened') then 'assigned' else status end, updated_at = now() where id = $1`, [id, user.id])
+  await notifyInternal(tx, actor, user.id, { type: 'assignment', title: `Tiket ${id} ditugaskan kepada Anda`, body: ticket.subject, entityType: 'support-ticket', entityId: id })
+  await recordAudit(tx, { action: 'support_ticket.assigned', actorUserId: actor.userId, entityType: 'support_ticket', entityId: id, requestId,
+    before: { assignedTo: ticket.assigned_to }, after: { assignedTo: user.id } })
+}
+
+export async function staffSetTicketStatus(tx: Queryable, actor: Actor, id: string, to: unknown, requestId: string) {
+  if (to !== 'in-progress' && to !== 'waiting-for-client') throw errors.validation({ to: ['Status harus in-progress atau waiting-for-client.'] })
+  const ticket = await lockTicket(tx, id)
+  if (!OPEN_STATUSES.includes(ticket.status)) throw rule('Tiket ini sudah diselesaikan atau ditutup.')
+  await tx.query('update support_tickets set status = $2, updated_at = now() where id = $1', [id, to])
+  if (to === 'waiting-for-client') await notifyTicketClient(tx, actor, id, { title: `Tiket ${id} menunggu tanggapan Anda`, body: ticket.subject })
+  await recordAudit(tx, { action: 'support_ticket.status_changed', actorUserId: actor.userId, entityType: 'support_ticket', entityId: id, requestId,
+    before: { status: ticket.status }, after: { status: to } })
+}
+
+export async function staffReplyTicket(tx: Queryable, actor: Actor, id: string, input: Record<string, unknown>, requestId: string) {
+  const problems: FieldErrors = {}
+  const message = text(input.message, 'message', 'Pesan', problems, 4000)
+  const attachment = text(input.attachmentName, 'attachmentName', 'Nama lampiran', problems, 200, false)
+  if (Object.keys(problems).length) throw errors.validation(problems)
+  const internal = input.internal === true
+  const ticket = await lockTicket(tx, id)
+  if (ticket.status === 'closed' && !internal) throw rule('Tiket ini sudah ditutup.')
+  const replyId = await nextId(tx, 'TCKR-')
+  await tx.query('insert into support_ticket_replies (id, ticket_id, author_user_id, message, attachment_name, is_internal) values ($1, $2, $3, $4, $5, $6)',
+    [replyId, id, actor.userId, message, attachment, internal])
+  // A reply to the client means someone is on it; an internal note changes nothing the client sees.
+  if (!internal) await tx.query(`update support_tickets set status = case when status in ('open', 'assigned', 'reopened') then 'in-progress' else status end, updated_at = now() where id = $1`, [id])
+  if (!internal) await notifyTicketClient(tx, actor, id, { title: `Balasan tim kami di tiket ${id}`, body: message! })
+  await recordAudit(tx, { action: internal ? 'support_ticket.internal_note' : 'support_ticket.staff_replied', actorUserId: actor.userId, entityType: 'support_ticket', entityId: id, requestId, after: { replyId } })
+  return { id: replyId }
+}
+
+export async function staffResolveTicket(tx: Queryable, actor: Actor, id: string, noteInput: unknown, requestId: string) {
+  const note = typeof noteInput === 'string' ? noteInput.trim() : ''
+  if (!note) throw errors.validation({ note: ['Catatan penyelesaian wajib diisi.'] })
+  const ticket = await lockTicket(tx, id)
+  if (!OPEN_STATUSES.includes(ticket.status)) throw rule('Tiket ini sudah diselesaikan atau ditutup.')
+  await tx.query("update support_tickets set status = 'resolved', resolution_note = $2, resolved_by = $3, resolved_at = now(), updated_at = now() where id = $1",
+    [id, note.slice(0, 4000), actor.userId])
+  await notifyTicketClient(tx, actor, id, { title: `Tiket ${id} sudah diselesaikan`, body: `${note} — mohon konfirmasi, atau buka kembali bila belum beres.` })
+  await recordAudit(tx, { action: 'support_ticket.resolved', actorUserId: actor.userId, entityType: 'support_ticket', entityId: id, requestId, reason: note })
+}
+
+export async function staffCloseTicket(tx: Queryable, actor: Actor, id: string, requestId: string) {
+  const ticket = await lockTicket(tx, id)
+  if (ticket.status !== 'resolved') throw rule('Hanya tiket yang sudah diselesaikan yang bisa ditutup.')
+  await tx.query("update support_tickets set status = 'closed', closed_at = now(), updated_at = now() where id = $1", [id])
+  await recordAudit(tx, { action: 'support_ticket.closed', actorUserId: actor.userId, entityType: 'support_ticket', entityId: id, requestId })
+}

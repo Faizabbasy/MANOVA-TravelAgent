@@ -20,6 +20,7 @@ import { hrRoutes } from './modules/core/hr-routes'
 import { clientCommerceRoutes } from './modules/core/client-commerce-routes'
 import { clientWriteRoutes } from './modules/core/client-write-routes'
 import { vendorPortalRoutes } from './modules/core/vendor-portal-routes'
+import { supportRoutes } from './modules/core/support-routes'
 import { travelerRoutes } from './modules/core/traveler-routes'
 import { isFinancePath, mayReachFinanceRoute } from './modules/finance/access'
 import { financeRoutes } from './modules/finance/routes'
@@ -175,6 +176,7 @@ export function createApp(deps: AppDeps) {
     .use(clientCommerceRoutes(deps, auth))
     .use(clientWriteRoutes(deps, auth))
     .use(vendorPortalRoutes(deps, auth))
+    .use(supportRoutes(deps, auth))
     .use(financeRoutes(deps, auth))
     .use(arApRoutes(deps, auth))
     .use(refundRoutes(deps, auth))

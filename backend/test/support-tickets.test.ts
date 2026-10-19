@@ -75,3 +75,43 @@ describe('client support tickets', () => {
     expect((await mine(id)).status).toBe('closed')
   })
 })
+
+describe('staff support inbox', () => {
+  const create = async (over: Record<string, unknown> = {}) => (await call('POST', '/client/support-tickets', 'client', ticket(over), k())).json.data.id as string
+
+  test('list & detail for support staff only; internal notes stay with staff', async () => {
+    const id = await create()
+    const list = await call('GET', '/support-tickets?status=assigned', 'admin')
+    expect(list.status).toBe(200)
+    expect((list.json.data as { id: string }[]).some(x => x.id === id)).toBe(true)
+    expect((await call('GET', '/support-tickets', 'finance')).status).toBe(403)
+    expect((await call('GET', '/support-tickets', 'client')).status).toBe(403)
+    const n0 = await notes('USR-021')
+    expect((await call('POST', `/support-tickets/${id}/replies`, 'admin', { message: 'Kami cek ke vendor bus', internal: false }, k())).status).toBe(201)
+    expect(await notes('USR-021')).toBe(n0 + 1)
+    expect((await call('POST', `/support-tickets/${id}/replies`, 'admin', { message: 'Vendor sering telat, pertimbangkan ganti', internal: true }, k())).status).toBe(201)
+    expect(await notes('USR-021')).toBe(n0 + 1)
+    const staffView = (await call('GET', `/support-tickets/${id}`, 'admin')).json.data as Ticket
+    expect(staffView.replies.map(r => r.internal)).toEqual([false, true])
+    const clientView = await mine(id)
+    expect(clientView.replies.map(r => r.message)).toEqual(['Kami cek ke vendor bus'])
+    expect(JSON.stringify(clientView)).not.toContain('Vendor sering telat')
+  })
+
+  test('assign, status, resolve (client told) and close; wrong transitions refused', async () => {
+    const id = await create({ projectId: null })
+    expect((await call('POST', `/support-tickets/${id}/assign`, 'admin', { userId: 'USR-021' })).status).toBe(400)
+    const assigned = await call('POST', `/support-tickets/${id}/assign`, 'admin', { userId: 'USR-003' })
+    expect(assigned.json.data).toMatchObject({ status: 'assigned', assignedTo: 'USR-003' })
+    expect((await call('POST', `/support-tickets/${id}/status`, 'admin', { to: 'waiting-for-client' })).json.data.status).toBe('waiting-for-client')
+    expect((await call('POST', `/support-tickets/${id}/status`, 'admin', { to: 'closed' })).status).toBe(400)
+    expect((await call('POST', `/support-tickets/${id}/close`, 'admin', {})).status).toBe(422)
+    expect((await call('POST', `/support-tickets/${id}/resolve`, 'admin', { note: ' ' })).status).toBe(400)
+    const n0 = await notes('USR-021')
+    expect((await call('POST', `/support-tickets/${id}/resolve`, 'admin', { note: 'Bus pengganti sudah tiba' })).json.data).toMatchObject({ status: 'resolved', resolutionNote: 'Bus pengganti sudah tiba' })
+    expect(await notes('USR-021')).toBe(n0 + 1)
+    expect((await call('POST', `/support-tickets/${id}/resolve`, 'admin', { note: 'Lagi' })).status).toBe(422)
+    expect((await call('POST', `/support-tickets/${id}/close`, 'admin', {})).json.data.status).toBe('closed')
+    expect((await call('POST', `/support-tickets/${id}/assign`, 'finance', { userId: 'USR-003' })).status).toBe(403)
+  })
+})
