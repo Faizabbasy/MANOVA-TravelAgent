@@ -16,6 +16,7 @@ import { listRoomAssignments, listTravelers, rule } from './travelers'
 import { getParty, listContacts } from './repository'
 import { getClientInvoice, listClientQuotations } from './client-commerce'
 import { respondToQuotation } from '../sales/quotation-writes'
+import { markInvoiceViewed, submitPaymentProof } from '../finance/payment-proofs'
 import { businessDateOf } from '../../shared/dates'
 
 /** Client portal writes (S12b-1): only a client, only its own party (from the session). */
@@ -205,4 +206,20 @@ export function clientWriteRoutes(deps: AppDeps, auth: AuthContext) {
       await db.transaction(tx => respondToQuotation(tx, actor, partyId, id, body as Record<string, unknown>, businessDateOf(new Date()), requestIdOf(request)))
       return ok(request, (await listClientQuotations(db, partyId)).find(q => q.id === id))
     }, body)
+    // S12c-1: a proof of payment (Finance verifies it) and the first time the client opens an invoice.
+    .post('/invoices/:id/payment-proofs', async ({ request, params, body, set }) => {
+      const { actor, partyId } = await clientActor(request)
+      const id = assertIdParam(params.id, 'Invoice')
+      const key = requireIdempotencyKey(request)
+      const result = await withIdempotency(db, { actorUserId: actor.userId, route: 'POST /client/invoices/:id/payment-proofs', key, body: { id, ...(body as object) } }, tx =>
+        submitPaymentProof(tx, actor, partyId, id, body as Record<string, unknown>, businessDateOf(new Date()), requestIdOf(request)))
+      if (result.replayed) set.headers['idempotent-replayed'] = 'true'
+      set.status = 201
+      return ok(request, await getClientInvoice(db, partyId, id))
+    }, body)
+    .post('/invoices/:id/viewed', async ({ request, params }) => {
+      const { partyId } = await clientActor(request)
+      const id = assertIdParam(params.id, 'Invoice')
+      return ok(request, await db.transaction(tx => markInvoiceViewed(tx, partyId, id)))
+    }, { body: t.Optional(t.Record(t.String(), t.Unknown())) })
 }

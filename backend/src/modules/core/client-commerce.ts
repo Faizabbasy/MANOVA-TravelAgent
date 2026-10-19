@@ -1,3 +1,4 @@
+import { clientPaymentProof, listPaymentProofs } from '../finance/payment-proofs'
 import type { Db, Queryable } from '../../db/client'
 import { errors } from '../../http/errors'
 import { getInvoice } from '../finance/receivables'
@@ -145,6 +146,13 @@ function clientInvoice(i: FullInvoice) {
 }
 
 /** Invoices billed to the party (`customer_invoices.party_id` — a Group Trip participant's bill is its own), issued or void. */
+/** S12c-1: plus the client's latest payment proof for the invoice and when it first opened it. */
+async function clientInvoiceFull(db: Db, id: string) {
+  const [proof] = await listPaymentProofs(db, { invoiceId: id })
+  const [seen] = await db.query<{ client_viewed_at: Date | null }>('select client_viewed_at from customer_invoices where id = $1', [id])
+  return { ...clientInvoice(await getInvoice(db, id)), paymentProof: proof ? clientPaymentProof(proof) : null, viewedAt: seen?.client_viewed_at ? seen.client_viewed_at.toISOString() : null }
+}
+
 async function clientInvoiceIds(db: Db, partyId: string, id?: string): Promise<string[]> {
   const rows = await db.query<{ id: string }>(
     `select id from customer_invoices where party_id = $1 and status in ('issued', 'void') and ($2::text is null or id = $2)
@@ -153,7 +161,7 @@ async function clientInvoiceIds(db: Db, partyId: string, id?: string): Promise<s
 }
 
 export async function listClientInvoices(db: Db, partyId: string) {
-  const invoices = await Promise.all((await clientInvoiceIds(db, partyId)).map(async id => clientInvoice(await getInvoice(db, id))))
+  const invoices = await Promise.all((await clientInvoiceIds(db, partyId)).map(id => clientInvoiceFull(db, id)))
   const issued = invoices.filter(i => i.status === 'issued')
   const sum = (key: 'totalMinor' | 'paidMinor' | 'outstandingMinor') => issued.reduce((acc, i) => acc + BigInt(i[key]), 0n).toString()
   const open = issued.filter(i => BigInt(i.outstandingMinor) > 0n && i.dueDate).map(i => i.dueDate!).sort()
@@ -172,7 +180,7 @@ export async function listClientInvoices(db: Db, partyId: string) {
 export async function getClientInvoice(db: Db, partyId: string, id: string) {
   const [found] = await clientInvoiceIds(db, partyId, id)
   if (!found) throw errors.notFound('Invoice')
-  return clientInvoice(await getInvoice(db, found))
+  return clientInvoiceFull(db, found)
 }
 
 /* ---------- quotations ---------- */
