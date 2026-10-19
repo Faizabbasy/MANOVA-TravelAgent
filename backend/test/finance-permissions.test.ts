@@ -119,7 +119,10 @@ describe('every Finance route', () => {
   })
 
   test('no route serves or accepts proof files yet (ADR-005)', () => {
-    expect(financeRoutes().filter(r => /proof|attachment|upload|file/i.test(r.path))).toEqual([])
+    // S12c-1: client payment proofs are transfer metadata only (no file is accepted or served) and have their own
+    // access tests (client-payment-proofs.test.ts); every other proof/file route stays refused until ADR-005.
+    const metadataOnly = new Set(['/api/v1/finance/payment-proofs', '/api/v1/finance/payment-proofs/:id/verify', '/api/v1/finance/payment-proofs/:id/reject'])
+    expect(financeRoutes().filter(r => /proof|attachment|upload|file/i.test(r.path) && !metadataOnly.has(r.path))).toEqual([])
   })
 })
 
