@@ -10,11 +10,18 @@ import { describe, expect, it } from 'vitest'
 const FILES = [
   'components/client/ParticipantsListPanel.vue',
   'pages/client/participants/[id]/index.vue',
-  'pages/client/project-orders/[id]/index.vue'
+  'pages/client/project-orders/[id]/index.vue',
+  'components/client/DocumentsListPanel.vue',
+  'pages/client/messages/[projectId]/index.vue',
+  'pages/client/company-profile/index.vue',
+  'components/client/DashboardOverviewPanel.vue',
+  'pages/client/billing/invoices/[id]/index.vue'
 ]
 const FORBIDDEN = [
   'createTraveler(', 'updateTraveler(', 'cancelTraveler(', 'replaceTraveler(', 'commitTravelerImport(', 'setTravelerVip(',
-  'createRoomAssignment(', 'setRoomAssignmentTravelers('
+  'createRoomAssignment(', 'setRoomAssignmentTravelers(',
+  'createClientDocument(', 'replaceClientDocument(', 'createCompanyDocument(', 'sendMessage(', 'markProjectMessagesRead(',
+  'updateCompanyProfile(', 'createContact(', 'updateContact(', 'deleteContact(', 'raiseInvoiceDispute('
 ]
 const used = (source: string, name: string) => new RegExp(`(?<![.\\w])${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(source)
 

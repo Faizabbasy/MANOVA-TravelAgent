@@ -4,9 +4,11 @@ import { useRoute, useRouter } from 'vue-router'
 import { FileX } from 'lucide-vue-next'
 import {
   getProjectById, getPaymentsByInvoice, getCreditNotesByInvoice,
-  getInvoiceOutstandingIdr, markInvoiceViewed, submitPaymentProof, raiseInvoiceDispute, runPaymentVerificationMock,
+  getInvoiceOutstandingIdr, markInvoiceViewed, submitPaymentProof, runPaymentVerificationMock,
   INVOICES
 } from '~/data'
+import { clientDisputeInvoice } from '~/data/client-portal-writes'
+import { createSaveGate } from '~/lib/save-gate'
 import { INVOICE_STATUSES, INVOICE_TYPES, CREDIT_NOTE_STATUSES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
 import { isInvoiceOverdue, isInvoiceDueSoon } from '~/utils/attention'
@@ -64,12 +66,18 @@ function submitProof () {
 /* --- Raise dispute --- */
 const isDisputeOpen = ref(false)
 const disputeReason = ref('')
-function submitDispute () {
-  if (!invoice.value || !disputeReason.value.trim()) { return }
-  const result = raiseInvoiceDispute(invoice.value.id, currentUser.value.id, disputeReason.value.trim())
+/* Server write (S12b-1): the dispute goes to /client/invoices/:id/dispute; Finance is notified there. */
+const api = useApi()
+const gate = createSaveGate((title, message, tone) => showToast(title, message, tone))
+async function submitDispute () {
+  if (!invoice.value || !clientScopeId.value || !disputeReason.value.trim()) { return }
+  const invoiceId = invoice.value.id
+  const partyId = clientScopeId.value
+  const saved = await gate.run('Dispute Gagal Diajukan', () => clientDisputeInvoice(api, partyId, invoiceId, disputeReason.value.trim()))
+  if (!saved) { return }
   disputeReason.value = ''
   isDisputeOpen.value = false
-  if (result) { showToast('Dispute Diajukan', 'Tim Finance kami akan meninjau invoice ini.', 'info') }
+  showToast('Dispute Diajukan', 'Tim Finance kami akan meninjau invoice ini.', 'info')
 }
 </script>
 
@@ -146,7 +154,14 @@ function submitDispute () {
 
       <SectionCard v-if="canUploadProof || canDispute" title="Aksi">
         <div class="flex flex-wrap gap-2">
-          <ResponsiveFormSheet v-if="canUploadProof" v-model:open="isProofOpen" title="Upload Payment Proof" description="Mock upload — tidak ada file storage nyata, hanya metadata tercatat." content-class="max-w-md" scroll>
+          <ResponsiveFormSheet
+            v-if="canUploadProof"
+            v-model:open="isProofOpen"
+            title="Upload Payment Proof"
+            description="Mock upload — tidak ada file storage nyata, hanya metadata tercatat."
+            content-class="max-w-md"
+            scroll
+          >
             <template #trigger>
               <Button size="sm" @click="openProofDialog">
                 Upload Payment Proof

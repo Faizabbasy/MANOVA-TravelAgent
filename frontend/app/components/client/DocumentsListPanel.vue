@@ -4,13 +4,15 @@ import { useRoute } from 'vue-router'
 import { Search, Plus, FileText, ExternalLink } from 'lucide-vue-next'
 import {
   getProjectsByParty, getClientDocuments, getClientDocumentCategory,
-  createClientDocument, replaceClientDocument, getDocumentVersionHistory,
+  getDocumentVersionHistory,
   getDocumentComments, addDocumentComment, getUserById
 } from '~/data'
 import { CLIENT_DOCUMENT_CATEGORIES, DOCUMENT_ENTITY_TYPES, findStatusOption } from '~/constants/status'
 import { formatDate } from '~/utils/format'
 import { isDocumentExpired, isDocumentExpiringSoon } from '~/utils/attention'
 import type { Document, ClientDocumentCategory } from '~/types/document-comms'
+import { clientReplaceDocument, clientUploadDocument } from '~/data/client-portal-writes'
+import { createSaveGate } from '~/lib/save-gate'
 
 /**
  * Tab "Documents" — Menu Client Portal > Documents & Support (Penyederhanaan 7-Role/Menu). Dulu
@@ -22,6 +24,9 @@ const route = useRoute()
 const { canView, clientScopeId } = usePermissions()
 const { currentUser } = useCurrentUser()
 const { showToast } = useToast()
+/* Server writes (S12b-1): document metadata goes to /client/documents; a refused write changes nothing locally. */
+const api = useApi()
+const gate = createSaveGate((title, message, tone) => showToast(title, message, tone))
 
 const projects = computed(() => (clientScopeId.value ? getProjectsByParty(clientScopeId.value) : []))
 const documents = computed(() => (clientScopeId.value ? getClientDocuments(clientScopeId.value) : []))
@@ -63,17 +68,18 @@ function openUpload () {
   resetUploadForm()
   isUploadOpen.value = true
 }
-function submitUpload () {
+async function submitUpload () {
   if (!uploadProjectId.value || !uploadName.value.trim()) { return }
-  const document = createClientDocument({
-    projectId: uploadProjectId.value,
+  const document = await gate.run('Dokumen Gagal Diunggah', () => clientUploadDocument(api, {
+    entityType: 'project',
+    entityId: uploadProjectId.value,
     name: uploadName.value.trim(),
     category: uploadCategory.value,
-    uploadedBy: currentUser.value.id,
-    expiresAt: uploadExpiresAt.value || undefined
-  })
+    expiresOn: uploadExpiresAt.value || undefined
+  }))
+  if (!document) { return }
   isUploadOpen.value = false
-  showToast('Dokumen Diunggah', `${document.name} tersimpan sebagai versi ${document.version} (mock, bukan file upload nyata).`, 'success')
+  showToast('Dokumen Diunggah', `${document.name} tersimpan sebagai versi ${document.version} — menunggu verifikasi tim kami.`, 'success')
 }
 
 /* --- Detail (version history + comment + replace) --- */
@@ -89,12 +95,13 @@ function openDetail (document: Document) {
 const versionHistory = computed(() => (activeDocument.value ? getDocumentVersionHistory(activeDocument.value.id) : []))
 const activeComments = computed(() => (activeDocument.value ? getDocumentComments(activeDocument.value.id) : []))
 
-function handleReplaceVersion () {
+async function handleReplaceVersion () {
   if (!activeDocument.value) { return }
-  const next = replaceClientDocument(activeDocument.value.id, currentUser.value.id)
+  const current = activeDocument.value
+  const next = await gate.run('Versi Baru Gagal Diunggah', () => clientReplaceDocument(api, current.id, {}))
   if (next) {
     activeDocument.value = next
-    showToast('Versi Baru Diunggah', `Versi ${next.version} tercatat menggantikan versi sebelumnya (mock).`, 'success')
+    showToast('Versi Baru Diunggah', `Versi ${next.version} tercatat menggantikan versi sebelumnya.`, 'success')
   }
 }
 function submitComment () {
@@ -131,33 +138,33 @@ function handleDownload (document: Document) {
           </Button>
         </template>
         <div class="space-y-4 py-2">
+          <div class="space-y-1.5">
+            <Label for="doc-project">Project Order</Label>
+            <select id="doc-project" v-model="uploadProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+              <option v-for="project in projects" :key="project.id" :value="project.id">
+                {{ project.name }}
+              </option>
+            </select>
+          </div>
+          <div class="space-y-1.5">
+            <Label for="doc-name">Nama Dokumen</Label>
+            <Input id="doc-name" v-model="uploadName" placeholder="mis. Scan_Paspor_Peserta.pdf" />
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div class="space-y-1.5">
-              <Label for="doc-project">Project Order</Label>
-              <select id="doc-project" v-model="uploadProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                <option v-for="project in projects" :key="project.id" :value="project.id">
-                  {{ project.name }}
+              <Label for="doc-category">Kategori</Label>
+              <select id="doc-category" v-model="uploadCategory" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                <option v-for="option in CLIENT_DOCUMENT_CATEGORIES" :key="option.value" :value="option.value">
+                  {{ option.label }}
                 </option>
               </select>
             </div>
             <div class="space-y-1.5">
-              <Label for="doc-name">Nama Dokumen</Label>
-              <Input id="doc-name" v-model="uploadName" placeholder="mis. Scan_Paspor_Peserta.pdf" />
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div class="space-y-1.5">
-                <Label for="doc-category">Kategori</Label>
-                <select id="doc-category" v-model="uploadCategory" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                  <option v-for="option in CLIENT_DOCUMENT_CATEGORIES" :key="option.value" :value="option.value">
-                    {{ option.label }}
-                  </option>
-                </select>
-              </div>
-              <div class="space-y-1.5">
-                <Label for="doc-expiry">Expiry Date (opsional)</Label>
-                <Input id="doc-expiry" v-model="uploadExpiresAt" type="date" />
-              </div>
+              <Label for="doc-expiry">Expiry Date (opsional)</Label>
+              <Input id="doc-expiry" v-model="uploadExpiresAt" type="date" />
             </div>
           </div>
+        </div>
         <template #footer>
           <Button variant="outline" @click="isUploadOpen = false">
             Batal
@@ -343,46 +350,46 @@ function handleDownload (document: Document) {
         content-class="max-w-lg"
         scroll
       >
-          <div v-if="activeDocument" class="space-y-4 py-2">
-            <div>
-              <p class="text-xs font-medium text-muted-foreground mb-2">
-                Version History
-              </p>
-              <ul class="divide-y divide-border">
-                <li v-for="version in versionHistory" :key="version.id" class="py-1.5 flex items-center justify-between text-sm">
-                  <span class="text-foreground">v{{ version.version }}</span>
-                  <span class="text-xs text-muted-foreground">{{ formatDate(version.uploadedAt ?? version.generatedAt ?? '') }}</span>
-                </li>
-              </ul>
-              <Button v-if="activeDocument.sourceType === 'uploaded'" size="sm" variant="outline" class="mt-2" @click="handleReplaceVersion">
-                Replace Version
+        <div v-if="activeDocument" class="space-y-4 py-2">
+          <div>
+            <p class="text-xs font-medium text-muted-foreground mb-2">
+              Version History
+            </p>
+            <ul class="divide-y divide-border">
+              <li v-for="version in versionHistory" :key="version.id" class="py-1.5 flex items-center justify-between text-sm">
+                <span class="text-foreground">v{{ version.version }}</span>
+                <span class="text-xs text-muted-foreground">{{ formatDate(version.uploadedAt ?? version.generatedAt ?? '') }}</span>
+              </li>
+            </ul>
+            <Button v-if="activeDocument.sourceType === 'uploaded'" size="sm" variant="outline" class="mt-2" @click="handleReplaceVersion">
+              Replace Version
+            </Button>
+          </div>
+          <div class="pt-3 border-t border-border">
+            <p class="text-xs font-medium text-muted-foreground mb-2">
+              Comments
+            </p>
+            <ul v-if="activeComments.length" class="space-y-2 mb-2">
+              <li v-for="comment in activeComments" :key="comment.id" class="text-sm">
+                <p class="text-foreground">
+                  {{ comment.body }}
+                </p>
+                <p class="text-xs text-muted-foreground">
+                  {{ getUserById(comment.authorId)?.name ?? comment.authorId }} · {{ formatDate(comment.createdAt) }}
+                </p>
+              </li>
+            </ul>
+            <p v-else class="text-sm text-muted-foreground mb-2">
+              Belum ada komentar.
+            </p>
+            <div class="flex gap-2">
+              <Input v-model="newComment" placeholder="Tulis komentar..." class="flex-1" @keyup.enter="submitComment" />
+              <Button size="sm" :disabled="!newComment.trim()" @click="submitComment">
+                Kirim
               </Button>
             </div>
-            <div class="pt-3 border-t border-border">
-              <p class="text-xs font-medium text-muted-foreground mb-2">
-                Comments
-              </p>
-              <ul v-if="activeComments.length" class="space-y-2 mb-2">
-                <li v-for="comment in activeComments" :key="comment.id" class="text-sm">
-                  <p class="text-foreground">
-                    {{ comment.body }}
-                  </p>
-                  <p class="text-xs text-muted-foreground">
-                    {{ getUserById(comment.authorId)?.name ?? comment.authorId }} · {{ formatDate(comment.createdAt) }}
-                  </p>
-                </li>
-              </ul>
-              <p v-else class="text-sm text-muted-foreground mb-2">
-                Belum ada komentar.
-              </p>
-              <div class="flex gap-2">
-                <Input v-model="newComment" placeholder="Tulis komentar..." class="flex-1" @keyup.enter="submitComment" />
-                <Button size="sm" :disabled="!newComment.trim()" @click="submitComment">
-                  Kirim
-                </Button>
-              </div>
-            </div>
           </div>
+        </div>
         <template #footer>
           <Button variant="outline" @click="isDetailOpen = false">
             Tutup

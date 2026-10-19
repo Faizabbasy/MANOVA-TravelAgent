@@ -2,10 +2,11 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { FileX, MessageSquare } from 'lucide-vue-next'
-import { excludesAllRoles } from '~/data/rbac'
+import { clientMarkMessagesRead, clientSendMessage } from '~/data/client-portal-writes'
+import { createSaveGate } from '~/lib/save-gate'
 import {
-  getProjectById, getUserById, USERS,
-  getClientProjectMessages, markProjectMessagesRead, sendMessage,
+  getProjectById, getUserById,
+  getClientProjectMessages,
   getUnifiedActivityTimeline, getQuotationByLead, getChangeRequestsByProject, getLatestItineraryVersion
 } from '~/data'
 import { formatDateTime } from '~/utils/format'
@@ -35,36 +36,30 @@ const activeTab = computed<Tab>({
   set: value => router.replace({ query: { ...route.query, tab: value } })
 })
 
+/* Server writes (S12b-1): messages go to /client/messages (no mentions from the portal); reading marks the thread on the server. */
+const api = useApi()
+const gate = createSaveGate((title, message, tone) => showToast(title, message, tone))
+
 onMounted(() => {
-  if (project.value && isOwnCompany.value) { markProjectMessagesRead(project.value.id, currentUser.value.id) }
+  // Quietly: a failed read mark only leaves the unread badge until the next visit.
+  if (project.value && isOwnCompany.value) { clientMarkMessagesRead(api, project.value.id, currentUser.value.id).catch(() => {}) }
 })
 
 const messages = computed(() => (project.value ? getClientProjectMessages(project.value.id) : []))
 
 const newMessage = ref('')
 const newAttachmentName = ref('')
-const newMentions = ref<string[]>([])
-/** User internal saja — role portal (`client`, dan `vendor` yang dulu bernama `supplier`) dikecualikan. */
-const internalUsers = computed(() => USERS.filter(user => excludesAllRoles(user.role, ['client', 'supplier', 'vendor'])))
-function toggleMention (userId: string) {
-  const index = newMentions.value.indexOf(userId)
-  if (index === -1) { newMentions.value.push(userId) } else { newMentions.value.splice(index, 1) }
-}
-function submitMessage () {
+async function submitMessage () {
   if (!project.value || !newMessage.value.trim()) { return }
-  sendMessage({
-    entityType: 'project',
-    entityId: project.value.id,
-    projectId: project.value.id,
-    channel: 'client-message',
-    senderId: currentUser.value.id,
+  const projectId = project.value.id
+  const sent = await gate.run('Pesan Gagal Dikirim', () => clientSendMessage(api, {
+    projectId,
     body: newMessage.value.trim(),
-    mentions: newMentions.value.length ? [...newMentions.value] : undefined,
     attachmentName: newAttachmentName.value.trim() || undefined
-  })
+  }))
+  if (!sent) { return }
   newMessage.value = ''
   newAttachmentName.value = ''
-  newMentions.value = []
   showToast('Pesan Terkirim', 'Pesan Anda telah dikirim ke tim kami.', 'success')
 }
 
@@ -158,18 +153,8 @@ const changeRequests = computed(() => (project.value ? getChangeRequestsByProjec
               <textarea v-model="newMessage" rows="2" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="Tulis pesan..." />
               <div class="flex flex-col sm:flex-row gap-2 sm:items-center">
                 <Input v-model="newAttachmentName" placeholder="Nama lampiran (opsional, mock)" class="sm:max-w-xs" />
-                <div class="flex flex-wrap gap-1.5 flex-1">
-                  <button
-                    v-for="user in internalUsers"
-                    :key="user.id"
-                    type="button"
-                    :class="['px-2 py-1 text-xs rounded-full border', newMentions.includes(user.id) ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border text-muted-foreground']"
-                    @click="toggleMention(user.id)"
-                  >
-                    @{{ user.name }}
-                  </button>
-                </div>
-                <Button size="sm" :disabled="!newMessage.trim()" class="shrink-0" @click="submitMessage">
+                <div class="flex-1" />
+                <Button size="sm" :disabled="!newMessage.trim() || gate.saving.value" class="shrink-0" @click="submitMessage">
                   Kirim
                 </Button>
               </div>

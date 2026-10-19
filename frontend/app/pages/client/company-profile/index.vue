@@ -3,10 +3,11 @@ import { ref, computed, onMounted } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { Plus, Building2, FileText, Pencil, Trash2 } from 'lucide-vue-next'
 import {
-  getPartyById, getContactsByParty, createContact, updateContact, deleteContact,
-  getClientDocuments, createCompanyDocument, getCompanyProfileChangeHistory,
-  updateCompanyProfile, submitSensitiveCompanyProfileChange, runCompanyProfileVerificationMock
+  getPartyById, getContactsByParty, getClientDocuments, getCompanyProfileChangeHistory,
+  submitSensitiveCompanyProfileChange, runCompanyProfileVerificationMock
 } from '~/data'
+import { clientAddContact, clientEditContact, clientRemoveContact, clientUpdateProfile, clientUploadDocument } from '~/data/client-portal-writes'
+import { createSaveGate } from '~/lib/save-gate'
 import { COMPANY_TYPES, INVOICE_CURRENCIES, findStatusOption } from '~/constants/status'
 import { formatDate } from '~/utils/format'
 import type { ContactPerson, CompanyType } from '~/types/party'
@@ -104,7 +105,12 @@ function cancelEdit () {
   isDirty.value = false
 }
 
-function handleSave () {
+/* Server writes (S12b-1): the general profile, contacts and company documents go to /client/*. Sensitive fields
+ * (registration/tax/billing) still wait for verification locally until S12c; the company name is changed by our team. */
+const api = useApi()
+const gate = createSaveGate((title, message, tone) => showToast(title, message, tone))
+
+async function handleSave () {
   if (!party.value) { return }
   const sensitivePatch: Record<SensitiveField, string | undefined> = {
     registrationNumber: undefined, npwp: undefined, billingName: undefined, billingAddress: undefined, paymentTerm: undefined
@@ -115,27 +121,29 @@ function handleSave () {
     if (newValue !== (party.value[field] ?? '')) { sensitivePatch[field] = newValue; hasSensitiveChange = true }
   }
 
-  updateCompanyProfile(party.value.id, {
-    name: form.value.name.trim() || undefined,
-    industry: form.value.industry.trim() || undefined,
-    size: form.value.size.trim() || undefined,
-    city: form.value.city.trim() || undefined,
-    phone: form.value.phone.trim() || undefined,
-    email: form.value.email.trim() || undefined,
-    website: form.value.website.trim() || undefined,
-    address: form.value.address.trim() || undefined,
-    province: form.value.province.trim() || undefined,
-    country: form.value.country.trim() || undefined,
-    postalCode: form.value.postalCode.trim() || undefined,
-    companyType: form.value.companyType,
-    preferredCurrency: form.value.preferredCurrency,
+  const text = (value: string) => value.trim() || null
+  const partyId = party.value.id
+  const saved = await gate.run('Company Profile Gagal Disimpan', () => clientUpdateProfile(api, {
+    industry: text(form.value.industry),
+    size: text(form.value.size),
+    city: text(form.value.city),
+    phone: text(form.value.phone),
+    email: text(form.value.email),
+    website: text(form.value.website),
+    address: text(form.value.address),
+    province: text(form.value.province),
+    country: text(form.value.country),
+    postalCode: text(form.value.postalCode),
+    ...(form.value.companyType ? { companyType: form.value.companyType } : {}),
     poRequired: form.value.poRequired,
-    travelPreferences: form.value.travelPreferences.trim() || undefined,
-    logoFileName: form.value.logoFileName.trim() || undefined
-  }, currentUser.value.id)
+    travelPreferences: text(form.value.travelPreferences)
+  }))
+  if (!saved) { return }
+  // No server column yet: the preferred currency and the logo file name stay on this screen's data.
+  Object.assign(saved, { preferredCurrency: form.value.preferredCurrency, logoFileName: form.value.logoFileName.trim() || undefined })
 
   if (hasSensitiveChange) {
-    submitSensitiveCompanyProfileChange(party.value.id, sensitivePatch, currentUser.value.id)
+    submitSensitiveCompanyProfileChange(partyId, sensitivePatch, currentUser.value.id)
     showToast('Perubahan Disimpan', 'Field umum tersimpan. Perubahan data sensitif menunggu verifikasi tim kami.', 'success')
   } else {
     showToast('Perubahan Disimpan', 'Company Profile berhasil diperbarui.', 'success')
@@ -173,16 +181,14 @@ function openEditContact (contact: ContactPerson) {
   contactPhone.value = contact.phone ?? ''
   isContactDialogOpen.value = true
 }
-function submitContact () {
+async function submitContact () {
   if (!party.value || !contactName.value.trim() || !contactTitle.value.trim()) { return }
-  const patch = { name: contactName.value.trim(), title: contactTitle.value.trim(), email: contactEmail.value.trim() || undefined, phone: contactPhone.value.trim() || undefined }
-  if (editingContact.value) {
-    updateContact(editingContact.value.id, patch)
-    showToast('Kontak Diperbarui', 'Data kontak berhasil disimpan.', 'success')
-  } else {
-    createContact({ partyId: party.value.id, ...patch })
-    showToast('Kontak Ditambahkan', 'Kontak baru berhasil disimpan.', 'success')
-  }
+  const patch = { name: contactName.value.trim(), title: contactTitle.value.trim(), email: contactEmail.value.trim() || null, phone: contactPhone.value.trim() || null }
+  const editing = editingContact.value
+  const saved = await gate.run(editing ? 'Kontak Gagal Diperbarui' : 'Kontak Gagal Ditambahkan', () =>
+    editing ? clientEditContact(api, editing.id, patch) : clientAddContact(api, patch))
+  if (!saved) { return }
+  showToast(editing ? 'Kontak Diperbarui' : 'Kontak Ditambahkan', editing ? 'Data kontak berhasil disimpan.' : 'Kontak baru berhasil disimpan.', 'success')
   isContactDialogOpen.value = false
 }
 const isDeleteContactDialogOpen = ref(false)
@@ -191,15 +197,17 @@ function openDeleteContact (contact: ContactPerson) {
   contactPendingDelete.value = contact
   isDeleteContactDialogOpen.value = true
 }
-function confirmDeleteContact () {
+async function confirmDeleteContact () {
   if (!contactPendingDelete.value) { return }
-  deleteContact(contactPendingDelete.value.id)
-  showToast('Kontak Dihapus', `${contactPendingDelete.value.name} telah dihapus.`, 'info')
+  const contact = contactPendingDelete.value
+  const done = await gate.run('Kontak Gagal Dihapus', async () => { await clientRemoveContact(api, contact.id); return true })
+  if (!done) { return }
+  showToast('Kontak Dihapus', `${contact.name} telah dihapus.`, 'info')
   isDeleteContactDialogOpen.value = false
   contactPendingDelete.value = null
 }
 
-/* --- Logo mock (input teks — "unggah" berupa nama file, D-006) --- */
+/* --- Logo mock (input teks — "unggah" berupa nama file, D-006; belum ada kolom server) --- */
 const isLogoDialogOpen = ref(false)
 const logoFileNameInput = ref('')
 function openLogoDialog () {
@@ -208,12 +216,12 @@ function openLogoDialog () {
 }
 function submitLogo () {
   if (!party.value || !logoFileNameInput.value.trim()) { return }
-  updateCompanyProfile(party.value.id, { logoFileName: logoFileNameInput.value.trim() }, currentUser.value.id)
+  party.value.logoFileName = logoFileNameInput.value.trim()
   isLogoDialogOpen.value = false
   showToast('Logo Diunggah', 'Logo company tercatat (mock, bukan file gambar nyata).', 'success')
 }
 
-/* --- Legal document mock --- */
+/* --- Legal document (metadata ke server) --- */
 const isDocDialogOpen = ref(false)
 const docName = ref('')
 const docCategory = ref('Legal')
@@ -224,11 +232,15 @@ function openDocDialog () {
   docExpiresAt.value = ''
   isDocDialogOpen.value = true
 }
-function submitDoc () {
+async function submitDoc () {
   if (!party.value || !docName.value.trim()) { return }
-  createCompanyDocument({ partyId: party.value.id, name: docName.value.trim(), category: docCategory.value.trim() || 'Legal', uploadedBy: currentUser.value.id, expiresAt: docExpiresAt.value || undefined })
+  const partyId = party.value.id
+  const saved = await gate.run('Dokumen Gagal Diunggah', () => clientUploadDocument(api, {
+    entityType: 'party', entityId: partyId, name: docName.value.trim(), category: docCategory.value.trim() || 'Legal', expiresOn: docExpiresAt.value || undefined
+  }))
+  if (!saved) { return }
   isDocDialogOpen.value = false
-  showToast('Dokumen Diunggah', 'Dokumen legal company tercatat (mock, bukan file nyata).', 'success')
+  showToast('Dokumen Diunggah', 'Dokumen legal company tercatat — menunggu verifikasi tim kami.', 'success')
 }
 </script>
 
@@ -292,7 +304,7 @@ function submitDoc () {
         <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div class="space-y-1.5">
             <Label for="cp-name">Nama Company</Label>
-            <Input id="cp-name" v-model="form.name" @input="isDirty = true" />
+            <Input id="cp-name" v-model="form.name" disabled title="Nama perusahaan diubah lewat tim kami." />
           </div>
           <div class="space-y-1.5">
             <Label for="cp-type">Tipe Company</Label>

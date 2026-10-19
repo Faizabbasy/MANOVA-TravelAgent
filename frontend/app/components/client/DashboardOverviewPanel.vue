@@ -7,10 +7,12 @@ import {
 import {
   getPartyById, getLeadsByParty, getProjectsByParty, getContactsByParty,
   getQuotationByLead, getLeadWorkflowStatus, getTravelers, getInvoicesByProject,
-  createContact, getUserById,
+  getUserById,
   getInvoiceOutstandingIdr, getPaymentsByInvoice, getActivitiesByProject, getChangeRequestsByProject,
   getPendingClientApprovals, getSupportTicketsByParty, getClientProjectReadiness
 } from '~/data'
+import { clientAddContact } from '~/data/client-portal-writes'
+import { createSaveGate } from '~/lib/save-gate'
 import { LEAD_WORKFLOW_STATUSES, PROJECT_STATUSES, findStatusOption } from '~/constants/status'
 import { formatDateRange, formatCurrencyIdr, formatDate, daysUntil } from '~/utils/format'
 import { isTravelerDocumentMissing, isInvoiceOverdue, isInvoiceDueSoon, DEMO_REFERENCE_DATE } from '~/utils/attention'
@@ -175,15 +177,18 @@ const contactTitle = ref('')
 const contactEmail = ref('')
 const contactPhone = ref('')
 
-function submitContact () {
+/* Server write (S12b-1): the contact goes to /client/contacts; a refused write changes nothing locally. */
+const api = useApi()
+const gate = createSaveGate((title, message, tone) => showToast(title, message, tone))
+async function submitContact () {
   if (!party.value || !contactName.value.trim() || !contactTitle.value.trim()) { return }
-  createContact({
-    partyId: party.value.id,
+  const saved = await gate.run('Kontak Gagal Ditambahkan', () => clientAddContact(api, {
     name: contactName.value.trim(),
     title: contactTitle.value.trim(),
-    email: contactEmail.value.trim() || undefined,
-    phone: contactPhone.value.trim() || undefined
-  })
+    email: contactEmail.value.trim() || null,
+    phone: contactPhone.value.trim() || null
+  }))
+  if (!saved) { return }
   contactName.value = ''
   contactTitle.value = ''
   contactEmail.value = ''
