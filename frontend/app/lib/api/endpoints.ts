@@ -6,6 +6,10 @@ import type { ChangeRequestType } from '~/types/change-incident'
 import type { QuotationClientResponse } from '~/types/quotation'
 import type {
   ChangeRequestImpactInput,
+  FeedbackDto,
+  FeedbackInput,
+  SupportTicketDto,
+  SupportTicketInput,
   ClientProfileDto,
   PaymentProofDto,
   PaymentProofInput,
@@ -250,6 +254,30 @@ export function createManovaApi (client: ApiClient) {
       listProfileChanges: (query: { status?: string; partyId?: string } = {}) => client.get<ProfileChangeDto[]>('/party-profile-changes', { query: { ...query } }),
       approveProfileChange: (id: string) => client.post<ProfileChangeDto>(`/party-profile-changes/${seg(id)}/approve`, {}),
       rejectProfileChange: (id: string, reason: string) => client.post<ProfileChangeDto>(`/party-profile-changes/${seg(id)}/reject`, { reason }),
+      // S12c-2: support tickets & trip feedback — the client portal, and the staff inbox / CRM review.
+      listClientSupportTickets: () => client.get<SupportTicketDto[]>('/client/support-tickets'),
+      clientCreateSupportTicket: (input: SupportTicketInput, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<SupportTicketDto>('/client/support-tickets', input, { idempotencyKey }),
+      clientReplySupportTicket: (id: string, input: { message: string; attachmentName?: string }, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<SupportTicketDto>(`/client/support-tickets/${seg(id)}/replies`, input, { idempotencyKey }),
+      clientConfirmSupportTicket: (id: string) => client.post<SupportTicketDto>(`/client/support-tickets/${seg(id)}/confirm`, {}),
+      clientReopenSupportTicket: (id: string, reason: string) => client.post<SupportTicketDto>(`/client/support-tickets/${seg(id)}/reopen`, { reason }),
+      clientRateSupportTicket: (id: string, input: { rating: number; note?: string }) => client.post<SupportTicketDto>(`/client/support-tickets/${seg(id)}/rate`, input),
+      listClientFeedback: () => client.get<FeedbackDto[]>('/client/feedback'),
+      clientSaveFeedback: (projectId: string, input: FeedbackInput) => client.put<FeedbackDto>(`/client/projects/${seg(projectId)}/feedback`, input),
+      clientSubmitFeedback: (projectId: string) => client.post<FeedbackDto>(`/client/projects/${seg(projectId)}/feedback/submit`, {}),
+      listSupportTickets: (query: { status?: string; assignedTo?: string; partyId?: string } = {}) => client.get<SupportTicketDto[]>('/support-tickets', { query: { ...query } }),
+      getSupportTicket: (id: string) => client.get<SupportTicketDto>(`/support-tickets/${seg(id)}`),
+      assignSupportTicket: (id: string, userId: string) => client.post<SupportTicketDto>(`/support-tickets/${seg(id)}/assign`, { userId }),
+      setSupportTicketStatus: (id: string, to: 'in-progress' | 'waiting-for-client') => client.post<SupportTicketDto>(`/support-tickets/${seg(id)}/status`, { to }),
+      replySupportTicket: (id: string, input: { message: string; internal?: boolean }, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<SupportTicketDto>(`/support-tickets/${seg(id)}/replies`, input, { idempotencyKey }),
+      resolveSupportTicket: (id: string, note: string) => client.post<SupportTicketDto>(`/support-tickets/${seg(id)}/resolve`, { note }),
+      closeSupportTicket: (id: string) => client.post<SupportTicketDto>(`/support-tickets/${seg(id)}/close`, {}),
+      listFeedback: (query: { status?: string } = {}) => client.get<FeedbackDto[]>('/feedback', { query: { ...query } }),
+      acknowledgeFeedback: (id: string) => client.post<FeedbackDto>(`/feedback/${seg(id)}/acknowledge`, {}),
+      followUpFeedback: (id: string, note: string) => client.post<FeedbackDto>(`/feedback/${seg(id)}/follow-up`, { note }),
+      closeFeedback: (id: string, note?: string) => client.post<FeedbackDto>(`/feedback/${seg(id)}/close`, note ? { note } : {}),
       listClientContacts: () => client.get<PartyContactDto[]>('/client/contacts'),
       clientCreateContact: (input: ClientContactInput & { name: string; title: string }, idempotencyKey: string = newIdempotencyKey()) =>
         client.post<PartyContactDto>('/client/contacts', input, { idempotencyKey }),

@@ -36,4 +36,8 @@ export interface Feedback {
   submittedAt?: string
   acknowledgedAt?: string
   acknowledgedBy?: ID
+  /** S12c-2: from the server — the staff follow-up note and when it was closed. */
+  followUpNote?: string
+  closedAt?: string
+  projectName?: string
 }

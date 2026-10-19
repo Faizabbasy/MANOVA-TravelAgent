@@ -23,6 +23,10 @@ export interface SupportTicketReply {
   createdAt: string
   /** Repair Phase Section 6, Master Prompt bagian 14 "Attachment" — metadata nama file saja (mock). */
   attachmentName?: string
+  /** S12c-2: the author's name, whether the client wrote it, and (staff only) an internal note. */
+  authorName?: string
+  fromClient?: boolean
+  internal?: boolean
 }
 
 export interface SupportTicket {
@@ -45,4 +49,10 @@ export interface SupportTicket {
   resolvedAt?: string
   /** Rating Client atas penyelesaian (1-5), diisi setelah `resolved`. */
   resolutionRating?: number
+  /** S12c-2: from the server — the handler's name, the rating note, how often the client reopened it, when it closed. */
+  assignedToName?: string
+  ratingNote?: string
+  reopenCount?: number
+  closedAt?: string
+  projectName?: string
 }

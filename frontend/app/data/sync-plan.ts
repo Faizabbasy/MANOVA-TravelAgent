@@ -9,14 +9,14 @@ import type { RoleId } from '~/types/user'
 export type SyncKey =
   | 'projects' | 'customers' | 'vendors' | 'bookings' | 'procurement' | 'leads' | 'salesOrders' | 'travelers' | 'itinerary'
   | 'workItems' | 'activity' | 'changes' | 'documents' | 'notifications' | 'users' | 'masterData' | 'inventory' | 'marketing' | 'hr'
-  | 'clientCommerce' | 'vendorPortal'
+  | 'clientCommerce' | 'vendorPortal' | 'clientSupport'
 
 const INTERNAL: SyncKey[] = [
   'projects', 'customers', 'vendors', 'bookings', 'procurement', 'leads', 'salesOrders', 'travelers', 'itinerary', 'workItems',
   'activity', 'changes', 'documents', 'notifications', 'users', 'masterData', 'inventory', 'marketing', 'hr'
 ]
-/** S12a: the client reads its own projects, participants, itinerary, changes, documents & messages, notifications; S12a-2: its sent quotations, reservations and invoices. */
-const CLIENT: SyncKey[] = ['projects', 'travelers', 'itinerary', 'changes', 'documents', 'notifications', 'clientCommerce']
+/** S12a: the client reads its own projects, participants, itinerary, changes, documents & messages, notifications; S12a-2: its sent quotations, reservations and invoices; S12c-2: its support tickets and trip feedback. */
+const CLIENT: SyncKey[] = ['projects', 'travelers', 'itinerary', 'changes', 'documents', 'notifications', 'clientCommerce', 'clientSupport']
 /** S12d: the vendor reads its projects, notifications, own service orders & quotations (procurement), services & bookings, and its profile & products. */
 const VENDOR: SyncKey[] = ['projects', 'notifications', 'procurement', 'bookings', 'vendorPortal']
 

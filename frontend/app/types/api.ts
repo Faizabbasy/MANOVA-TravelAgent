@@ -15,6 +15,8 @@ import type { ContentDevelopmentStage, ContentPlatform, ContentScheduleStatus } 
 import type { AttendanceStatus, EmployeeStatus, EmploymentType, PayrollRunStatus } from './hr'
 import type { ChangeRequestType } from './change-incident'
 import type { QuotationClientResponse } from './quotation'
+import type { SupportTicket } from './support'
+import type { Feedback } from './feedback'
 
 export type MoneyMinor = string
 export type IsoDate = string
@@ -1952,3 +1954,79 @@ export interface ProfileChangeDto {
 export interface ClientPendingChangeDto { id: string; changes: ProfileChangeDto['changes']; status: 'submitted'; submittedAt: string }
 /** S12c-1: the client's own company profile with its waiting sensitive-data proposal. */
 export type ClientProfileDto = PartyDto & { pendingChange: ClientPendingChangeDto | null }
+/** S12c-2: a client support ticket with its replies (the client never receives internal notes). */
+export interface SupportTicketReplyDto {
+  id: string
+  ticketId: string
+  authorId: string | null
+  authorName: string | null
+  fromClient: boolean
+  message: string
+  attachmentName: string | null
+  internal?: boolean
+  createdAt: string
+}
+export interface SupportTicketDto {
+  id: string
+  partyId: string
+  partyName: string
+  projectId: string | null
+  projectName: string | null
+  category: SupportTicket['category']
+  priority: SupportTicket['priority']
+  status: SupportTicket['status']
+  subject: string
+  description: string
+  attachmentName: string | null
+  createdBy: string
+  createdByName: string | null
+  assignedTo: string | null
+  assignedToName: string | null
+  resolutionNote: string | null
+  resolvedBy: string | null
+  resolvedAt: string | null
+  resolutionRating: number | null
+  ratingNote: string | null
+  reopenCount: number
+  closedAt: string | null
+  createdAt: string
+  updatedAt: string
+  replies: SupportTicketReplyDto[]
+}
+export interface SupportTicketInput { projectId?: string | null; category: SupportTicket['category']; priority: SupportTicket['priority']; subject: string; description: string; attachmentName?: string }
+/** S12c-2: trip feedback (one per project). */
+export interface FeedbackDto {
+  id: string
+  projectId: string
+  projectName: string
+  partyId: string
+  partyName: string
+  status: Exclude<Feedback['status'], 'not-started'>
+  overallExperience: number | null
+  recommendationScore: number | null
+  salesResponsiveness: number | null
+  proposalQuality: number | null
+  itineraryQuality: number | null
+  hotelRating: number | null
+  transportationRating: number | null
+  tourLeaderRating: number | null
+  operationSupportRating: number | null
+  reservationHandlingRating: number | null
+  communicationRating: number | null
+  issueResolutionRating: number | null
+  valueForMoneyRating: number | null
+  comment: string | null
+  improvementSuggestion: string | null
+  testimonialConsent: boolean
+  submittedBy: string | null
+  submittedByName: string | null
+  submittedAt: string | null
+  acknowledgedBy: string | null
+  acknowledgedAt: string | null
+  followUpNote: string | null
+  closedAt: string | null
+  createdAt: string
+}
+export type FeedbackInput = Partial<Pick<FeedbackDto, 'overallExperience' | 'recommendationScore' | 'salesResponsiveness' | 'proposalQuality' | 'itineraryQuality' | 'hotelRating'
+  | 'transportationRating' | 'tourLeaderRating' | 'operationSupportRating' | 'reservationHandlingRating' | 'communicationRating' | 'issueResolutionRating'
+  | 'valueForMoneyRating' | 'comment' | 'improvementSuggestion' | 'testimonialConsent'>>
