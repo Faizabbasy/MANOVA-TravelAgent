@@ -183,7 +183,7 @@ export async function getClientInvoice(db: Db, partyId: string, id: string) {
  */
 export async function listClientQuotations(db: Queryable, partyId: string) {
   const rows = await db.query<Record<string, unknown>>(
-    `select q.id, q.current_version, q.created_on, q.sent_to_client_on,
+    `select q.id, q.current_version, q.created_on, q.sent_to_client_on, q.client_response, q.client_response_note, q.client_response_version, q.client_responded_at,
             v.amount_minor, v.discount_minor, v.tax_minor, v.currency, v.payment_terms, v.valid_until, v.terms_and_conditions,
             v.inclusions, v.exclusions, v.cancellation_policy, v.proposed_itinerary_note, v.service_breakdown,
             (select pv.amount_minor from quotation_versions pv where pv.quotation_id = q.id and pv.version = (
@@ -206,6 +206,10 @@ export async function listClientQuotations(db: Queryable, partyId: string) {
     createdOn: day(r.created_on)!,
     sentToClientOn: day(r.sent_to_client_on)!,
     accepted: r.project_id !== null,
+    // S12b-2: the client's own answer to this version (none for an older version's answer).
+    clientResponse: r.client_response && Number(r.client_response_version) === Number(r.current_version)
+      ? { response: r.client_response as string, note: str(r.client_response_note), version: Number(r.client_response_version), respondedAt: (r.client_responded_at as Date).toISOString() }
+      : null,
     projectId: str(r.project_id),
     currency: r.currency as string,
     amountMinor: String(r.amount_minor),

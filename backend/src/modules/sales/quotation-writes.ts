@@ -7,6 +7,7 @@ import { nextId } from '../../shared/ids'
 import { parseAmountMinor } from '../../shared/money'
 import { SERVICE_TYPES } from '../core/booking-rules'
 import { createActivity } from '../core/party-writes'
+import { notifyInternal } from '../core/client-writes'
 import { lockLead, touchLead } from './lead-writes'
 
 /**
@@ -191,4 +192,28 @@ export async function sendQuotation(tx: Queryable, actor: Actor, id: string, tod
   if (q.status !== 'approved') throw rule('Hanya quotation yang sudah disetujui yang bisa dikirim ke client.')
   await tx.query('update quotations set sent_to_client_on = $2, updated_at = now() where id = $1', [id, today])
   await recordAudit(tx, { action: 'quotation.sent', actorUserId: actor.userId, entityType: 'quotation', entityId: id, requestId, after: { version: q.current_version } })
+}
+
+const CLIENT_RESPONSES = ['accepted', 'rejected', 'revision-requested']
+
+/** S12b-2: the client answers the quotation it was sent — once per version; staff are told and act (Won / revise). */
+export async function respondToQuotation(tx: Queryable, actor: Actor, partyId: string, id: string, input: Record<string, unknown>, today: string, requestId: string) {
+  const response = input.response
+  const note = typeof input.note === 'string' ? input.note.trim().slice(0, 2000) : ''
+  if (typeof response !== 'string' || !CLIENT_RESPONSES.includes(response)) throw errors.validation({ response: ['Pilih setuju, tolak, atau minta revisi.'] })
+  if (response !== 'accepted' && !note) throw errors.validation({ note: ['Catatan wajib diisi.'] })
+  const [q] = await tx.query<{ current_version: number; sent_to_client_on: string | null; client_response_version: number | null; lead_id: string; owner_user_id: string; handed_over_to: string | null; project_id: string | null }>(
+    `select q.current_version, q.sent_to_client_on, q.client_response_version, q.lead_id, l.owner_user_id, l.handed_over_to,
+            (select p.id from projects p where p.lead_id = l.id) as project_id
+       from quotations q join leads l on l.id = q.lead_id where q.id = $1 and l.party_id = $2 for update of q`, [id, partyId])
+  if (!q || !q.sent_to_client_on) throw errors.notFound('Quotation')
+  if (q.project_id) throw rule('Quotation ini sudah menjadi project.')
+  if (q.client_response_version === q.current_version) throw rule('Anda sudah merespons versi quotation ini.')
+  await tx.query(
+    `update quotations set client_response = $2, client_response_note = $3, client_response_version = current_version, client_responded_by = $4,
+            client_responded_at = now(), updated_at = now() where id = $1`, [id, response, note || null, actor.userId])
+  const label = response === 'accepted' ? 'menyetujui' : response === 'rejected' ? 'menolak' : 'meminta revisi'
+  await createActivity(tx, actor, partyId, { type: 'note', leadId: q.lead_id, message: `Client ${label} quotation ${id} v${q.current_version}.${note ? ` Catatan: ${note}` : ''}` }, today, requestId)
+  await notifyInternal(tx, actor, q.handed_over_to ?? q.owner_user_id, { type: 'change', title: `Client ${label} quotation ${id}`, body: note || `Versi ${q.current_version}.`, entityType: 'lead', entityId: q.lead_id })
+  await recordAudit(tx, { action: `quotation.client_${response.replace('-', '_')}`, actorUserId: actor.userId, entityType: 'quotation', entityId: id, requestId, reason: note || null, after: { version: q.current_version } })
 }

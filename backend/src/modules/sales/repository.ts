@@ -74,8 +74,10 @@ export async function listLeads(db: Queryable, filter: { id?: string } = {}) {
 export type LeadView = Awaited<ReturnType<typeof listLeads>>[number]
 
 export async function listSalesQuotations(db: Queryable, filter: { id?: string; leadId?: string } = {}) {
-  const heads = await db.query<{ id: string; lead_id: string; current_version: number; sent_to_client_on: string | null; created_on: string }>(
-    `select id, lead_id, current_version, sent_to_client_on::text as sent_to_client_on, created_on::text as created_on from quotations
+  const heads = await db.query<{ id: string; lead_id: string; current_version: number; sent_to_client_on: string | null; created_on: string
+    client_response: string | null; client_response_note: string | null; client_response_version: number | null; client_responded_at: Date | null }>(
+    `select id, lead_id, current_version, sent_to_client_on::text as sent_to_client_on, created_on::text as created_on,
+            client_response, client_response_note, client_response_version, client_responded_at from quotations
       where ($1::text is null or id = $1) and ($2::text is null or lead_id = $2) order by id`,
     [filter.id ?? null, filter.leadId ?? null]
   )
@@ -94,6 +96,10 @@ export async function listSalesQuotations(db: Queryable, filter: { id?: string; 
       currentVersion: Number(h.current_version),
       status: cur.status as string,
       sentToClientOn: h.sent_to_client_on,
+      // S12b-2: the client's answer to the version it is looking at (an older version's answer is not shown).
+      clientResponse: h.client_response && Number(h.client_response_version) === Number(h.current_version)
+        ? { response: h.client_response, note: h.client_response_note, version: Number(h.client_response_version), respondedAt: iso(h.client_responded_at)! }
+        : null,
       createdOn: h.created_on,
       amountMinor: String(cur.amount_minor),
       discountMinor: str(cur.discount_minor),

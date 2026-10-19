@@ -14,7 +14,8 @@ import {
 import { listDocuments, listMessages } from './documents'
 import { listRoomAssignments, listTravelers, rule } from './travelers'
 import { getParty, listContacts } from './repository'
-import { getClientInvoice } from './client-commerce'
+import { getClientInvoice, listClientQuotations } from './client-commerce'
+import { respondToQuotation } from '../sales/quotation-writes'
 import { businessDateOf } from '../../shared/dates'
 
 /** Client portal writes (S12b-1): only a client, only its own party (from the session). */
@@ -196,5 +197,12 @@ export function clientWriteRoutes(deps: AppDeps, auth: AuthContext) {
       const id = assertIdParam(params.id, 'Change request')
       await db.transaction(tx => clientCancelChangeRequest(tx, actor, partyId, id, (body as Record<string, unknown>).reason, requestIdOf(request)))
       return ok(request, await changeRequestView(id))
+    }, body)
+    // S12b-2: the client answers a quotation it was sent (once per version); staff decide what happens next.
+    .post('/quotations/:id/respond', async ({ request, params, body }) => {
+      const { actor, partyId } = await clientActor(request)
+      const id = assertIdParam(params.id, 'Quotation')
+      await db.transaction(tx => respondToQuotation(tx, actor, partyId, id, body as Record<string, unknown>, businessDateOf(new Date()), requestIdOf(request)))
+      return ok(request, (await listClientQuotations(db, partyId)).find(q => q.id === id))
     }, body)
 }
