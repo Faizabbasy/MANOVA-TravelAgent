@@ -19,6 +19,7 @@ import { respondToQuotation } from '../sales/quotation-writes'
 import { markInvoiceViewed, submitPaymentProof } from '../finance/payment-proofs'
 import { clientPendingChange, submitProfileChange } from './profile-changes'
 import { clientConfirmTicket, clientCreateTicket, clientRateTicket, clientReopenTicket, clientReplyTicket, clientSupportTicket, listSupportTickets } from './support-tickets'
+import { clientFeedback, listFeedback, saveFeedbackDraft, submitFeedback } from './feedback'
 import { businessDateOf } from '../../shared/dates'
 
 /** Client portal writes (S12b-1): only a client, only its own party (from the session). */
@@ -272,4 +273,21 @@ export function clientWriteRoutes(deps: AppDeps, auth: AuthContext) {
       await db.transaction(tx => clientRateTicket(tx, actor, partyId, id, body as Record<string, unknown>, requestIdOf(request)))
       return ok(request, clientSupportTicket((await listSupportTickets(db, { id }, false))[0]!))
     }, body)
+    // S12c-2: trip feedback — a draft, then submitted (locked) once the trip has started or ended.
+    .get('/feedback', async ({ request }) => {
+      const { partyId } = await clientActor(request)
+      return ok(request, (await listFeedback(db, { partyId })).map(clientFeedback))
+    })
+    .put('/projects/:id/feedback', async ({ request, params, body }) => {
+      const { actor, partyId } = await clientActor(request)
+      const projectId = assertIdParam(params.id, 'Project')
+      await db.transaction(tx => saveFeedbackDraft(tx, actor, partyId, projectId, body as Record<string, unknown>, requestIdOf(request)))
+      return ok(request, clientFeedback((await listFeedback(db, { projectId }))[0]!))
+    }, body)
+    .post('/projects/:id/feedback/submit', async ({ request, params }) => {
+      const { actor, partyId } = await clientActor(request)
+      const projectId = assertIdParam(params.id, 'Project')
+      await db.transaction(tx => submitFeedback(tx, actor, partyId, projectId, requestIdOf(request)))
+      return ok(request, clientFeedback((await listFeedback(db, { projectId }))[0]!))
+    }, { body: t.Optional(t.Record(t.String(), t.Unknown())) })
 }
