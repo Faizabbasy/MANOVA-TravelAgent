@@ -272,6 +272,9 @@ function resetFilters () { partyId.value = null; projectId.value = null }
       </div>
     </Card>
 
+    <!-- S12c-1: payment proofs from clients, waiting for Finance -->
+    <FinancePaymentProofsCard />
+
     <!-- Advances -->
     <SectionCard v-if="advances.data.value?.length" title="Uang muka customer belum dipakai" description="Uang yang sudah diterima tapi belum dialokasikan ke invoice. Pakai saat invoice-nya terbit." flush>
       <ul class="divide-y divide-border border-t border-border">

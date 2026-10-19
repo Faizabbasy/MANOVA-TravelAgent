@@ -186,6 +186,8 @@ function openReason (kind: ReasonKind) {
           <Scale class="mt-0.5 h-4 w-4 shrink-0 text-chart-4" />
           <span>Sengketa: “{{ inv.disputeReason }}”</span>
         </div>
+        <!-- S12c-1: a payment proof the client sent, waiting for Finance -->
+        <FinancePaymentProofsCard v-if="inv.status === 'issued'" :invoice-id="inv.id" compact @changed="detail.refresh()" />
 
         <!-- Dates -->
         <dl class="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">

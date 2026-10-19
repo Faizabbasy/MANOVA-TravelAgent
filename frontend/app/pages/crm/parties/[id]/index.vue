@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { FileX, Plus, MessageCircle } from 'lucide-vue-next'
-import { buildWhatsAppLink } from '~/data/crm-engagement'
+import { buildWhatsAppLink, getLoyaltyAccount } from '~/data/crm-engagement'
 import {
   getPartyById, getContactsByParty, getLeadsByParty, getPartyActivities, getProjectsByParty,
   getQuotationByLead, createPartyActivity, getFeedbackByProject,
@@ -13,10 +13,8 @@ import { createProjectOnServer } from '~/data/projects-sync'
 import { newIdempotencyKey } from '~/lib/api/client'
 import { isApiError } from '~/lib/api/errors'
 import { createContactOnServer } from '~/data/parties-sync'
-import { getLoyaltyAccount } from '~/data/crm-engagement'
 import { QUOTATION_APPROVAL_STATUSES, PROJECT_STATUSES, SERVICE_TYPES, PARTY_ACTIVITY_TYPES, findStatusOption } from '~/constants/status'
-import { formatCurrencyIdr, formatDate, formatDateRange, formatNumber } from '~/utils/format'
-import { daysUntil } from '~/utils/format'
+import { formatCurrencyIdr, formatDate, formatDateRange, formatNumber, daysUntil } from '~/utils/format'
 import { PAYMENT_STATUS_TONE } from '~/lib/finance/labels'
 import type { PartyDetailTab, PartyActivityType } from '~/types/party'
 import type { ServiceTypeKey } from '~/types/project'
@@ -305,6 +303,9 @@ function submitActivity () {
         <DetailMetadataList :items="summaryMetadata" />
       </SectionCard>
 
+      <!-- S12c-1: sensitive data the client proposed, waiting for review -->
+      <CrmProfileChangesCard v-if="canManageParty" :party-id="party.id" />
+
       <Tabs v-model="activeTab">
         <TabsList>
           <TabsTrigger v-for="tab in TABS" :key="tab.value" :value="tab.value">
@@ -374,31 +375,31 @@ function submitActivity () {
                     <Plus class="h-4 w-4" />Tambah Contact
                   </Button>
                 </template>
-                  <div class="space-y-4 py-2">
-                    <div class="space-y-1.5">
-                      <Label for="contact-name">Nama</Label>
-                      <Input id="contact-name" v-model="contactName" placeholder="Nama contact person" />
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="contact-title">Jabatan</Label>
-                      <Input id="contact-title" v-model="contactTitle" placeholder="mis. Operations Manager" />
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="contact-email">Email (opsional)</Label>
-                      <Input id="contact-email" v-model="contactEmail" type="email" placeholder="nama@perusahaan.com" />
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="contact-phone">Telepon (opsional)</Label>
-                      <Input id="contact-phone" v-model="contactPhone" placeholder="08xx-xxxx-xxxx" />
-                    </div>
+                <div class="space-y-4 py-2">
+                  <div class="space-y-1.5">
+                    <Label for="contact-name">Nama</Label>
+                    <Input id="contact-name" v-model="contactName" placeholder="Nama contact person" />
                   </div>
+                  <div class="space-y-1.5">
+                    <Label for="contact-title">Jabatan</Label>
+                    <Input id="contact-title" v-model="contactTitle" placeholder="mis. Operations Manager" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="contact-email">Email (opsional)</Label>
+                    <Input id="contact-email" v-model="contactEmail" type="email" placeholder="nama@perusahaan.com" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="contact-phone">Telepon (opsional)</Label>
+                    <Input id="contact-phone" v-model="contactPhone" placeholder="08xx-xxxx-xxxx" />
+                  </div>
+                </div>
                 <template #footer>
-                    <Button variant="outline" @click="isContactDialogOpen = false">
-                      Batal
-                    </Button>
-                    <Button :disabled="!contactName.trim() || !contactTitle.trim() || isSavingContact" @click="submitContact">
-                      Simpan
-                    </Button>
+                  <Button variant="outline" @click="isContactDialogOpen = false">
+                    Batal
+                  </Button>
+                  <Button :disabled="!contactName.trim() || !contactTitle.trim() || isSavingContact" @click="submitContact">
+                    Simpan
+                  </Button>
                 </template>
               </ResponsiveFormSheet>
             </template>
@@ -538,35 +539,35 @@ function submitActivity () {
                     <Plus class="h-4 w-4" />Catat Activity
                   </Button>
                 </template>
-                  <div class="space-y-4 py-2">
-                    <div class="space-y-1.5">
-                      <Label for="activity-type">Jenis Activity</Label>
-                      <select
-                        id="activity-type"
-                        v-model="activityType"
-                        class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
-                      >
-                        <option v-for="type in PARTY_ACTIVITY_TYPES" :key="type.value" :value="type.value">
-                          {{ type.label }}
-                        </option>
-                      </select>
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="activity-message">Catatan</Label>
-                      <Input id="activity-message" v-model="activityMessage" placeholder="mis. Follow-up keputusan quotation" />
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="activity-due">Jadwal Follow-up Mendatang (opsional)</Label>
-                      <Input id="activity-due" v-model="activityDueAt" type="date" />
-                    </div>
+                <div class="space-y-4 py-2">
+                  <div class="space-y-1.5">
+                    <Label for="activity-type">Jenis Activity</Label>
+                    <select
+                      id="activity-type"
+                      v-model="activityType"
+                      class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+                    >
+                      <option v-for="type in PARTY_ACTIVITY_TYPES" :key="type.value" :value="type.value">
+                        {{ type.label }}
+                      </option>
+                    </select>
                   </div>
+                  <div class="space-y-1.5">
+                    <Label for="activity-message">Catatan</Label>
+                    <Input id="activity-message" v-model="activityMessage" placeholder="mis. Follow-up keputusan quotation" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="activity-due">Jadwal Follow-up Mendatang (opsional)</Label>
+                    <Input id="activity-due" v-model="activityDueAt" type="date" />
+                  </div>
+                </div>
                 <template #footer>
-                    <Button variant="outline" @click="isActivityDialogOpen = false">
-                      Batal
-                    </Button>
-                    <Button :disabled="!activityMessage.trim()" @click="submitActivity">
-                      Simpan
-                    </Button>
+                  <Button variant="outline" @click="isActivityDialogOpen = false">
+                    Batal
+                  </Button>
+                  <Button :disabled="!activityMessage.trim()" @click="submitActivity">
+                    Simpan
+                  </Button>
                 </template>
               </ResponsiveFormSheet>
             </template>
