@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { CLIENT_COMMERCE_STATE, CLIENT_RESERVATIONS } from './client-commerce'
-import { clientBookingFor, mergeClientInvoices, mergeClientQuotations, mergeClientReservations, resetClientCommerce } from './client-commerce-sync'
-import { CREDIT_NOTES, INVOICES, LEADS, PAYMENTS, QUOTATIONS, getClientFinanceSummary, getClientInvoices, getClientReservations, getInvoiceOutstandingIdr } from './index'
+import { clientBookingFor, mergeClientContacts, mergeClientInvoices, mergeClientQuotations, mergeClientReservations, resetClientCommerce } from './client-commerce-sync'
+import { CONTACTS, CREDIT_NOTES, INVOICES, LEADS, PAYMENTS, QUOTATIONS, getClientFinanceSummary, getClientInvoices, getClientReservations, getInvoiceOutstandingIdr } from './index'
 import type { ClientInvoiceDto, ClientQuotationDto, ClientReservationDto } from '~/types/api'
 
 const PARTY = 'PTY-005'
@@ -134,5 +134,17 @@ describe('client commerce sync — leaving the client session (S12a-2 review)', 
     expect(LEADS.map(l => l.id)).toEqual(BEFORE.leads)
     expect(CLIENT_COMMERCE_STATE.reservationsLoaded).toBe(false)
     expect(CLIENT_RESERVATIONS).toEqual([])
+  })
+})
+
+describe('client commerce sync — profile & contacts (S12b-1)', () => {
+  it('the client party’s contacts become the server’s; other parties keep theirs; reset restores them', () => {
+    const others = CONTACTS.filter(x => x.partyId !== PARTY).map(x => x.id)
+    const before = CONTACTS.map(x => x.id)
+    mergeClientContacts(PARTY, [{ id: 'CP-950', partyId: PARTY, name: 'Rina', title: 'HR', email: null, phone: null }])
+    expect(CONTACTS.filter(x => x.partyId === PARTY).map(x => x.id)).toEqual(['CP-950'])
+    expect(CONTACTS.filter(x => x.partyId !== PARTY).map(x => x.id)).toEqual(others)
+    resetClientCommerce()
+    expect(CONTACTS.map(x => x.id)).toEqual(before)
   })
 })

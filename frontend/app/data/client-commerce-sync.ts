@@ -1,9 +1,11 @@
 import { CLIENT_COMMERCE_STATE, CLIENT_RESERVATIONS } from './client-commerce'
-import { CREDIT_NOTES, INVOICES, LEADS, PAYMENTS, QUOTATIONS } from './index'
+import { contactFromServer, upsertServerParty } from './parties-sync'
+import { CONTACTS, CREDIT_NOTES, INVOICES, LEADS, PARTIES, PAYMENTS, QUOTATIONS } from './index'
 import type { CreditNote, Invoice, InvoiceStatus, InvoiceType, Payment } from '~/types/finance'
 import type { Lead } from '~/types/lead'
 import type { Quotation } from '~/types/quotation'
-import type { ClientInvoiceDto, ClientInvoicesDto, ClientQuotationDto, ClientReservationDto } from '~/types/api'
+import type { ClientInvoiceDto, ClientInvoicesDto, ClientQuotationDto, ClientReservationDto, PartyContactDto } from '~/types/api'
+import type { ContactPerson, Party } from '~/types/party'
 import type { ManovaApi } from '~/lib/api/endpoints'
 import { isApiError } from '~/lib/api/errors'
 
@@ -24,12 +26,22 @@ const clean = <T extends object>(o: T): T => Object.fromEntries(Object.entries(o
  * The shared lists as they were before the first client merge. Logout and login are SPA navigations, so without a
  * restore the next (internal) user would read the client's view of leads, quotations and invoices.
  */
-let snapshot: { leads: Lead[]; quotations: Quotation[]; invoices: Invoice[]; payments: Payment[]; creditNotes: CreditNote[] } | null = null
+let snapshot: {
+  leads: Lead[]; quotations: Quotation[]; invoices: Invoice[]; payments: Payment[]; creditNotes: CreditNote[]; parties: Party[]; contacts: ContactPerson[]
+} | null = null
 const copy = <T>(list: T[]): T[] => JSON.parse(JSON.stringify(list)) as T[]
 
 function takeSnapshot (): void {
   if (snapshot) { return }
-  snapshot = { leads: copy(LEADS), quotations: copy(QUOTATIONS), invoices: copy(INVOICES), payments: copy(PAYMENTS), creditNotes: copy(CREDIT_NOTES) }
+  snapshot = {
+    leads: copy(LEADS),
+    quotations: copy(QUOTATIONS),
+    invoices: copy(INVOICES),
+    payments: copy(PAYMENTS),
+    creditNotes: copy(CREDIT_NOTES),
+    parties: copy(PARTIES),
+    contacts: copy(CONTACTS)
+  }
 }
 
 /** Puts back the internal lists and drops the server reservations; a no-op when no client data was merged. */
@@ -38,6 +50,8 @@ export function resetClientCommerce (): void {
   CLIENT_COMMERCE_STATE.reservationsLoaded = false
   if (!snapshot) { return }
   LEADS.splice(0, LEADS.length, ...snapshot.leads)
+  PARTIES.splice(0, PARTIES.length, ...snapshot.parties)
+  CONTACTS.splice(0, CONTACTS.length, ...snapshot.contacts)
   QUOTATIONS.splice(0, QUOTATIONS.length, ...snapshot.quotations)
   INVOICES.splice(0, INVOICES.length, ...snapshot.invoices)
   PAYMENTS.splice(0, PAYMENTS.length, ...snapshot.payments)
@@ -172,13 +186,28 @@ export function mergeClientInvoices (partyId: string, data: ClientInvoicesDto): 
 
 /* ---------- loading ---------- */
 
+/* ---------- profile & contacts (S12b-1) ---------- */
+
+/** The client party's contacts become the server's; other parties' contacts stay as they are. */
+export function mergeClientContacts (partyId: string, list: PartyContactDto[]): void {
+  takeSnapshot()
+  for (let i = CONTACTS.length - 1; i >= 0; i--) {
+    if (CONTACTS[i]!.partyId === partyId) { CONTACTS.splice(i, 1) }
+  }
+  CONTACTS.push(...list.map(contactFromServer))
+}
+
 export async function loadClientCommerce (api: CoreApi, partyId: string): Promise<void> {
-  const [quotations, reservations, invoices] = await Promise.all([
-    api.core.listClientQuotations(), api.core.listClientReservations(), api.core.listClientInvoices()
+  const [quotations, reservations, invoices, profile, contacts] = await Promise.all([
+    api.core.listClientQuotations(), api.core.listClientReservations(), api.core.listClientInvoices(),
+    api.core.getClientProfile(), api.core.listClientContacts()
   ])
   mergeClientQuotations(partyId, quotations.data)
   mergeClientReservations(reservations.data)
   mergeClientInvoices(partyId, invoices.data)
+  takeSnapshot()
+  upsertServerParty(profile.data)
+  mergeClientContacts(partyId, contacts.data)
 }
 
 export interface ClientCommerceSyncState {

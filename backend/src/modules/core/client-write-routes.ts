@@ -68,7 +68,9 @@ export function clientWriteRoutes(deps: AppDeps, auth: AuthContext) {
         clientImportTravelers(tx, actor, partyId, projectId, (body as Record<string, unknown>).rows, requestIdOf(request)))
       if (result.replayed) set.headers['idempotent-replayed'] = 'true'
       set.status = 201
-      return ok(request, result.data)
+      // Same shape as the internal import: the created travelers (client view) and the rejected rows.
+      const all = await listTravelers(db, { projectId })
+      return ok(request, { created: all.filter(x => result.data.created.includes(x.id)).map(clientTraveler), rejected: result.data.rejected })
     }, body)
     .post('/projects/:id/room-assignments', async ({ request, params, body, set }) => {
       const { actor, partyId } = await clientActor(request)

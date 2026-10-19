@@ -3,7 +3,11 @@ import { newIdempotencyKey } from './client'
 import type { MasterDataCategoryKey } from '~/types/master-data'
 import type { AssetCondition } from '~/types/inventory'
 import type {
+  ClientContactInput,
+  ClientDocumentInput,
+  ClientInvoiceDto,
   ClientInvoicesDto,
+  ClientMessageInput,
   ClientQuotationDto,
   ClientReservationDto,
   AttendanceDto,
@@ -105,6 +109,7 @@ import type {
   MovementDto,
   PageQuery,
   PartyDto,
+  PartyProfileInput,
   PartyFinanceSummaryDto,
   PayablesList,
   PolicyAssignmentDto,
@@ -213,6 +218,29 @@ export function createManovaApi (client: ApiClient) {
       listClientQuotations: () => client.get<ClientQuotationDto[]>('/client/quotations'),
       listClientReservations: () => client.get<ClientReservationDto[]>('/client/reservations'),
       listClientInvoices: () => client.get<ClientInvoicesDto>('/client/invoices'),
+      clientCreateTraveler: (projectId: string, input: TravelerInput & { name: string }, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<TravelerDto>(`/client/projects/${seg(projectId)}/travelers`, input, { idempotencyKey }),
+      clientUpdateTraveler: (id: string, input: TravelerInput) => client.patch<TravelerDto>(`/client/travelers/${seg(id)}`, input),
+      clientCancelTraveler: (id: string, reason: string) => client.post<TravelerDto>(`/client/travelers/${seg(id)}/cancel`, { reason }),
+      clientReplaceTraveler: (id: string, input: TravelerInput & { name: string }) => client.post<TravelerDto>(`/client/travelers/${seg(id)}/replace`, input),
+      clientImportTravelers: (projectId: string, rows: { name: string; passportNumber?: string; groupId?: string }[], idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<TravelerImportResultDto>(`/client/projects/${seg(projectId)}/travelers/import`, { rows }, { idempotencyKey }),
+      clientCreateRoom: (projectId: string, input: { groupId: string; roomLabel: string; roomType: string; travelerIds?: string[] }, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<RoomAssignmentDto>(`/client/projects/${seg(projectId)}/room-assignments`, input, { idempotencyKey }),
+      clientSetRoomTravelers: (id: string, travelerIds: string[]) => client.put<RoomAssignmentDto>(`/client/room-assignments/${seg(id)}/travelers`, { travelerIds }),
+      clientCreateDocument: (input: ClientDocumentInput, idempotencyKey: string = newIdempotencyKey()) => client.post<DocumentDto>('/client/documents', input, { idempotencyKey }),
+      clientReplaceDocument: (id: string, input: { name?: string; category?: string; expiresOn?: string }, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<DocumentDto>(`/client/documents/${seg(id)}/replace`, input, { idempotencyKey }),
+      clientSendMessage: (input: ClientMessageInput, idempotencyKey: string = newIdempotencyKey()) => client.post<MessageDto>('/client/messages', input, { idempotencyKey }),
+      clientMarkMessagesRead: (projectId: string) => client.post<{ updated: number }>(`/client/projects/${seg(projectId)}/messages/read`, {}),
+      getClientProfile: () => client.get<PartyDto>('/client/profile'),
+      updateClientProfile: (input: PartyProfileInput) => client.patch<PartyDto>('/client/profile', input),
+      listClientContacts: () => client.get<PartyContactDto[]>('/client/contacts'),
+      clientCreateContact: (input: ClientContactInput & { name: string; title: string }, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<PartyContactDto>('/client/contacts', input, { idempotencyKey }),
+      clientUpdateContact: (id: string, input: ClientContactInput) => client.patch<PartyContactDto>(`/client/contacts/${seg(id)}`, input),
+      clientDeleteContact: (id: string) => client.delete<{ id: string; deleted: true }>(`/client/contacts/${seg(id)}`),
+      clientDisputeInvoice: (id: string, reason: string) => client.post<ClientInvoiceDto>(`/client/invoices/${seg(id)}/dispute`, { reason }),
       listEmployees: () => client.get<EmployeeDto[]>('/employees'),
       createEmployee: (input: EmployeeInput, idempotencyKey: string = newIdempotencyKey()) => client.post<EmployeeDto>('/employees', input, { idempotencyKey }),
       updateEmployee: (id: string, input: EmployeeInput) => client.patch<EmployeeDto>(`/employees/${seg(id)}`, input),

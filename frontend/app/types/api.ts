@@ -1880,3 +1880,7 @@ export interface ItineraryItemDto {
 }
 export type ItineraryItemInput = Partial<Omit<ItineraryItemDto, 'id' | 'projectId'>>
 export interface TravelerImportResultDto { created: TravelerDto[]; rejected: { index: number; errors: string[] }[] }
+/** S12b-1: client portal writes (only role client; the party comes from the session). */
+export interface ClientDocumentInput { entityType: 'project' | 'traveler' | 'party'; entityId: string; name: string; category: string; expiresOn?: string }
+export interface ClientMessageInput { projectId: string; body: string; attachmentName?: string }
+export interface ClientContactInput { name?: string; title?: string; email?: string | null; phone?: string | null }
