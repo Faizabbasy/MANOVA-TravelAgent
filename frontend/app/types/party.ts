@@ -15,6 +15,8 @@ export type PartyType = 'company' | 'individual'
  * `runCompanyProfileVerificationMock` (dipicu lazy, pola sama `runPaymentVerificationMock` Section 6).
  */
 export interface SensitiveCompanyProfileFields {
+  /** S12c-1: the company name is proposed and checked the same way. */
+  name?: string
   registrationNumber?: string
   npwp?: string
   billingName?: string

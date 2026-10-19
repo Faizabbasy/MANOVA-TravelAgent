@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { CLIENT_COMMERCE_STATE, CLIENT_RESERVATIONS } from './client-commerce'
-import { clientBookingFor, mergeClientContacts, mergeClientInvoices, mergeClientQuotations, mergeClientReservations, resetClientCommerce } from './client-commerce-sync'
+import { clientBookingFor, invoiceFromClientServer, mergeClientContacts, mergeClientInvoices, mergeClientQuotations, mergeClientReservations, resetClientCommerce } from './client-commerce-sync'
 import { CONTACTS, CREDIT_NOTES, INVOICES, LEADS, PAYMENTS, QUOTATIONS, getClientFinanceSummary, getClientInvoices, getClientReservations, getInvoiceOutstandingIdr } from './index'
-import type { ClientInvoiceDto, ClientQuotationDto, ClientReservationDto } from '~/types/api'
+import type { ClientInvoiceDto, ClientPaymentProofDto, ClientQuotationDto, ClientReservationDto } from '~/types/api'
 
 const PARTY = 'PTY-005'
 // The internal lists before any client merge, for the reset check.
@@ -57,6 +57,8 @@ const invoice = (over: Partial<ClientInvoiceDto> = {}): ClientInvoiceDto => ({
   lines: [{ position: 1, description: 'DP', amountMinor: '10000000' }],
   payments: [{ amountMinor: '4000000', effectiveDate: '2026-07-05', reference: 'TRF-1' }],
   creditNotes: [{ id: 'CN-900', amountMinor: '1000000', reason: 'Diskon', status: 'issued', issuedAt: '2026-07-06T00:00:00.000Z' }],
+  paymentProof: null,
+  viewedAt: null,
   ...over
 })
 
@@ -154,5 +156,38 @@ describe('client quotation response (S12b-2)', () => {
   it('the client’s answer to the current version comes with the quotation', () => {
     mergeClientQuotations(PARTY, [quotation({ id: 'QUO-951', clientResponse: { response: 'revision-requested', note: 'Kurangi 1 malam', version: 2, respondedAt: '2026-07-04T00:00:00.000Z' } })])
     expect(QUOTATIONS.find(q => q.id === 'QUO-951')?.clientResponse).toEqual({ response: 'revision-requested', note: 'Kurangi 1 malam', version: 2, respondedAt: '2026-07-04T00:00:00.000Z' })
+  })
+})
+
+describe('payment proof & viewed (S12c-1)', () => {
+  const proof = (status: ClientPaymentProofDto['status'], rejectionReason: string | null = null): ClientPaymentProofDto => ({
+    id: 'PPF-001',
+    status,
+    reference: 'TRF-001',
+    amountMinor: '4000000',
+    transferDate: '2026-10-18',
+    senderBank: 'BCA',
+    note: null,
+    fileName: 'bukti.jpg',
+    submittedAt: '2026-10-18T03:00:00.000Z',
+    reviewedAt: null,
+    rejectionReason
+  })
+  it('a waiting proof shows the invoice as waiting for verification, with the proof details', () => {
+    const inv = invoiceFromClientServer(invoice({ paymentProof: proof('submitted'), viewedAt: '2026-10-18T02:00:00.000Z' }), PARTY)
+    expect(inv).toMatchObject({
+      status: 'waiting-verification',
+      paymentProofStatus: 'submitted',
+      paymentProofReference: 'TRF-001',
+      paymentProofAmountIdr: 4_000_000,
+      paymentProofTransferDate: '2026-10-18',
+      paymentProofSenderBank: 'BCA',
+      paymentProofFileName: 'bukti.jpg',
+      viewedAt: '2026-10-18T02:00:00.000Z'
+    })
+  })
+  it('a rejected proof keeps the invoice status and carries the reason', () => {
+    const inv = invoiceFromClientServer(invoice({ paymentProof: proof('rejected', 'Dana belum masuk') }), PARTY)
+    expect(inv).toMatchObject({ status: 'partially-paid', paymentProofStatus: 'rejected', paymentProofRejectionReason: 'Dana belum masuk' })
   })
 })

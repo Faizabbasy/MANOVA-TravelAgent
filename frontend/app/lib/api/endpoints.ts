@@ -6,6 +6,10 @@ import type { ChangeRequestType } from '~/types/change-incident'
 import type { QuotationClientResponse } from '~/types/quotation'
 import type {
   ChangeRequestImpactInput,
+  ClientProfileDto,
+  PaymentProofDto,
+  PaymentProofInput,
+  ProfileChangeDto,
   ClientContactInput,
   ClientDocumentInput,
   ClientInvoiceDto,
@@ -236,8 +240,16 @@ export function createManovaApi (client: ApiClient) {
         client.post<DocumentDto>(`/client/documents/${seg(id)}/replace`, input, { idempotencyKey }),
       clientSendMessage: (input: ClientMessageInput, idempotencyKey: string = newIdempotencyKey()) => client.post<MessageDto>('/client/messages', input, { idempotencyKey }),
       clientMarkMessagesRead: (projectId: string) => client.post<{ updated: number }>(`/client/projects/${seg(projectId)}/messages/read`, {}),
-      getClientProfile: () => client.get<PartyDto>('/client/profile'),
-      updateClientProfile: (input: PartyProfileInput) => client.patch<PartyDto>('/client/profile', input),
+      getClientProfile: () => client.get<ClientProfileDto>('/client/profile'),
+      updateClientProfile: (input: PartyProfileInput) => client.patch<ClientProfileDto>('/client/profile', input),
+      // S12c-1: proofs of payment, invoice viewed, sensitive profile changes (client); the staff review of profile changes.
+      clientSubmitPaymentProof: (invoiceId: string, input: PaymentProofInput, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<ClientInvoiceDto>(`/client/invoices/${seg(invoiceId)}/payment-proofs`, input, { idempotencyKey }),
+      clientMarkInvoiceViewed: (invoiceId: string) => client.post<{ viewedAt: string }>(`/client/invoices/${seg(invoiceId)}/viewed`, {}),
+      clientSubmitProfileChange: (input: ProfileChangeDto['changes']) => client.post<ClientProfileDto>('/client/profile/changes', input),
+      listProfileChanges: (query: { status?: string; partyId?: string } = {}) => client.get<ProfileChangeDto[]>('/party-profile-changes', { query: { ...query } }),
+      approveProfileChange: (id: string) => client.post<ProfileChangeDto>(`/party-profile-changes/${seg(id)}/approve`, {}),
+      rejectProfileChange: (id: string, reason: string) => client.post<ProfileChangeDto>(`/party-profile-changes/${seg(id)}/reject`, { reason }),
       listClientContacts: () => client.get<PartyContactDto[]>('/client/contacts'),
       clientCreateContact: (input: ClientContactInput & { name: string; title: string }, idempotencyKey: string = newIdempotencyKey()) =>
         client.post<PartyContactDto>('/client/contacts', input, { idempotencyKey }),
@@ -521,6 +533,11 @@ export function createManovaApi (client: ApiClient) {
       issueCreditNote: (input: { invoiceId: string; amountMinor: string; reason: string }) =>
         client.post<{ id: string; outstandingMinor: string }>('/finance/credit-notes', input),
       voidCreditNote: (id: string, reason: string) => client.post<{ id: string }>(`/finance/credit-notes/${seg(id)}/void`, { reason }),
+      // S12c-1: client payment proofs — Finance verifies one by posting its receipt, or rejects it.
+      listPaymentProofs: (query: { status?: string; invoiceId?: string } = {}) => client.get<PaymentProofDto[]>('/finance/payment-proofs', { query: { ...query } }),
+      verifyPaymentProof: (id: string, input: { bankAccountId: string; amountMinor: string; effectiveDate: string; reference?: string }, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<{ id: string; transactionId: string }>(`/finance/payment-proofs/${seg(id)}/verify`, input, { idempotencyKey }),
+      rejectPaymentProof: (id: string, reason: string) => client.post<PaymentProofDto>(`/finance/payment-proofs/${seg(id)}/reject`, { reason }),
       postReceipt: (input: ReceiptInput, idempotencyKey: string = newIdempotencyKey()) =>
         client.post<ReceiptResult>('/finance/receipts', input, { idempotencyKey }),
       allocateReceipt: (transactionId: string, allocations: { invoiceId: string; amountMinor: string }[], idempotencyKey: string = newIdempotencyKey()) =>

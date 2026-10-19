@@ -94,6 +94,12 @@ export interface Invoice {
   paymentProofReference?: string
   paymentProofNote?: string
   paymentProofAmountIdr?: number
+  /** S12c-1: the proof as the server has it — status (waiting / verified / rejected), transfer details and why it was rejected. */
+  paymentProofStatus?: 'submitted' | 'verified' | 'rejected'
+  paymentProofTransferDate?: string
+  paymentProofSenderBank?: string
+  paymentProofFileName?: string
+  paymentProofRejectionReason?: string
   disputeReason?: string
   disputedAt?: string
 }

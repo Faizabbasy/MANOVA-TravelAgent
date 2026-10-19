@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
-  cancellableSelection, clientAddContact, clientAddTraveler, clientApproveChangeImpact, clientCancelChangeRequestOnServer, clientRespondToQuotation, clientSubmitChangeRequest, clientDisputeInvoice, clientEditContact, clientMarkMessagesRead, clientRemoveContact, clientSendMessage, clientUploadDocument
+  cancellableSelection, clientMarkInvoiceViewed, clientSubmitPaymentProof, clientSubmitProfileChange, clientAddContact, clientAddTraveler, clientApproveChangeImpact, clientCancelChangeRequestOnServer, clientRespondToQuotation, clientSubmitChangeRequest, clientDisputeInvoice, clientEditContact, clientMarkMessagesRead, clientRemoveContact, clientSendMessage, clientUploadDocument
 } from './client-portal-writes'
-import { CHANGE_REQUESTS, CONTACTS, DOCUMENT_RECORDS, INVOICES, MESSAGE_RECORDS, QUOTATIONS, TRAVELERS } from './index'
+import { CHANGE_REQUESTS, CONTACTS, DOCUMENT_RECORDS, INVOICES, MESSAGE_RECORDS, PARTIES, QUOTATIONS, TRAVELERS } from './index'
 import type { ManovaApi } from '~/lib/api/endpoints'
 
 const ok = <T>(data: T) => Promise.resolve({ data })
@@ -109,5 +109,23 @@ describe('client change requests & quotation response (S12b-2)', () => {
     const q = await clientRespondToQuotation(apiWith({ respondToQuotation: () => ok(dto) }), 'QUO-952', { response: 'rejected', note: 'Terlalu mahal' })
     expect(q.clientResponse?.response).toBe('rejected')
     expect(QUOTATIONS.find(x => x.id === 'QUO-952')?.clientResponse?.note).toBe('Terlalu mahal')
+  })
+})
+
+describe('payment proof, viewed & profile change (S12c-1)', () => {
+  const invDto = (over: Record<string, unknown> = {}) => ({ id: 'CINV-960', number: 'INV-960', project: { id: 'PRJ-201', name: 'P' }, invoiceType: 'dp', status: 'issued', settlement: 'open', overdue: false, daysOverdue: 0, currency: 'IDR', totalMinor: '9000000', paidMinor: '0', creditedMinor: '0', outstandingMinor: '9000000', issueDate: '2026-10-01', dueDate: '2026-10-30', isDisputed: false, disputeReason: null, voidReason: null, billingSnapshot: null, lines: [], payments: [], creditNotes: [], paymentProof: null, viewedAt: null, ...over })
+  it('a sent proof makes the local invoice wait for verification; marking viewed sets the time', async () => {
+    INVOICES.push({ id: 'CINV-960', projectId: 'PRJ-201', label: 'INV-960', amountIdr: 9_000_000, issuedAt: '2026-10-01', dueAt: '2026-10-30', status: 'unpaid' } as never)
+    const proof = { id: 'PPF-1', status: 'submitted', reference: 'TRF-1', amountMinor: '4000000', transferDate: '2026-10-18', senderBank: 'BCA', note: null, fileName: null, submittedAt: '2026-10-18T03:00:00.000Z', reviewedAt: null, rejectionReason: null }
+    const inv = await clientSubmitPaymentProof(apiWith({ clientSubmitPaymentProof: () => ok(invDto({ paymentProof: proof })) }), 'PTY-005', 'CINV-960', { reference: 'TRF-1', amountMinor: '4000000', transferDate: '2026-10-18' })
+    expect(inv.status).toBe('waiting-verification')
+    await clientMarkInvoiceViewed(apiWith({ clientMarkInvoiceViewed: () => ok({ viewedAt: '2026-10-19T01:00:00.000Z' }) }), 'CINV-960')
+    expect(INVOICES.find(i => i.id === 'CINV-960')?.viewedAt).toBe('2026-10-19T01:00:00.000Z')
+  })
+  it('a proposed profile change shows as pending on the party', async () => {
+    const party = PARTIES.find(p => p.id === 'PTY-005')!
+    const dto = { ...party, id: 'PTY-005', name: party.name, npwp: null, pendingChange: { id: 'PPC-1', changes: { npwp: '01.234.567.8-901.234' }, status: 'submitted', submittedAt: '2026-10-19T02:00:00.000Z' } }
+    await clientSubmitProfileChange(apiWith({ clientSubmitProfileChange: () => ok(dto) }), { npwp: '01.234.567.8-901.234' })
+    expect(PARTIES.find(p => p.id === 'PTY-005')).toMatchObject({ pendingProfileChange: { npwp: '01.234.567.8-901.234' }, pendingProfileChangeSubmittedAt: '2026-10-19T02:00:00.000Z' })
   })
 })

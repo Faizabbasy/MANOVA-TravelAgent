@@ -4,8 +4,8 @@ import { CONTACTS, CREDIT_NOTES, INVOICES, LEADS, PARTIES, PAYMENTS, QUOTATIONS 
 import type { CreditNote, Invoice, InvoiceStatus, InvoiceType, Payment } from '~/types/finance'
 import type { Lead } from '~/types/lead'
 import type { Quotation } from '~/types/quotation'
-import type { ClientInvoiceDto, ClientInvoicesDto, ClientQuotationDto, ClientReservationDto, PartyContactDto } from '~/types/api'
-import type { ContactPerson, Party } from '~/types/party'
+import type { ClientInvoiceDto, ClientInvoicesDto, ClientProfileDto, ClientQuotationDto, ClientReservationDto, PartyContactDto } from '~/types/api'
+import type { ContactPerson, Party, SensitiveCompanyProfileFields } from '~/types/party'
 import type { ManovaApi } from '~/lib/api/endpoints'
 import { isApiError } from '~/lib/api/errors'
 
@@ -149,6 +149,8 @@ const INVOICE_TYPES: InvoiceType[] = ['dp', 'progress', 'final']
 function invoiceStatusOf (d: ClientInvoiceDto): InvoiceStatus {
   if (d.status === 'void') { return 'void' }
   if (d.isDisputed) { return 'disputed' }
+  // S12c-1: a proof waiting for Finance shows the bill as waiting for verification.
+  if (d.paymentProof?.status === 'submitted' && d.settlement !== 'paid' && d.settlement !== 'credited') { return 'waiting-verification' }
   if (d.settlement === 'paid' || d.settlement === 'credited') { return 'paid' }
   if (d.settlement === 'partial') { return 'partially-paid' }
   return 'unpaid'
@@ -166,7 +168,17 @@ export const invoiceFromClientServer = (d: ClientInvoiceDto, partyId: string): I
   currency: d.currency as Invoice['currency'],
   invoiceType: (INVOICE_TYPES.includes(d.invoiceType as InvoiceType) ? d.invoiceType : 'progress') as InvoiceType,
   voidReason: opt(d.voidReason),
-  disputeReason: opt(d.disputeReason)
+  disputeReason: opt(d.disputeReason),
+  viewedAt: opt(d.viewedAt),
+  paymentProofStatus: d.paymentProof?.status,
+  paymentProofUploadedAt: d.paymentProof?.submittedAt,
+  paymentProofReference: d.paymentProof?.reference,
+  paymentProofAmountIdr: d.paymentProof ? Number(d.paymentProof.amountMinor) : undefined,
+  paymentProofTransferDate: d.paymentProof?.transferDate,
+  paymentProofSenderBank: opt(d.paymentProof?.senderBank),
+  paymentProofFileName: opt(d.paymentProof?.fileName),
+  paymentProofNote: opt(d.paymentProof?.note),
+  paymentProofRejectionReason: opt(d.paymentProof?.rejectionReason)
 })
 
 /** The client session's invoices, payments and credit notes become the server's (they are all of its own party). */
@@ -198,6 +210,16 @@ export function mergeClientContacts (partyId: string, list: PartyContactDto[]): 
   CONTACTS.push(...list.map(contactFromServer))
 }
 
+/** S12c-1: the client's company profile from the server, with its waiting sensitive-data proposal (or none). */
+export function applyClientProfile (dto: ClientProfileDto): Party {
+  const party = upsertServerParty(dto)
+  const pending = dto.pendingChange
+  party.pendingProfileChange = pending ? Object.fromEntries(Object.entries(pending.changes).filter(([, v]) => v !== null)) as SensitiveCompanyProfileFields : undefined
+  party.pendingProfileChangeSubmittedAt = pending?.submittedAt
+  party.pendingProfileChangeSubmittedBy = undefined
+  return party
+}
+
 export async function loadClientCommerce (api: CoreApi, partyId: string): Promise<void> {
   const [quotations, reservations, invoices, profile, contacts] = await Promise.all([
     api.core.listClientQuotations(), api.core.listClientReservations(), api.core.listClientInvoices(),
@@ -207,7 +229,7 @@ export async function loadClientCommerce (api: CoreApi, partyId: string): Promis
   mergeClientReservations(reservations.data)
   mergeClientInvoices(partyId, invoices.data)
   takeSnapshot()
-  upsertServerParty(profile.data)
+  applyClientProfile(profile.data)
   mergeClientContacts(partyId, contacts.data)
 }
 

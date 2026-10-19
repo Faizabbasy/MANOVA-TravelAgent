@@ -1425,6 +1425,20 @@ export interface ClientReservationDto {
   deadlineDate: string | null
   details: Record<string, unknown> & { travelerIds?: string[] }
 }
+/** S12c-1: a client's proof of payment as the client sees it (Finance verifies it by posting the receipt). */
+export interface ClientPaymentProofDto {
+  id: string
+  status: 'submitted' | 'verified' | 'rejected'
+  reference: string
+  amountMinor: string
+  transferDate: string
+  senderBank: string | null
+  note: string | null
+  fileName: string | null
+  submittedAt: string
+  reviewedAt: string | null
+  rejectionReason: string | null
+}
 /** Client portal (S12a-2): an invoice billed to the client party (issued or void). */
 export interface ClientInvoiceDto {
   id: string
@@ -1449,6 +1463,9 @@ export interface ClientInvoiceDto {
   lines: { position: number; description: string; amountMinor: string }[]
   payments: { amountMinor: string; effectiveDate: string | null; reference: string | null }[]
   creditNotes: { id: string; amountMinor: string; reason: string | null; status: string; issuedAt: string }[]
+  /** S12c-1: the latest proof of payment the client sent for this invoice, and when it first opened it. */
+  paymentProof: ClientPaymentProofDto | null
+  viewedAt: string | null
 }
 export interface ClientInvoicesDto {
   invoices: ClientInvoiceDto[]
@@ -1905,3 +1922,33 @@ export interface TravelerImportResultDto { created: TravelerDto[]; rejected: { i
 export interface ClientDocumentInput { entityType: 'project' | 'traveler' | 'party'; entityId: string; name: string; category: string; expiresOn?: string }
 export interface ClientMessageInput { projectId: string; body: string; attachmentName?: string }
 export interface ClientContactInput { name?: string; title?: string; email?: string | null; phone?: string | null }
+/** S12c-1: Finance's view of a payment proof. */
+export interface PaymentProofDto extends ClientPaymentProofDto {
+  invoiceId: string
+  invoiceNumber: string | null
+  partyId: string
+  partyName: string
+  projectId: string
+  submittedBy: string
+  submittedByName: string | null
+  reviewedBy: string | null
+  receiptTransactionId: string | null
+}
+export interface PaymentProofInput { reference: string; amountMinor: string; transferDate: string; senderBank?: string; note?: string; fileName?: string }
+/** S12c-1: a client's proposed change to sensitive company data (registration / tax / billing / name). */
+export interface ProfileChangeDto {
+  id: string
+  partyId: string
+  partyName: string
+  submittedBy: string
+  submittedByName: string | null
+  changes: Partial<Record<'name' | 'npwp' | 'registrationNumber' | 'billingName' | 'billingAddress' | 'paymentTerm', string | null>>
+  status: 'submitted' | 'approved' | 'rejected'
+  reviewedBy: string | null
+  reviewedAt: string | null
+  rejectionReason: string | null
+  submittedAt: string
+}
+export interface ClientPendingChangeDto { id: string; changes: ProfileChangeDto['changes']; status: 'submitted'; submittedAt: string }
+/** S12c-1: the client's own company profile with its waiting sensitive-data proposal. */
+export type ClientProfileDto = PartyDto & { pendingChange: ClientPendingChangeDto | null }

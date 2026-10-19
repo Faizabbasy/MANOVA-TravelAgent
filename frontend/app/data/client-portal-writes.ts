@@ -1,14 +1,14 @@
 import { reloadProjectTravelers, upsertServerRoom, upsertServerTraveler } from './travelers-sync'
 import { documentFromServer, messageFromServer } from './documents-sync'
-import { contactFromServer, upsertServerParty } from './parties-sync'
-import { invoiceFromClientServer, quotationFromClientServer } from './client-commerce-sync'
+import { contactFromServer } from './parties-sync'
+import { applyClientProfile, invoiceFromClientServer, quotationFromClientServer } from './client-commerce-sync'
 import { upsertServerChangeRequest } from './changes-sync'
 import { CONTACTS, DOCUMENT_RECORDS, INVOICES, MESSAGE_RECORDS, QUOTATIONS } from './index'
 import type { ManovaApi } from '~/lib/api/endpoints'
 import type { ProjectStatus } from '~/types/project'
 import type { ChangeRequestType } from '~/types/change-incident'
 import type { QuotationClientResponse } from '~/types/quotation'
-import type { ClientContactInput, ClientDocumentInput, ClientMessageInput, PartyProfileInput, TravelerInput } from '~/types/api'
+import type { ClientContactInput, ClientDocumentInput, ClientMessageInput, PartyProfileInput, PaymentProofInput, ProfileChangeDto, TravelerInput } from '~/types/api'
 
 /**
  * Client portal writes (S12b-1): every action goes to /client/* first and only the server's answer changes the local
@@ -65,7 +65,7 @@ export async function clientMarkMessagesRead (api: CoreApi, projectId: string, u
 }
 
 /* profile, contacts & disputes */
-export const clientUpdateProfile = async (api: CoreApi, input: PartyProfileInput) => upsertServerParty((await api.core.updateClientProfile(input)).data)
+export const clientUpdateProfile = async (api: CoreApi, input: PartyProfileInput) => applyClientProfile((await api.core.updateClientProfile(input)).data)
 export const clientAddContact = async (api: CoreApi, input: ClientContactInput & { name: string; title: string }) =>
   upsert(CONTACTS, contactFromServer((await api.core.clientCreateContact(input)).data))
 export const clientEditContact = async (api: CoreApi, id: string, input: ClientContactInput) =>
@@ -100,3 +100,14 @@ export const clientRejectChangeImpact = async (api: CoreApi, id: string, reason:
 export const clientCancelChangeRequestOnServer = async (api: CoreApi, id: string, reason: string) => upsertServerChangeRequest((await api.core.clientCancelChangeRequest(id, reason)).data)
 export const clientRespondToQuotation = async (api: CoreApi, id: string, input: { response: QuotationClientResponse['response']; note?: string }) =>
   upsert(QUOTATIONS, quotationFromClientServer((await api.core.respondToQuotation(id, input)).data))
+
+/* payment proof, invoice viewed & sensitive profile change (S12c-1) */
+export const clientSubmitPaymentProof = async (api: CoreApi, partyId: string, invoiceId: string, input: PaymentProofInput) =>
+  upsert(INVOICES, invoiceFromClientServer((await api.core.clientSubmitPaymentProof(invoiceId, input)).data, partyId))
+export async function clientMarkInvoiceViewed (api: CoreApi, invoiceId: string): Promise<void> {
+  const { viewedAt } = (await api.core.clientMarkInvoiceViewed(invoiceId)).data
+  const invoice = INVOICES.find(i => i.id === invoiceId)
+  if (invoice) { invoice.viewedAt = viewedAt }
+}
+export const clientSubmitProfileChange = async (api: CoreApi, changes: ProfileChangeDto['changes']) =>
+  applyClientProfile((await api.core.clientSubmitProfileChange(changes)).data)
