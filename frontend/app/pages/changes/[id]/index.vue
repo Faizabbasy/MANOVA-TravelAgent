@@ -61,8 +61,27 @@ async function handleUnderReview () {
   if (result) { showToast('Change Request Direview', `${result.id} kini sedang direview.`) }
 }
 
+/* Waiting for the client: staff record the client's approval given outside the portal (phone, e-mail) with a note. */
+const isClientApprovalOpen = ref(false)
+const clientApprovalNote = ref('')
+async function submitClientApproval () {
+  if (!request.value || !clientApprovalNote.value.trim()) { return }
+  const id = request.value.id
+  const note = clientApprovalNote.value.trim()
+  const result = await save('Persetujuan Gagal Dicatat', () => approveChangeRequestOnServer(api, id, note))
+  if (!result) { return }
+  isClientApprovalOpen.value = false
+  clientApprovalNote.value = ''
+  showToast('Persetujuan Client Dicatat', `${result.id} disetujui atas nama client.`, 'success')
+}
+
 async function handleApprove () {
   if (!request.value) { return }
+  if (request.value.status === 'waiting-client-approval') {
+    clientApprovalNote.value = ''
+    isClientApprovalOpen.value = true
+    return
+  }
   const id = request.value.id
   const result = await save('Change Request Gagal Disetujui', () => approveChangeRequestOnServer(api, id))
   if (result) { showToast('Change Request Disetujui', `${result.id} disetujui.`, 'success') }
@@ -148,7 +167,7 @@ async function handleImplemented () {
                 Kirim Dampak ke Client
               </Button>
               <Button v-if="canApproveChangeRequest && actions.approve" size="sm" :disabled="isSaving" @click="handleApprove">
-                Setujui
+                {{ request.status === 'waiting-client-approval' ? 'Catat Persetujuan Client' : 'Setujui' }}
               </Button>
               <Button v-if="canApproveChangeRequest && actions.reject" size="sm" variant="destructive" :disabled="isSaving" @click="openReject">
                 Tolak
@@ -276,6 +295,27 @@ async function handleImplemented () {
           </Button>
           <Button variant="destructive" :disabled="!rejectionReason.trim() || isSaving" @click="submitReject">
             Konfirmasi
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
+
+      <!-- S12b-2: the client approved outside the portal (phone, e-mail) -->
+      <ResponsiveFormSheet
+        v-model:open="isClientApprovalOpen"
+        title="Catat Persetujuan Client"
+        description="Untuk client yang menyetujui biaya di luar portal. Catat bagaimana persetujuan diberikan — tersimpan di log project."
+        content-class="max-w-md"
+      >
+        <div class="space-y-1.5 py-2">
+          <Label for="client-approval-note">Catatan</Label>
+          <Input id="client-approval-note" v-model="clientApprovalNote" placeholder="mis. Disetujui Bu Rina lewat telepon 19/10" />
+        </div>
+        <template #footer>
+          <Button variant="outline" @click="isClientApprovalOpen = false">
+            Batal
+          </Button>
+          <Button :disabled="!clientApprovalNote.trim() || isSaving" @click="submitClientApproval">
+            Catat & Setujui
           </Button>
         </template>
       </ResponsiveFormSheet>

@@ -156,18 +156,30 @@ export async function decideChangeRequest(tx: Queryable, actor: Actor, id: strin
   const reason = typeof reasonInput === 'string' ? reasonInput.trim() : ''
   if (decision === 'rejected' && !reason) throw errors.validation({ reason: ['Alasan penolakan wajib diisi.'] })
   const cr = await lockRequest(tx, id)
-  if (cr.status !== 'submitted' && cr.status !== 'under-review') throw rule('Change request ini sudah diputuskan atau sedang menunggu client.')
-  if (decision === 'approved' && cr.source === 'client' && hasCost(cr)) throw rule('Change request ini punya biaya — kirim dampaknya ke client untuk disetujui.')
+  const waiting = cr.status === 'waiting-client-approval'
+  if (cr.status !== 'submitted' && cr.status !== 'under-review' && !waiting) throw rule('Change request ini sudah diputuskan.')
+  if (decision === 'approved' && !waiting && cr.source === 'client' && hasCost(cr)) throw rule('Change request ini punya biaya — kirim dampaknya ke client untuk disetujui.')
+  // Staff close a request the client has not answered: reject it, or record the client's approval given outside the
+  // portal (phone, e-mail — the portal is off in production) with a note saying how.
+  if (decision === 'approved' && waiting && !reason) throw errors.validation({ reason: ['Catat bagaimana client menyetujui (mis. lewat telepon/email).'] })
   await tx.query(
     `update change_requests set status = $2, decided_by = $3, decided_at = now(), rejection_reason = $4, changed_by_api_at = now(), updated_at = now() where id = $1`,
     [id, decision, actor.userId, decision === 'rejected' ? reason.slice(0, 1000) : null])
   await decidePendingChange(tx, actor.userId, cr.activity_id, decision)
-  await logStep(tx, actor, cr.project_id, id, decision === 'approved' ? 'disetujui' : `ditolak (${reason})`, `change_request.${decision}`)
+  const what = decision === 'rejected' ? `ditolak (${reason})` : waiting ? `disetujui atas nama client (${reason})` : 'disetujui'
+  await logStep(tx, actor, cr.project_id, id, what, `change_request.${decision}`)
   if (cr.source === 'client') {
-    await notify(tx, { userId: cr.requested_by, actorUserId: actor.userId, type: 'change', title: `Change Request ${id} ${decision === 'approved' ? 'disetujui' : 'ditolak'}`,
-      body: reason || 'Perubahan akan kami laksanakan.', entityType: 'project', entityId: cr.project_id })
+    await notifyProjectClients(tx, actor, cr.project_id, { title: `Change Request ${id} ${decision === 'approved' ? 'disetujui' : 'ditolak'}`,
+      body: decision === 'rejected' ? reason : 'Perubahan akan kami laksanakan.' })
   }
   await recordAudit(tx, { action: `change_request.${decision}`, actorUserId: actor.userId, entityType: 'change_request', entityId: id, requestId, reason: reason || null })
+}
+
+/** The client users of the project's party (the people who answer in the portal); never the actor. */
+async function notifyProjectClients(tx: Queryable, actor: Actor, projectId: string, n: { title: string; body: string }) {
+  const clients = await tx.query<{ id: string }>(
+    "select u.id from users u join projects p on p.party_id = u.party_id where p.id = $1 and u.role = 'client' and u.status = 'active' order by u.id", [projectId])
+  for (const c of clients) await notify(tx, { userId: c.id, actorUserId: actor.userId, type: 'change', title: n.title, body: n.body, entityType: 'project', entityId: projectId })
 }
 
 const minor = (v: unknown, field: string, label: string, problems: FieldErrors): string | null => {
@@ -196,8 +208,8 @@ export async function sendChangeRequestToClient(tx: Queryable, actor: Actor, id:
             financial_impact_note = coalesce($6, financial_impact_note), changed_by_api_at = now(), updated_at = now() where id = $1`,
     [id, commercial, fee, timeline, operational, financial])
   await logStep(tx, actor, cr.project_id, id, 'dikirim ke client untuk disetujui', 'change_request.sent_to_client')
-  await notify(tx, { userId: cr.requested_by, actorUserId: actor.userId, type: 'change', title: `Change Request ${id} menunggu persetujuan Anda`,
-    body: `Dampak biaya telah dihitung${timeline ? ` — ${timeline}` : ''}. Mohon setujui atau tolak.`, entityType: 'project', entityId: cr.project_id })
+  await notifyProjectClients(tx, actor, cr.project_id, { title: `Change Request ${id} menunggu persetujuan Anda`,
+    body: `Dampak biaya telah dihitung${timeline ? ` — ${timeline}` : ''}. Mohon setujui atau tolak.` })
   await recordAudit(tx, { action: 'change_request.sent_to_client', actorUserId: actor.userId, entityType: 'change_request', entityId: id, requestId,
     after: { commercialImpactMinor: commercial, cancellationFeeMinor: fee } })
 }

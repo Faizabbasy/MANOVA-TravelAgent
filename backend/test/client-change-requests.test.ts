@@ -30,7 +30,8 @@ describe('staff side of a client change request', () => {
     expect(sent.status, JSON.stringify(sent.json)).toBe(200)
     expect(sent.json.data).toMatchObject({ status: 'waiting-client-approval', commercialImpactMinor: '2500000', cancellationFeeMinor: '0', timelineImpactNote: 'Jadwal mundur 1 hari' })
     expect((await call('POST', `/change-requests/${cr.id}/send-to-client`, 'admin', { commercialImpactMinor: '1' })).status).toBe(422)
-    expect((await call('POST', `/change-requests/${cr.id}/approve`, 'admin')).status).toBe(422)
+    // Waiting for the client: staff may only record the client's approval with a note (S12b-2 review).
+    expect((await call('POST', `/change-requests/${cr.id}/approve`, 'admin')).status).toBe(400)
     const internal = await staffCreate('PRJ-201', { source: 'internal' })
     expect((await call('POST', `/change-requests/${internal.id}/send-to-client`, 'admin', { commercialImpactMinor: '1000' })).status).toBe(422)
     expect((await call('POST', `/change-requests/${cr.id}/send-to-client`, 'finance', { commercialImpactMinor: '1000' })).status).toBe(403)
@@ -127,5 +128,36 @@ describe('client change request category (S12b-2)', () => {
     const cr = (await clientCreate('PRJ-201', { category: 'traveler' })).json.data as CR
     const [entry] = await t.db.query<{ category: string }>('select category from project_activities where id = $1', [cr.activityId])
     expect(entry!.category).toBe('traveler')
+  })
+})
+
+describe('review fixes (S12b-2)', () => {
+  test('staff can close a request waiting for the client: reject it, or record the client approval for the client', async () => {
+    const a = await staffCreate('PRJ-201', { source: 'client' })
+    await call('POST', `/change-requests/${a.id}/send-to-client`, 'admin', { commercialImpactMinor: '1000000' })
+    expect((await call('POST', `/change-requests/${a.id}/reject`, 'admin', { reason: 'Client tidak merespons' })).json.data.status).toBe('rejected')
+    const b = await staffCreate('PRJ-201', { source: 'client' })
+    await call('POST', `/change-requests/${b.id}/send-to-client`, 'admin', { commercialImpactMinor: '1000000' })
+    const approved = await call('POST', `/change-requests/${b.id}/approve`, 'admin', { note: 'Disetujui client lewat telepon' })
+    expect(approved.status, JSON.stringify(approved.json)).toBe(200)
+    expect(approved.json.data).toMatchObject({ status: 'approved', clientDecidedBy: null })
+    const log = await t.db.query<{ message: string }>("select message from project_activities where source_entity_id = $1 and source_action = 'change_request.approved'", [b.id])
+    expect(log[0]!.message).toContain('atas nama client')
+    expect((await call('POST', `/change-requests/${b.id}/approve`, 'admin', {})).status).toBe(422)
+    // Waiting for the client: approving on its behalf needs a note saying how the client agreed.
+    const c2 = await staffCreate('PRJ-201', { source: 'client' })
+    await call('POST', `/change-requests/${c2.id}/send-to-client`, 'admin', { commercialImpactMinor: '1000000' })
+    expect((await call('POST', `/change-requests/${c2.id}/approve`, 'admin', {})).status).toBe(400)
+  })
+
+  test('the client users of the project’s party are told, not the staff member who logged the request', async () => {
+    const before = await notes('USR-021')
+    const cr = await staffCreate('PRJ-201', { source: 'client' })
+    await call('POST', `/change-requests/${cr.id}/send-to-client`, 'admin', { commercialImpactMinor: '1000000' })
+    expect(await notes('USR-021')).toBe(before + 1)
+    const foreign = (await t.db.query<{ id: string }>("select id from projects where party_id <> 'PTY-005' order by id limit 1"))[0]!.id
+    const other = await staffCreate(foreign, { source: 'client' })
+    await call('POST', `/change-requests/${other.id}/send-to-client`, 'admin', { commercialImpactMinor: '1000000' })
+    expect(await notes('USR-021')).toBe(before + 1) // another party's request never reaches this client
   })
 })

@@ -71,10 +71,11 @@ export function changeRoutes(deps: AppDeps, auth: AuthContext) {
       await db.transaction(tx => sendChangeRequestToClient(tx, actor, id, (body ?? {}) as Record<string, unknown>, requestIdOf(request)))
       return ok(request, await requestResponse(id))
     }, anyBody)
-    .post('/change-requests/:id/approve', async ({ request, params }) => {
+    .post('/change-requests/:id/approve', async ({ request, params, body }) => {
       const actor = await auth.requireCapability(request, REVIEW)
       const id = assertIdParam(params.id, 'Change request')
-      await db.transaction(tx => decideChangeRequest(tx, actor, id, 'approved', null, requestIdOf(request)))
+      // S12b-2: approving a request that waits for the client records the client's approval given outside the portal (note required).
+      await db.transaction(tx => decideChangeRequest(tx, actor, id, 'approved', (body as Record<string, unknown> | undefined)?.note, requestIdOf(request)))
       return ok(request, await requestResponse(id))
     }, anyBody)
     .post('/change-requests/:id/reject', async ({ request, params, body }) => {

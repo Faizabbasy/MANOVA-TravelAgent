@@ -140,8 +140,8 @@ export async function createChangeRequestOnServer (api: CoreApi, projectId: stri
 export async function reviewChangeRequestOnServer (api: CoreApi, id: string): Promise<ChangeRequest> {
   return afterRequest(api, (await api.core.reviewChangeRequest(id)).data)
 }
-export async function approveChangeRequestOnServer (api: CoreApi, id: string): Promise<ChangeRequest> {
-  return afterRequest(api, (await api.core.approveChangeRequest(id)).data)
+export async function approveChangeRequestOnServer (api: CoreApi, id: string, note?: string): Promise<ChangeRequest> {
+  return afterRequest(api, (await api.core.approveChangeRequest(id, note)).data)
 }
 export async function rejectChangeRequestOnServer (api: CoreApi, id: string, reason: string): Promise<ChangeRequest> {
   return afterRequest(api, (await api.core.rejectChangeRequest(id, reason)).data)
@@ -206,8 +206,9 @@ export function staffChangeRequestActions (request: ChangeRequest) {
   return {
     review: request.status === 'submitted',
     sendToClient: open && fromClient,
-    approve: open && !(fromClient && costs),
-    reject: open,
+    // Waiting for the client: staff may record the client's approval given outside the portal (with a note).
+    approve: (open && !(fromClient && costs)) || request.status === 'waiting-client-approval',
+    reject: open || request.status === 'waiting-client-approval',
     implement: request.status === 'approved'
   }
 }

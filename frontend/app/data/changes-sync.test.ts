@@ -110,7 +110,8 @@ describe('staff actions on a change request (S12b-2, mirrors the server rules)',
   })
   it('an internal request is approved directly; waiting/approved/terminal states', () => {
     expect(staffChangeRequestActions(local({ source: 'internal', status: 'under-review' }))).toMatchObject({ sendToClient: false, approve: true })
-    expect(staffChangeRequestActions(local({ status: 'waiting-client-approval' }))).toEqual({ review: false, sendToClient: false, approve: false, reject: false, implement: false })
+    // Waiting for the client: staff may reject it or record the client's approval given outside the portal (review fix).
+    expect(staffChangeRequestActions(local({ status: 'waiting-client-approval' }))).toEqual({ review: false, sendToClient: false, approve: true, reject: true, implement: false })
     expect(staffChangeRequestActions(local({ status: 'approved' }))).toMatchObject({ implement: true, approve: false })
     expect(staffChangeRequestActions(local({ status: 'cancelled' }))).toEqual({ review: false, sendToClient: false, approve: false, reject: false, implement: false })
   })
