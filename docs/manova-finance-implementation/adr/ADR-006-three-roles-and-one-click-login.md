@@ -89,3 +89,8 @@ komoditas tetap lokal sampai S12e/S12f.
 Client mengajukan change request, menyetujui/menolak dampak biaya yang dikirim staf, membatalkan permintaan, dan
 merespons quotation (setuju/tolak/minta revisi) lewat server. Pembuatan project (Won) dan versi revisi quotation tetap
 dilakukan tim internal.
+
+## Update 2026-10-19 — Bukti bayar & profil sensitif client di server (S12c-1)
+
+Client mengirim bukti bayar (diverifikasi Finance dengan mencatat penerimaan kas) dan mengajukan perubahan data
+registrasi/pajak/billing/nama perusahaan (ditinjau Admin) lewat server. Tidak ada lagi verifikasi otomatis di portal.

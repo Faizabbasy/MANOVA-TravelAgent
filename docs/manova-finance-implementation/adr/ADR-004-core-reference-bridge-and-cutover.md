@@ -322,3 +322,14 @@ dampak atau batal (`/client/change-requests/:id/{approve,reject,cancel}`), menga
 `/client/projects/:id/change-requests`; gerbang completed juga menahan `waiting-client-approval`. Respons quotation:
 `/client/quotations/:id/respond` (setuju/tolak/minta revisi, sekali per versi, staf diberi tahu; Won tetap staf). Mock
 review CR & revisi quotation otomatis di portal dihapus; draft/komentar/lampiran CR tetap lokal (S12c).
+
+## Update 2026-10-19 — Bukti bayar & perubahan profil client (S12c-1)
+
+Migrasi 0040: `payment_proofs` (satu `submitted` per invoice), `customer_invoices.client_viewed_at`,
+`party_profile_changes` (satu `submitted` per party). Client mengirim bukti bayar (referensi, nominal ≤ sisa, tanggal
+transfer, bank, catatan, nama file) lewat `/client/invoices/:id/payment-proofs`; Finance memverifikasinya dengan
+`POST /finance/payment-proofs/:id/verify` = `postReceipt` teralokasi ke invoice (nominal & rekening dari Finance) atau
+menolaknya dengan alasan. Client mengajukan perubahan NPWP / no. registrasi / billing / termin bayar / nama perusahaan
+lewat `/client/profile/changes`; Admin (`crm.manage-party`) menyetujui (diterapkan lewat `updateParty`) atau menolak.
+Mock verifikasi otomatis di portal dihapus. Layar staf: kartu "Bukti Bayar Masuk" (piutang & invoice sheet),
+"Perubahan Data Menunggu Verifikasi" (detail customer).

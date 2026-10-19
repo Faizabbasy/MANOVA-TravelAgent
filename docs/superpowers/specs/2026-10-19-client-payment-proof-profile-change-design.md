@@ -1,6 +1,6 @@
 # Portal client — bukti bayar & perubahan profil sensitif di server (S12c-1) — desain
 
-Tanggal: 19 Oktober 2026 · Branch: `production` · Status: disetujui (eksekusi native)
+Tanggal: 19 Oktober 2026 · Branch: `production` · Status: diimplementasikan (plan 2026-10-19-client-payment-proof-profile-change)
 
 Bagian pertama S12c (entitas khusus portal). Bukti bayar invoice dan perubahan data sensitif perusahaan pindah dari
 mock lokal (yang memverifikasi sendiri tanpa staf) ke server dengan alur *client ajukan → staf verifikasi*. Sub-tahap

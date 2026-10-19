@@ -14,3 +14,9 @@
 ## Yang perlu diputuskan
 
 Provider object storage produksi, batas ukuran final, dan retensi. Backup DB (ADR-002) tidak mencakup blob; kebijakan backup blob diputuskan bersama provider.
+
+## Catatan 2026-10-19 — bukti bayar client (S12c-1)
+
+Bukti bayar dari portal client kini tersimpan di server sebagai **metadata** (`payment_proofs`: referensi, nominal,
+tanggal, bank, nama file) — belum ada file asli. Saat ADR ini diimplementasikan, `payment_proofs` mendapat
+`attachment_id` ke tabel `attachments`; nominal tetap dari Finance (bukti tidak pernah menjadi sumber nominal).
