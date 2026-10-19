@@ -291,3 +291,13 @@ Route S12a untuk client kini mengosongkan ID staf yang tidak ditampilkan (`uploa
 `documentsVerifiedBy`, `cancelledBy`, `mentions`, `readBy`) dan `financialImpactNote`; penalti pembatalan dan dampak
 komersial CR tetap terlihat (keputusan pengguna — ditagihkan ke client). Frontend `data/client-commerce-sync.ts`.
 Catatan demo: party client demo (PTY-005) belum punya quotation terkirim maupun booking di seed — tab tersebut kosong.
+
+## Update 2026-10-19 — Portal client menulis (S12b-1)
+
+Endpoint khusus client di `/api/v1/client/*` (`core/client-write-routes.ts`, `core/client-writes.ts`): peserta
+(tambah/edit/batal/ganti/impor) & kamar (buat/atur penghuni) — hanya project milik party client dan belum berangkat
+(`ongoing-trip`/`completed`/`cancelled` → 422, lewat change request); dokumen (project/peserta/perusahaan, selalu akses
+client & belum terverifikasi; ganti versi) dan pesan `client-message` tanpa mention + tandai dibaca; profil non-sensitif
+(sensitif → 422, verifikasi = S12c) dan kontak (tambah/edit/hapus); sengketa invoice issued yang belum lunas. Log aktivitas
+project & notifikasi owner/account owner/Finance dibuat server. Frontend `data/client-portal-writes.ts`; guard
+`app/client-portal-writes.guard.test.ts`. Change request & respons quotation = S12b-2.

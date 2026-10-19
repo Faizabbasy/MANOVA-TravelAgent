@@ -70,3 +70,10 @@ Keputusan pengguna: portal client & vendor **dinyalakan di development/staging**
 - `GET /api/v1/auth/options` (publik) → `{ demoLogin, portalLogin }`. Plugin `plugins/portal-options.ts` membacanya saat
   SSR; role portal tetap `hidden` di data, tetapi `isRoleSelectable` mengizinkannya selama `portalLogin` aktif.
 - Login satu-klik menampilkan Dimas Pratama (client, PTY-005) dan Hasan Alfarizi (vendor) bila portal aktif.
+
+## Update 2026-10-19 — Portal client menulis ke server (S12b-1)
+
+Di dev/staging (portal aktif), client kini menulis peserta & kamar, dokumen & pesan, profil non-sensitif & kontak, dan
+sengketa invoice lewat `/api/v1/client/*` — hanya untuk party-nya sendiri, dengan log aktivitas dan notifikasi ke staf.
+Perubahan peserta dikunci setelah project berangkat (lewat change request). Entitas khusus portal (travel request,
+approval, support, feedback, bukti bayar, perubahan profil sensitif) tetap lokal sampai S12c.

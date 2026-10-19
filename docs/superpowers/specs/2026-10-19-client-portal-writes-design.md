@@ -1,6 +1,6 @@
 # Portal client — aksi tulis pada tabel yang sudah ada (S12b-1) — desain
 
-Tanggal: 19 Oktober 2026 · Branch: `production` · Status: disetujui (eksekusi native)
+Tanggal: 19 Oktober 2026 · Branch: `production` · Status: diimplementasikan (plan 2026-10-19-client-portal-writes)
 
 Lanjutan S12a/S12a-2. Aksi tulis portal client untuk **peserta, dokumen & pesan, profil & kontak, dan sengketa
 invoice** dipindah dari mutasi array lokal ke server, lewat endpoint khusus client. Change request (status alur portal)
