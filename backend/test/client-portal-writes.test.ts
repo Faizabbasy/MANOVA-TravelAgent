@@ -213,3 +213,13 @@ describe('client profile, contacts & disputes', () => {
     expect((await call('POST', `/client/invoices/${paid}/dispute`, 'client', { reason: 'Sudah lunas' })).status).toBe(422)
   })
 })
+
+describe('client writes — review fixes (S12b-1)', () => {
+  test('editing a contact tells the account owner', async () => {
+    await t.db.query("update parties set account_owner_user_id = 'USR-002' where id = 'PTY-005'")
+    const id = (await call('POST', '/client/contacts', 'client', { name: 'Ubah Saya', title: 'Staff' }, k())).json.data.id as string
+    const n0 = await notes('USR-002')
+    expect((await call('PATCH', `/client/contacts/${id}`, 'client', { phone: '0813' })).status).toBe(200)
+    expect(await notes('USR-002')).toBe(n0 + 1)
+  })
+})

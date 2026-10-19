@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
-  clientAddContact, clientAddTraveler, clientDisputeInvoice, clientEditContact, clientMarkMessagesRead, clientRemoveContact, clientSendMessage, clientUploadDocument
+  cancellableSelection, clientAddContact, clientAddTraveler, clientDisputeInvoice, clientEditContact, clientMarkMessagesRead, clientRemoveContact, clientSendMessage, clientUploadDocument
 } from './client-portal-writes'
 import { CONTACTS, DOCUMENT_RECORDS, INVOICES, MESSAGE_RECORDS, TRAVELERS } from './index'
 import type { ManovaApi } from '~/lib/api/endpoints'
@@ -47,5 +47,19 @@ describe('client portal writes (S12b-1)', () => {
     const result = await clientDisputeInvoice(apiWith({ clientDisputeInvoice: () => ok(inv) }), 'PTY-005', 'CINV-950', 'Salah')
     expect(result.status).toBe('disputed')
     expect(INVOICES.find(i => i.id === 'CINV-950')?.disputeReason).toBe('Salah')
+  })
+})
+
+describe('bulk cancel targets (S12b-1 review)', () => {
+  it('only selected, not yet cancelled travelers of projects that have not departed', () => {
+    const rows = [
+      { traveler: { id: 'A', cancelled: false }, project: { id: 'P1', status: 'planning' as const } },
+      { traveler: { id: 'B', cancelled: true }, project: { id: 'P1', status: 'planning' as const } },
+      { traveler: { id: 'C', cancelled: false }, project: { id: 'P2', status: 'ongoing-trip' as const } },
+      { traveler: { id: 'D', cancelled: false }, project: { id: 'P1', status: 'planning' as const } }
+    ]
+    const { targets, skipped } = cancellableSelection(rows, ['A', 'B', 'C'])
+    expect(targets.map(r => r.traveler.id)).toEqual(['A'])
+    expect(skipped).toBe(1)
   })
 })

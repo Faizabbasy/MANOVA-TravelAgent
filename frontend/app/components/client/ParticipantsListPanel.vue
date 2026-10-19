@@ -4,7 +4,7 @@ import { Search, Plus, Users, Star, Upload, Download, AlertTriangle } from 'luci
 import {
   getProjectsByParty, getTravelers, previewTravelerImportMock
 } from '~/data'
-import { clientAddTraveler, clientCancelTraveler, clientImportTravelers, participantsLocked } from '~/data/client-portal-writes'
+import { cancellableSelection, clientAddTraveler, clientCancelTraveler, clientImportTravelers, participantsLocked } from '~/data/client-portal-writes'
 import { createSaveGate } from '~/lib/save-gate'
 import { isTravelerDocumentMissing, DEMO_REFERENCE_DATE } from '~/utils/attention'
 import { daysUntil } from '~/utils/format'
@@ -85,7 +85,8 @@ const bulkCancelReason = ref('')
 async function submitBulkCancel () {
   if (!bulkCancelReason.value.trim()) { return }
   const reason = bulkCancelReason.value.trim()
-  const targets = rows.value.filter(row => selectedIds.value.includes(row.traveler.id) && !row.traveler.cancelled)
+  // Travelers of departed/finished projects are left out (the server refuses them) and counted in the message.
+  const { targets, skipped } = cancellableSelection(rows.value, selectedIds.value)
   const count = await gate.run('Pembatalan Gagal', async () => {
     let done = 0
     for (const row of targets) {
@@ -95,7 +96,7 @@ async function submitBulkCancel () {
     return done
   })
   if (count === undefined) { return }
-  showToast('Peserta Dibatalkan', `${count} peserta dibatalkan.`, 'info')
+  showToast('Peserta Dibatalkan', `${count} peserta dibatalkan.${skipped ? ` ${skipped} peserta di project yang sudah berjalan dilewati — ajukan lewat change request.` : ''}`, 'info')
   bulkCancelReason.value = ''
   isBulkCancelDialogOpen.value = false
   selectedIds.value = []

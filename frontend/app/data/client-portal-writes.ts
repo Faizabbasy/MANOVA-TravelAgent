@@ -78,3 +78,13 @@ export const clientDisputeInvoice = async (api: CoreApi, partyId: string, id: st
 /* project lock for participant writes (same rule as the server) */
 export const PARTICIPANTS_LOCKED_HINT = 'Project sudah berjalan, selesai atau dibatalkan — ajukan perubahan peserta lewat change request.'
 export const participantsLocked = (status: ProjectStatus): boolean => status === 'ongoing-trip' || status === 'completed' || status === 'cancelled'
+
+/**
+ * Bulk cancel: the selected travelers the server will accept — not already cancelled, on a project that has not
+ * departed. `skipped` counts the selected ones left out, so the screen can say so instead of failing halfway.
+ */
+export function cancellableSelection<R extends { traveler: { id: string; cancelled?: boolean }; project: { status: ProjectStatus } }> (rows: R[], selectedIds: string[]) {
+  const selected = rows.filter(row => selectedIds.includes(row.traveler.id) && !row.traveler.cancelled)
+  const targets = selected.filter(row => !participantsLocked(row.project.status))
+  return { targets, skipped: selected.length - targets.length }
+}

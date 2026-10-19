@@ -222,8 +222,10 @@ export async function clientCreateContact(tx: Queryable, actor: Actor, partyId: 
   return { id }
 }
 
-export const clientUpdateContact = (tx: Queryable, actor: Actor, partyId: string, id: string, input: Record<string, unknown>, requestId: string) =>
-  updateContact(tx, actor, partyId, id, input, requestId)
+export async function clientUpdateContact(tx: Queryable, actor: Actor, partyId: string, id: string, input: Record<string, unknown>, requestId: string) {
+  await updateContact(tx, actor, partyId, id, input, requestId)
+  await notifyInternal(tx, actor, await accountOwnerOf(tx, partyId), { type: 'change', title: 'Kontak diubah client', body: `Kontak ${id} diperbarui (${Object.keys(input).join(', ')}).`, entityType: 'party', entityId: partyId })
+}
 
 export async function clientDeleteContact(tx: Queryable, actor: Actor, partyId: string, id: string, requestId: string) {
   await deleteContact(tx, actor, partyId, id, requestId)
