@@ -888,7 +888,7 @@ const dismissNotification = (id: string) => save('Notifikasi Gagal Dihapus', () 
         </TabsContent>
       </Tabs>
     </template>
-    n    <!-- S12c-5: komentar client pada dokumen ber-akses client (server). -->
+    <!-- S12c-5: komentar client pada dokumen ber-akses client (server). -->
     <ResponsiveFormSheet
       :open="commentDocument !== null"
       :title="commentDocument ? `Komentar — ${commentDocument.name}` : ''"

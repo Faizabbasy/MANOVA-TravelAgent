@@ -30,9 +30,11 @@ export interface CollabTarget {
   /** The internal user who handles the record on MANOVA's side (told when the client writes). */
   handlerUserId: string | null
   label: string
+  /** False for an unsent quotation or an internal document: staff may read the thread there but not write to the client. */
+  clientVisible: boolean
 }
 
-type TargetRow = { party_id: string | null; handler: string | null; label: string }
+type TargetRow = { party_id: string | null; handler: string | null; label: string; visible: boolean }
 
 /** Finds the record; a client (`partyId`) only finds its own party's client-visible records. Unknown → 404. */
 export async function resolveCollabTarget(db: Queryable, entityType: unknown, entityId: unknown, partyId?: string): Promise<CollabTarget> {
@@ -43,40 +45,40 @@ export async function resolveCollabTarget(db: Queryable, entityType: unknown, en
   let row: TargetRow | undefined
   switch (type) {
     case 'change-request':
-      [row] = await db.query<TargetRow>(`select p.party_id, p.owner_user_id as handler, 'Change Request ' || c.id as label
+      [row] = await db.query<TargetRow>(`select p.party_id, p.owner_user_id as handler, 'Change Request ' || c.id as label, true as visible
                                 from change_requests c join projects p on p.id = c.project_id
                                where c.id = $1 and ($2::text is null or p.party_id = $2)`, [entityId, party])
       break
     case 'itinerary':
-      [row] = await db.query<TargetRow>(`select party_id, owner_user_id as handler, 'itinerary ' || name as label from projects
+      [row] = await db.query<TargetRow>(`select party_id, owner_user_id as handler, 'itinerary ' || name as label, true as visible from projects
                                where id = $1 and ($2::text is null or party_id = $2)`, [entityId, party])
       break
     case 'quotation':
-      [row] = await db.query<TargetRow>(`select l.party_id, coalesce(l.handed_over_to, l.owner_user_id) as handler, 'quotation ' || q.id as label
+      [row] = await db.query<TargetRow>(`select l.party_id, coalesce(l.handed_over_to, l.owner_user_id) as handler, 'quotation ' || q.id as label, q.sent_to_client_on is not null as visible
                                 from quotations q join leads l on l.id = q.lead_id
                                where q.id = $1 and ($2::text is null or (l.party_id = $2 and q.sent_to_client_on is not null))`, [entityId, party])
       break
     case 'document':
       [row] = await db.query<TargetRow>(`select coalesce(p.party_id, case when d.entity_type = 'party' then d.entity_id end) as party_id, p.owner_user_id as handler,
-                                     'dokumen ' || d.name as label
+                                     'dokumen ' || d.name as label, d.access_level = 'client' as visible
                                 from documents d left join projects p on p.id = d.project_id
                                where d.id = $1 and ($2::text is null or (d.access_level = 'client'
                                      and (p.party_id = $2 or (d.entity_type = 'party' and d.entity_id = $2))))`, [entityId, party])
       break
     case 'travel-request':
-      [row] = await db.query<TargetRow>(`select t.party_id, coalesce(t.reviewer_user_id, pa.account_owner_user_id) as handler, 'travel request ' || t.id as label
+      [row] = await db.query<TargetRow>(`select t.party_id, coalesce(t.reviewer_user_id, pa.account_owner_user_id) as handler, 'travel request ' || t.id as label, true as visible
                                 from travel_requests t join parties pa on pa.id = t.party_id
                                where t.id = $1 and ($2::text is null or t.party_id = $2)`, [entityId, party])
       break
   }
   if (!row) throw errors.notFound('Data')
-  return { entityType: type, entityId, partyId: row.party_id, handlerUserId: row.handler, label: row.label }
+  return { entityType: type, entityId, partyId: row.party_id, handlerUserId: row.handler, label: row.label, clientVisible: row.visible }
 }
 
-/** Staff side: portal roles never pass, and the member needs VIEW on the record's module. */
-export function assertStaffCollab(actor: Actor, entityType: unknown) {
+/** Staff side: portal roles never pass; reading needs VIEW on the record's module, writing to the client MANAGE (review fix). */
+export function assertStaffCollab(actor: Actor, entityType: unknown, write = false) {
   const type = (COMMENT_ENTITIES as readonly string[]).includes(entityType as string) ? entityType as CollabEntity : null
-  if (actor.role === 'client' || actor.role === 'vendor' || (type && !hasModuleLevel(actor.role, STAFF_MODULE[type], 'VIEW'))) throw errors.forbidden()
+  if (actor.role === 'client' || actor.role === 'vendor' || (type && !hasModuleLevel(actor.role, STAFF_MODULE[type], write ? 'MANAGE' : 'VIEW'))) throw errors.forbidden()
 }
 
 const text = (v: unknown, field: string, label: string, max: number) => {
@@ -88,14 +90,19 @@ const text = (v: unknown, field: string, label: string, max: number) => {
 
 /** The client users of the record's party (staff wrote) or its handler — else every active admin (the client wrote). */
 async function tellOtherSide(tx: Queryable, actor: Actor, target: CollabTarget, fromClient: boolean, title: string, body: string) {
-  const entity = { entityType: target.entityType === 'itinerary' ? 'project' : target.entityType, entityId: target.entityId }
   if (!fromClient) {
+    // The client opens the record itself (an itinerary page, not the internal project).
     if (!target.partyId) return
     const clients = await tx.query<{ id: string }>("select id from users where party_id = $1 and role = 'client' and status = 'active' order by id", [target.partyId])
-    for (const c of clients) await notify(tx, { userId: c.id, actorUserId: actor.userId, type: 'message', title, body, ...entity })
+    for (const c of clients) await notify(tx, { userId: c.id, actorUserId: actor.userId, type: 'message', title, body, entityType: target.entityType, entityId: target.entityId })
     return
   }
-  const targets = target.handlerUserId ? [target.handlerUserId]
+  const entity = { entityType: target.entityType === 'itinerary' ? 'project' : target.entityType, entityId: target.entityId }
+  // Review fix: the handler only counts while active and able to answer (MANAGE on the module); else the admins.
+  const [handler] = target.handlerUserId
+    ? await tx.query<{ role: Actor['role'] }>("select role from users where id = $1 and status = 'active' and role not in ('client', 'vendor')", [target.handlerUserId])
+    : []
+  const targets = handler && hasModuleLevel(handler.role, STAFF_MODULE[target.entityType], 'MANAGE') ? [target.handlerUserId!]
     : (await tx.query<{ id: string }>("select id from users where role = 'admin' and status = 'active' order by id")).map(r => r.id)
   for (const userId of targets) await notifyInternal(tx, actor, userId, { type: 'message', title, body, ...entity })
 }
@@ -125,6 +132,7 @@ export const clientComment = <T extends { authorId: string | null; fromClient: b
 export async function addComment(tx: Queryable, actor: Actor, target: CollabTarget, bodyInput: unknown, requestId: string) {
   const body = text(bodyInput, 'body', 'Komentar', 4000)
   const fromClient = actor.role === 'client'
+  if (!fromClient && !target.clientVisible) throw rule('Data ini belum terlihat oleh client — komentar baru bisa dikirim setelah dibagikan ke client.')
   const id = await nextId(tx, 'CMT-')
   await tx.query('insert into entity_comments (id, entity_type, entity_id, author_user_id, from_client, body) values ($1, $2, $3, $4, $5, $6)',
     [id, target.entityType, target.entityId, actor.userId, fromClient, body])
@@ -162,6 +170,7 @@ export async function addAttachment(tx: Queryable, actor: Actor, target: CollabT
   assertAttachmentEntity(target)
   const fileName = text(fileNameInput, 'fileName', 'Nama file', 200)
   const fromClient = actor.role === 'client'
+  if (!fromClient && !target.clientVisible) throw rule('Data ini belum terlihat oleh client — lampiran baru bisa ditambahkan setelah dibagikan ke client.')
   const id = await nextId(tx, 'ATT-')
   await tx.query('insert into entity_attachments (id, entity_type, entity_id, file_name, uploaded_by, from_client) values ($1, $2, $3, $4, $5, $6)',
     [id, target.entityType, target.entityId, fileName, actor.userId, fromClient])

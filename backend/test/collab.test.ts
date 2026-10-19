@@ -109,3 +109,44 @@ describe('change-request drafts', () => {
     expect((await call('GET', '/client/change-request-drafts', 'admin', undefined, false)).status).toBe(403)
   })
 })
+
+describe('review fixes (S12c-5)', () => {
+  test('staff cannot write where the client cannot see (unsent quotation, internal document) — and the client is not told', async () => {
+    const [q] = await t.db.query<{ id: string; lead_id: string }>('select id, lead_id from quotations order by id desc limit 1')
+    await t.db.query("update leads set party_id = 'PTY-005' where id = $1", [q!.lead_id])
+    await t.db.query('update quotations set sent_to_client_on = null where id = $1', [q!.id])
+    const before = await notes('USR-021')
+    expect((await call('POST', '/comments', 'admin', { entityType: 'quotation', entityId: q!.id, body: 'Margin 12%' })).status).toBe(422)
+    expect((await call('GET', `/comments?entityType=quotation&entityId=${q!.id}`, 'admin', undefined, false)).status).toBe(200)
+    expect(await notes('USR-021')).toBe(before)
+    const [doc] = await t.db.query<{ id: string }>("select id from documents where access_level = 'internal' order by id limit 1")
+    expect((await call('POST', '/comments', 'admin', { entityType: 'document', entityId: doc!.id, body: 'x' })).status).toBe(422)
+  })
+
+  test('Finance can read a thread but not write to the client', async () => {
+    const cr = await clientCr()
+    expect((await call('GET', `/comments?entityType=change-request&entityId=${cr}`, 'finance', undefined, false)).status).toBe(200)
+    expect((await call('POST', '/comments', 'finance', { entityType: 'change-request', entityId: cr, body: 'x' })).status).toBe(403)
+    expect((await call('POST', '/attachments', 'finance', { entityType: 'change-request', entityId: cr, fileName: 'x.pdf' })).status).toBe(403)
+  })
+
+  test('a client comment whose handler is inactive or cannot work the record goes to every active admin', async () => {
+    const cr = await clientCr()
+    const admins = (await t.db.query<{ id: string }>("select id from users where role = 'admin' and status = 'active' order by id")).map(r => r.id)
+    const ownerId = await owner('PRJ-201')
+    await t.db.query("update projects set owner_user_id = 'USR-008' where id = 'PRJ-201'")
+    try {
+      const before = await Promise.all(admins.map(notes))
+      expect((await call('POST', '/client/comments', 'client', { entityType: 'change-request', entityId: cr, body: 'Halo?' })).status).toBe(201)
+      expect((await Promise.all(admins.map(notes))).every((v, i) => v === before[i]! + 1)).toBe(true)
+    } finally {
+      await t.db.query("update projects set owner_user_id = $1 where id = 'PRJ-201'", [ownerId])
+    }
+  })
+
+  test('client notifications name the record the client opens (itinerary, not project)', async () => {
+    expect((await call('POST', '/comments', 'admin', { entityType: 'itinerary', entityId: 'PRJ-201', body: 'Jadwal diperbarui' })).status).toBe(201)
+    const [last] = await t.db.query<{ entity_type: string; entity_id: string }>("select entity_type, entity_id from notifications where user_id = 'USR-021' order by created_at desc, id desc limit 1")
+    expect(last).toEqual({ entity_type: 'itinerary', entity_id: 'PRJ-201' })
+  })
+})

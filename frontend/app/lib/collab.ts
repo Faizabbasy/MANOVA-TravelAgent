@@ -22,3 +22,15 @@ export function collabApi (api: Pick<ManovaApi, 'core'>, portal: boolean) {
 /** In the portal MANOVA's people are marked; on staff screens the client is. */
 export const commentAuthor = (c: Pick<CommentDto, 'authorName' | 'fromClient'>, portal: boolean) =>
   portal ? (c.fromClient ? c.authorName : `${c.authorName} (MANOVA)`) : (c.fromClient ? `${c.authorName} (client)` : c.authorName)
+
+/** S12c-5 review: the client portal page a comment / attachment / approval notification opens. */
+export function clientCollabRoute (entityType?: string, entityId?: string): string | undefined {
+  if (!entityId) { return undefined }
+  switch (entityType) {
+    case 'change-request': return `/client/change-requests/${entityId}`
+    case 'itinerary': return `/client/itineraries/${entityId}`
+    case 'document': return '/client/documents'
+    case 'approval': return `/client/approvals/${entityId}`
+    default: return undefined
+  }
+}

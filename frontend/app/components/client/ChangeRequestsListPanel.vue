@@ -162,7 +162,7 @@ async function handleSubmitDraft (draft: ChangeRequestDraft) {
         <div class="space-y-4 py-2">
           <div class="space-y-1.5">
             <Label for="cr-project">Project Order</Label>
-            <select id="cr-project" v-model="formProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+            <select id="cr-project" v-model="formProjectId" :disabled="Boolean(editingDraft)" class="disabled:opacity-60 w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
               <option v-for="project in projects" :key="project.id" :value="project.id">
                 {{ project.name }}
               </option>

@@ -328,8 +328,8 @@ function viewLeadDetail () {
         <button type="button" class="text-sm text-primary hover:underline block mt-2" @click="viewLeadDetail">
           Lihat Lead lengkap →
         </button>
-        <!-- S12c-5: percakapan & lampiran dengan client (terlihat di portal setelah quotation dikirim). -->
-        <div class="mt-4 space-y-4">
+        <!-- S12c-5: percakapan & lampiran dengan client — hanya setelah quotation dikirim (server menolak sebelum itu). -->
+        <div v-if="selectedQuotation.sentToClientAt" class="mt-4 space-y-4">
           <EntityComments entity-type="quotation" :entity-id="selectedQuotation.id" title="Komentar dengan Client" />
           <EntityAttachments entity-type="quotation" :entity-id="selectedQuotation.id" />
         </div>

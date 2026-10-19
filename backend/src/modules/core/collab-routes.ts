@@ -23,9 +23,9 @@ export function collabRoutes(deps: AppDeps, auth: AuthContext) {
     if (actor.role !== 'client') throw errors.forbidden()
     return { actor, partyId: actor.partyId ?? '__no-party__' }
   }
-  async function staffActor(request: Request, entityType: unknown) {
+  async function staffActor(request: Request, entityType: unknown, write = false) {
     const actor = await auth.requireActor(request)
-    assertStaffCollab(actor, entityType)
+    assertStaffCollab(actor, entityType, write)
     return actor
   }
   const draftView = async (partyId: string, id: string) => (await listChangeRequestDrafts(db, partyId, id))[0]!
@@ -104,7 +104,7 @@ export function collabRoutes(deps: AppDeps, auth: AuthContext) {
       return ok(request, await listComments(db, tgt.entityType, tgt.entityId))
     }, target)
     .post('/comments', async ({ request, body, set }) => {
-      const actor = await staffActor(request, field(body, 'entityType'))
+      const actor = await staffActor(request, field(body, 'entityType'), true)
       const tgt = await resolveCollabTarget(db, field(body, 'entityType'), field(body, 'entityId'))
       const key = requireIdempotencyKey(request)
       await withIdempotency(db, { actorUserId: actor.userId, route: 'POST /comments', key, body }, tx => addComment(tx, actor, tgt, field(body, 'body'), requestIdOf(request)))
@@ -118,7 +118,7 @@ export function collabRoutes(deps: AppDeps, auth: AuthContext) {
       return ok(request, await listAttachments(db, tgt.entityType, tgt.entityId))
     }, target)
     .post('/attachments', async ({ request, body, set }) => {
-      const actor = await staffActor(request, field(body, 'entityType'))
+      const actor = await staffActor(request, field(body, 'entityType'), true)
       const tgt = await resolveCollabTarget(db, field(body, 'entityType'), field(body, 'entityId'))
       const key = requireIdempotencyKey(request)
       await withIdempotency(db, { actorUserId: actor.userId, route: 'POST /attachments', key, body }, tx => addAttachment(tx, actor, tgt, field(body, 'fileName'), requestIdOf(request)))
