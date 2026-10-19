@@ -21,7 +21,9 @@ const FILES = [
   // S12b-2: change requests and the quotation response.
   'components/client/ChangeRequestsListPanel.vue',
   'pages/client/change-requests/[id]/index.vue',
-  'pages/client/quotations/[id]/index.vue'
+  'pages/client/quotations/[id]/index.vue',
+  // S12c-1: payment proofs, invoice viewed and sensitive profile changes.
+  'pages/client/billing/index.vue'
 ]
 const FORBIDDEN = [
   'createTraveler(', 'updateTraveler(', 'cancelTraveler(', 'replaceTraveler(', 'commitTravelerImport(', 'setTravelerVip(',
@@ -30,7 +32,8 @@ const FORBIDDEN = [
   'updateCompanyProfile(', 'createContact(', 'updateContact(', 'deleteContact(', 'raiseInvoiceDispute(',
   'createVendorProduct(',
   'createChangeRequest(', 'submitChangeRequestDraft(', 'approveChangeRequestImpact(', 'rejectChangeRequestImpact(', 'cancelChangeRequest(',
-  'runChangeRequestMockReview(', 'requestQuotationRevision(', 'createPartyActivity('
+  'runChangeRequestMockReview(', 'requestQuotationRevision(', 'createPartyActivity(',
+  'submitPaymentProof(', 'runPaymentVerificationMock(', 'markInvoiceViewed(', 'submitSensitiveCompanyProfileChange(', 'runCompanyProfileVerificationMock('
 ]
 const used = (source: string, name: string) => new RegExp(`(?<![.\\w])${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(source)
 

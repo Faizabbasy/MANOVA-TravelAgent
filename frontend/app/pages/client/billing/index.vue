@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { Search, Wallet, AlertTriangle, FileText, Printer } from 'lucide-vue-next'
-import { getProjectsByParty, getClientInvoices, getInvoiceOutstandingIdr, getClientFinanceSummary, runPaymentVerificationMock } from '~/data'
+import { getProjectsByParty, getClientInvoices, getInvoiceOutstandingIdr, getClientFinanceSummary } from '~/data'
 import { INVOICE_STATUSES, INVOICE_TYPES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
 import { isInvoiceOverdue, isInvoiceDueSoon } from '~/utils/attention'
@@ -9,9 +9,8 @@ import type { Invoice, InvoiceStatus } from '~/types/finance'
 
 /**
  * Finance & Billing — Index (Repair Phase Section 6 — Finance & Collaboration, Master Prompt bagian A).
- * "Mock verification" (Flow 4) dipicu lazy di sini (`onMounted`) untuk seluruh invoice `waiting-verification`
- * milik company — bukan cascade instan di `submitPaymentProof`, agar status itu benar-benar sempat terlihat
- * Client (lihat komentar `runPaymentVerificationMock`, `app/data/index.ts`).
+ * Status "Menunggu Verifikasi" datang dari server (S12c-1): bukti bayar client menunggu Finance, yang memverifikasinya
+ * dengan mencatat penerimaan kas — tidak ada verifikasi otomatis di sini.
  */
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Finance & Billing' })
@@ -21,10 +20,6 @@ const { canView, clientScopeId } = usePermissions()
 const projects = computed(() => (clientScopeId.value ? getProjectsByParty(clientScopeId.value) : []))
 const invoices = computed(() => (clientScopeId.value ? getClientInvoices(clientScopeId.value) : []))
 const summary = computed(() => (clientScopeId.value ? getClientFinanceSummary(clientScopeId.value) : undefined))
-
-onMounted(() => {
-  invoices.value.filter(invoice => invoice.status === 'waiting-verification').forEach(invoice => runPaymentVerificationMock(invoice.id))
-})
 
 function projectName (projectId: string): string {
   return projects.value.find(p => p.id === projectId)?.name ?? projectId

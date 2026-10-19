@@ -1,12 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
 import { Plus, Building2, FileText, Pencil, Trash2 } from 'lucide-vue-next'
 import {
-  getPartyById, getContactsByParty, getClientDocuments, getCompanyProfileChangeHistory,
-  submitSensitiveCompanyProfileChange, runCompanyProfileVerificationMock
+  getPartyById, getContactsByParty, getClientDocuments, getCompanyProfileChangeHistory
 } from '~/data'
-import { clientAddContact, clientEditContact, clientRemoveContact, clientUpdateProfile, clientUploadDocument } from '~/data/client-portal-writes'
+import { clientAddContact, clientEditContact, clientRemoveContact, clientSubmitProfileChange, clientUpdateProfile, clientUploadDocument } from '~/data/client-portal-writes'
 import { createSaveGate } from '~/lib/save-gate'
 import { COMPANY_TYPES, INVOICE_CURRENCIES, findStatusOption } from '~/constants/status'
 import { formatDate } from '~/utils/format'
@@ -15,29 +14,23 @@ import type { InvoiceCurrency } from '~/types/finance'
 
 /**
  * Company Profile (Repair Phase Section 7 — Insights & Company, Master Prompt bagian 18). Field sensitif
- * (registrasi/NPWP/billing/payment term) TIDAK langsung ditulis — lewat `submitSensitiveCompanyProfileChange`
- * (status "Menunggu Verifikasi") → `runCompanyProfileVerificationMock` (lazy, dipicu `onMounted`, pola sama
- * `runPaymentVerificationMock` Section 6). "Tidak ada Users & Access" — TIDAK ADA halaman/section user
+ * (registrasi/NPWP/billing/payment term, dan nama perusahaan) TIDAK langsung ditulis — diajukan ke server (S12c-1,
+ * `/client/profile/changes`) dan diterapkan setelah disetujui tim kami. "Tidak ada Users & Access" — TIDAK ADA halaman/section user
  * management di sini, murni data company.
  */
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Company Profile' })
 
 const { canView, clientScopeId } = usePermissions()
-const { currentUser } = useCurrentUser()
 const { showToast } = useToast()
 
 const party = computed(() => (clientScopeId.value ? getPartyById(clientScopeId.value) : undefined))
-
-onMounted(() => {
-  if (clientScopeId.value) { runCompanyProfileVerificationMock(clientScopeId.value) }
-})
 
 const contacts = computed(() => (clientScopeId.value ? getContactsByParty(clientScopeId.value) : []))
 const companyDocuments = computed(() => (clientScopeId.value ? getClientDocuments(clientScopeId.value).filter(doc => doc.entityType === 'party') : []))
 const changeHistory = computed(() => (clientScopeId.value ? getCompanyProfileChangeHistory(clientScopeId.value).map(entry => ({ id: entry.id, message: entry.message, createdAt: entry.createdAt })) : []))
 
-const SENSITIVE_FIELDS = ['registrationNumber', 'npwp', 'billingName', 'billingAddress', 'paymentTerm'] as const
+const SENSITIVE_FIELDS = ['name', 'registrationNumber', 'npwp', 'billingName', 'billingAddress', 'paymentTerm'] as const
 type SensitiveField = typeof SENSITIVE_FIELDS[number]
 
 const isEditing = ref(false)
@@ -105,24 +98,20 @@ function cancelEdit () {
   isDirty.value = false
 }
 
-/* Server writes (S12b-1): the general profile, contacts and company documents go to /client/*. Sensitive fields
- * (registration/tax/billing) still wait for verification locally until S12c; the company name is changed by our team. */
+/* Server writes (S12b-1, S12c-1): the general profile, contacts and company documents go to /client/*; registration,
+ * tax and billing data and the company name are proposed to our team (/client/profile/changes) and applied once approved. */
 const api = useApi()
 const gate = createSaveGate((title, message, tone) => showToast(title, message, tone))
 
 async function handleSave () {
   if (!party.value) { return }
-  const sensitivePatch: Record<SensitiveField, string | undefined> = {
-    registrationNumber: undefined, npwp: undefined, billingName: undefined, billingAddress: undefined, paymentTerm: undefined
-  }
-  let hasSensitiveChange = false
+  const sensitiveChanges: Partial<Record<SensitiveField, string>> = {}
   for (const field of SENSITIVE_FIELDS) {
     const newValue = form.value[field].trim()
-    if (newValue !== (party.value[field] ?? '')) { sensitivePatch[field] = newValue; hasSensitiveChange = true }
+    if (newValue !== (party.value[field] ?? '')) { sensitiveChanges[field] = newValue }
   }
 
   const text = (value: string) => value.trim() || null
-  const partyId = party.value.id
   const saved = await gate.run('Company Profile Gagal Disimpan', () => clientUpdateProfile(api, {
     industry: text(form.value.industry),
     size: text(form.value.size),
@@ -142,8 +131,9 @@ async function handleSave () {
   // No server column yet: the preferred currency and the logo file name stay on this screen's data.
   Object.assign(saved, { preferredCurrency: form.value.preferredCurrency, logoFileName: form.value.logoFileName.trim() || undefined })
 
-  if (hasSensitiveChange) {
-    submitSensitiveCompanyProfileChange(partyId, sensitivePatch, currentUser.value.id)
+  if (Object.keys(sensitiveChanges).length) {
+    const proposed = await gate.run('Perubahan Data Sensitif Gagal Diajukan', () => clientSubmitProfileChange(api, sensitiveChanges))
+    if (!proposed) { return }
     showToast('Perubahan Disimpan', 'Field umum tersimpan. Perubahan data sensitif menunggu verifikasi tim kami.', 'success')
   } else {
     showToast('Perubahan Disimpan', 'Company Profile berhasil diperbarui.', 'success')
@@ -304,7 +294,7 @@ async function submitDoc () {
         <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div class="space-y-1.5">
             <Label for="cp-name">Nama Company</Label>
-            <Input id="cp-name" v-model="form.name" disabled title="Nama perusahaan diubah lewat tim kami." />
+            <Input id="cp-name" v-model="form.name" title="Perubahan nama perusahaan diverifikasi tim kami." @input="isDirty = true" />
           </div>
           <div class="space-y-1.5">
             <Label for="cp-type">Tipe Company</Label>

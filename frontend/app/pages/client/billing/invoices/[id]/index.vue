@@ -4,10 +4,11 @@ import { useRoute, useRouter } from 'vue-router'
 import { FileX } from 'lucide-vue-next'
 import {
   getProjectById, getPaymentsByInvoice, getCreditNotesByInvoice,
-  getInvoiceOutstandingIdr, markInvoiceViewed, submitPaymentProof, runPaymentVerificationMock,
+  getInvoiceOutstandingIdr,
   INVOICES
 } from '~/data'
-import { clientDisputeInvoice } from '~/data/client-portal-writes'
+import { clientDisputeInvoice, clientMarkInvoiceViewed, clientSubmitPaymentProof } from '~/data/client-portal-writes'
+import { todayJakarta } from '~/lib/finance/dates'
 import { createSaveGate } from '~/lib/save-gate'
 import { INVOICE_STATUSES, INVOICE_TYPES, CREDIT_NOTE_STATUSES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
@@ -24,7 +25,6 @@ definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 const route = useRoute()
 const router = useRouter()
 const { canView, clientScopeId } = usePermissions()
-const { currentUser } = useCurrentUser()
 const { showToast } = useToast()
 
 const invoice = computed(() => INVOICES.find(item => item.id === String(route.params.id)))
@@ -32,10 +32,14 @@ const project = computed(() => (invoice.value ? getProjectById(invoice.value.pro
 const isOwnCompany = computed(() => Boolean(project.value && clientScopeId.value && project.value.partyId === clientScopeId.value))
 useHead({ title: computed(() => invoice.value ? invoice.value.label : 'Tidak Ditemukan') })
 
+/* Server writes (S12c-1, S12b-1): proofs, disputes and "viewed" go to /client/invoices/:id/*. */
+const api = useApi()
+const gate = createSaveGate((title, message, tone) => showToast(title, message, tone))
+
 onMounted(() => {
-  if (!invoice.value || !isOwnCompany.value) { return }
-  if (invoice.value.status === 'waiting-verification') { runPaymentVerificationMock(invoice.value.id) }
-  markInvoiceViewed(invoice.value.id)
+  if (!invoice.value || !isOwnCompany.value || invoice.value.viewedAt) { return }
+  // Quietly: a failed mark only means the invoice is marked viewed on the next visit.
+  clientMarkInvoiceViewed(api, invoice.value.id).catch(() => {})
 })
 
 const payments = computed(() => (invoice.value ? getPaymentsByInvoice(invoice.value.id) : []))
@@ -45,30 +49,43 @@ const outstanding = computed(() => (invoice.value ? getInvoiceOutstandingIdr(inv
 const canUploadProof = computed(() => invoice.value && (invoice.value.status === 'unpaid' || invoice.value.status === 'partially-paid'))
 const canDispute = computed(() => invoice.value && invoice.value.status !== 'paid' && invoice.value.status !== 'void')
 
-/* --- Upload payment proof --- */
+/* --- Upload payment proof: Finance verifies it by recording the payment (the official amount is theirs). --- */
 const isProofOpen = ref(false)
 const proofReference = ref('')
 const proofAmount = ref(0)
+const proofDate = ref('')
+const proofBank = ref('')
+const proofFileName = ref('')
 const proofNote = ref('')
 function openProofDialog () {
   proofReference.value = ''
   proofAmount.value = outstanding.value
+  proofDate.value = todayJakarta()
+  proofBank.value = ''
+  proofFileName.value = ''
   proofNote.value = ''
   isProofOpen.value = true
 }
-function submitProof () {
-  if (!invoice.value || !proofReference.value.trim() || proofAmount.value <= 0) { return }
-  const result = submitPaymentProof({ invoiceId: invoice.value.id, submittedBy: currentUser.value.id, reference: proofReference.value.trim(), amountIdr: proofAmount.value, note: proofNote.value.trim() || undefined })
+async function submitProof () {
+  if (!invoice.value || !clientScopeId.value || !proofReference.value.trim() || proofAmount.value <= 0 || !proofDate.value) { return }
+  const invoiceId = invoice.value.id
+  const partyId = clientScopeId.value
+  const saved = await gate.run('Bukti Pembayaran Gagal Dikirim', () => clientSubmitPaymentProof(api, partyId, invoiceId, {
+    reference: proofReference.value.trim(),
+    amountMinor: String(Math.round(proofAmount.value)),
+    transferDate: proofDate.value,
+    ...(proofBank.value.trim() ? { senderBank: proofBank.value.trim() } : {}),
+    ...(proofFileName.value.trim() ? { fileName: proofFileName.value.trim() } : {}),
+    ...(proofNote.value.trim() ? { note: proofNote.value.trim() } : {})
+  }))
+  if (!saved) { return }
   isProofOpen.value = false
-  if (result) { showToast('Bukti Pembayaran Terkirim', 'Tim Finance kami akan memverifikasi dalam waktu dekat.', 'success') }
+  showToast('Bukti Pembayaran Terkirim', 'Tim Finance kami akan memverifikasi dalam waktu dekat.', 'success')
 }
 
 /* --- Raise dispute --- */
 const isDisputeOpen = ref(false)
 const disputeReason = ref('')
-/* Server write (S12b-1): the dispute goes to /client/invoices/:id/dispute; Finance is notified there. */
-const api = useApi()
-const gate = createSaveGate((title, message, tone) => showToast(title, message, tone))
 async function submitDispute () {
   if (!invoice.value || !clientScopeId.value || !disputeReason.value.trim()) { return }
   const invoiceId = invoice.value.id
@@ -130,16 +147,21 @@ async function submitDispute () {
         </p>
       </SectionCard>
 
-      <SectionCard v-if="invoice.status === 'waiting-verification'" title="Bukti Pembayaran">
+      <SectionCard v-if="invoice.paymentProofStatus === 'submitted' || invoice.paymentProofStatus === 'rejected'" title="Bukti Pembayaran">
         <DetailMetadataList
           :items="[
             { label: 'Referensi', value: invoice.paymentProofReference ?? '—' },
             { label: 'Jumlah Dilaporkan', value: formatCurrencyIdr(invoice.paymentProofAmountIdr ?? 0) },
-            { label: 'Diunggah', value: invoice.paymentProofUploadedAt ? formatDate(invoice.paymentProofUploadedAt) : '—' },
+            { label: 'Tanggal Transfer', value: invoice.paymentProofTransferDate ? formatDate(invoice.paymentProofTransferDate) : '—' },
+            { label: 'Bank Pengirim', value: invoice.paymentProofSenderBank ?? '—' },
+            { label: 'File', value: invoice.paymentProofFileName ?? '—' },
           ]"
         />
-        <p class="text-sm text-muted-foreground mt-2">
+        <p v-if="invoice.paymentProofStatus === 'submitted'" class="text-sm text-muted-foreground mt-2">
           Menunggu verifikasi tim Finance kami.
+        </p>
+        <p v-else class="text-sm text-destructive mt-2">
+          Bukti ini ditolak: {{ invoice.paymentProofRejectionReason }}. Silakan kirim bukti pembayaran yang benar.
         </p>
       </SectionCard>
 
@@ -158,7 +180,7 @@ async function submitDispute () {
             v-if="canUploadProof"
             v-model:open="isProofOpen"
             title="Upload Payment Proof"
-            description="Mock upload — tidak ada file storage nyata, hanya metadata tercatat."
+            description="Data transfer Anda diverifikasi tim Finance kami. File bukti dicatat namanya saja untuk sementara."
             content-class="max-w-md"
             scroll
           >
@@ -177,6 +199,18 @@ async function submitDispute () {
                 <CurrencyInput id="proof-amount" v-model="proofAmount" min="1" :max="outstanding" />
               </div>
               <div class="space-y-1.5">
+                <Label for="proof-date">Tanggal Transfer</Label>
+                <Input id="proof-date" v-model="proofDate" type="date" :max="todayJakarta()" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="proof-bank">Bank Pengirim (opsional)</Label>
+                <Input id="proof-bank" v-model="proofBank" placeholder="mis. BCA" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="proof-file">Nama File Bukti (opsional)</Label>
+                <Input id="proof-file" v-model="proofFileName" placeholder="mis. bukti-transfer.jpg" />
+              </div>
+              <div class="space-y-1.5">
                 <Label for="proof-note">Catatan (opsional)</Label>
                 <Input id="proof-note" v-model="proofNote" />
               </div>
@@ -185,7 +219,7 @@ async function submitDispute () {
               <Button variant="outline" @click="isProofOpen = false">
                 Batal
               </Button>
-              <Button :disabled="!proofReference.trim() || proofAmount <= 0" @click="submitProof">
+              <Button :disabled="!proofReference.trim() || proofAmount <= 0 || !proofDate || gate.saving.value" @click="submitProof">
                 Kirim Konfirmasi Pembayaran
               </Button>
             </template>
