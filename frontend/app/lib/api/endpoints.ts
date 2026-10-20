@@ -16,6 +16,8 @@ import type {
   TravelRequestInput,
   ClientApprovalDto,
   ClientApprovalInput,
+  ItineraryVersionDto,
+  TripAnnouncementDto,
   FeedbackInput,
   SupportTicketDto,
   SupportTicketInput,
@@ -328,6 +330,18 @@ export function createManovaApi (client: ApiClient) {
       listProjectClientApprovals: (projectId: string) => client.get<ClientApprovalDto[]>('/client-approvals', { query: { projectId } }),
       requestClientApproval: (projectId: string, input: ClientApprovalInput, idempotencyKey: string = newIdempotencyKey()) =>
         client.post<ClientApprovalDto>(`/projects/${seg(projectId)}/client-approvals`, input, { idempotencyKey }),
+      // S12c-4: itinerary versions and trip announcements.
+      listClientItineraryVersions: () => client.get<ItineraryVersionDto[]>('/client/itinerary-versions'),
+      clientDecideItineraryVersion: (id: string, decision: 'approve' | 'request-revision', comment?: string) =>
+        client.post<ItineraryVersionDto>(`/client/itinerary-versions/${seg(id)}/${decision}`, comment ? { comment } : {}),
+      listClientAnnouncements: () => client.get<TripAnnouncementDto[]>('/client/announcements'),
+      clientConfirmAnnouncement: (id: string) => client.post<TripAnnouncementDto>(`/client/announcements/${seg(id)}/confirm`, {}),
+      listItineraryVersions: (projectId: string) => client.get<ItineraryVersionDto[]>('/itinerary-versions', { query: { projectId } }),
+      publishItineraryVersion: (projectId: string, note?: string, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<ItineraryVersionDto>(`/projects/${seg(projectId)}/itinerary-versions`, note ? { note } : {}, { idempotencyKey }),
+      listAnnouncements: (projectId: string) => client.get<TripAnnouncementDto[]>('/announcements', { query: { projectId } }),
+      publishAnnouncement: (projectId: string, input: { title: string; message: string; requiresConfirmation: boolean }, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<TripAnnouncementDto>(`/projects/${seg(projectId)}/announcements`, input, { idempotencyKey }),
       listClientContacts: () => client.get<PartyContactDto[]>('/client/contacts'),
       clientCreateContact: (input: ClientContactInput & { name: string; title: string }, idempotencyKey: string = newIdempotencyKey()) =>
         client.post<PartyContactDto>('/client/contacts', input, { idempotencyKey }),

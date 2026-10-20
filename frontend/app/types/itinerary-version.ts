@@ -23,6 +23,9 @@ export interface ItineraryVersion {
   /** Terisi bila versi ini lahir dari revisi Client atas versi sebelumnya. */
   supersedesVersionId?: ID
   comment?: string
+  /** S12c-4 (server): the staff note on publishing and the client's revision request. */
+  note?: string
+  revisionComment?: string
 }
 
 /**

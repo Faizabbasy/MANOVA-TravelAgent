@@ -1,16 +1,18 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { FileX, Megaphone, AlertTriangle, PlaneTakeoff, Building2, Bus, FolderOpen } from 'lucide-vue-next'
 import {
   getProjectById, getTripCenterMode, getTripCenterSchedule, getTripCenterMeetingPoint,
-  getTripAnnouncementsByProject, confirmTripAnnouncement, getTravelerReadiness,
+  getTripAnnouncementsByProject, getTravelerReadiness,
   getClientReservations, getClientDocumentsByProject, getIncidentsByProject,
   getUserById, getProjectOrderStatus
 } from '~/data'
 import { PROJECT_ORDER_STATUSES, INCIDENT_STATUSES, findStatusOption } from '~/constants/status'
 import { formatDate, formatDayLabel, daysUntil } from '~/utils/format'
 import { DEMO_REFERENCE_DATE } from '~/utils/attention'
+import { clientConfirmAnnouncementOnServer, useClientTripSync } from '~/data/trip-collab-sync'
+import { createSaveGate } from '~/lib/save-gate'
 import type { BadgeTone } from '~/types/common'
 
 /**
@@ -57,9 +59,14 @@ const announcements = computed(() => (project.value ? getTripAnnouncementsByProj
 function isAnnouncementConfirmed (announcementId: string): boolean {
   return announcements.value.find(item => item.id === announcementId)?.confirmedByUserIds.includes(currentUser.value.id) ?? false
 }
-function handleConfirmAnnouncement (announcementId: string) {
-  confirmTripAnnouncement(announcementId, currentUser.value.id)
-  showToast('Pengumuman Dikonfirmasi', 'Terima kasih, konfirmasi Anda telah tercatat.', 'success')
+/* S12c-4: announcements come from the server; staff may have posted a new one, so read again on open. */
+const api = useApi()
+const gate = createSaveGate((title, message, tone) => showToast(title, message, tone))
+const tripSync = useClientTripSync()
+onMounted(() => { tripSync.load(true) })
+async function handleConfirmAnnouncement (announcementId: string) {
+  const done = await gate.run('Konfirmasi Gagal Disimpan', () => clientConfirmAnnouncementOnServer(api, announcementId))
+  if (done) { showToast('Pengumuman Dikonfirmasi', 'Terima kasih, konfirmasi Anda telah tercatat.', 'success') }
 }
 
 const importantDocuments = computed(() => (project.value ? getClientDocumentsByProject(project.value.id) : []))
@@ -225,7 +232,7 @@ function contactPic () {
                   {{ formatDate(item.publishedAt) }}
                 </p>
               </div>
-              <Button v-if="item.requiresConfirmation && !isAnnouncementConfirmed(item.id)" size="sm" @click="handleConfirmAnnouncement(item.id)">
+              <Button v-if="item.requiresConfirmation && !isAnnouncementConfirmed(item.id)" size="sm" :disabled="gate.saving.value" @click="handleConfirmAnnouncement(item.id)">
                 Confirm
               </Button>
               <StatusBadge v-else-if="item.requiresConfirmation" label="Dikonfirmasi" tone="success" />

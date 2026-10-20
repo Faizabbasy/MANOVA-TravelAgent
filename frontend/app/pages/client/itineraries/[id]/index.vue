@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { FileX, Printer, LayoutList, Table2 } from 'lucide-vue-next'
 import {
   getProjectById, getClientVisibleItineraryItems,
-  getItineraryVersionsByProject, getLatestItineraryVersion,
-  requestItineraryRevision, approveItineraryVersion
+  getItineraryVersionsByProject, getLatestItineraryVersion
 } from '~/data'
+import { clientDecideItineraryVersionOnServer, useClientTripSync } from '~/data/trip-collab-sync'
+import { createSaveGate } from '~/lib/save-gate'
 import { ITINERARY_VERSION_STATUSES, findStatusOption } from '~/constants/status'
 import { formatDayLabel, formatDate } from '~/utils/format'
 
@@ -20,7 +21,6 @@ definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 const route = useRoute()
 const router = useRouter()
 const { canView, clientScopeId } = usePermissions()
-const { currentUser } = useCurrentUser()
 const { showToast } = useToast()
 
 const project = computed(() => getProjectById(String(route.params.id)))
@@ -50,22 +50,31 @@ const compareRightId = ref('')
 const compareLeft = computed(() => versions.value.find(v => v.id === compareLeftId.value))
 const compareRight = computed(() => versions.value.find(v => v.id === compareRightId.value))
 
+/* S12c-4: the decision is recorded on the server; staff may have published a newer version, so read again on open. */
+const api = useApi()
+const gate = createSaveGate((title, message, tone) => showToast(title, message, tone))
+const tripSync = useClientTripSync()
+onMounted(() => { tripSync.load(true) })
+
 /* --- Approve --- */
-function submitApprove () {
+async function submitApprove () {
   if (!latestVersion.value) { return }
-  const result = approveItineraryVersion(latestVersion.value.id, currentUser.value.id)
+  const id = latestVersion.value.id
+  const result = await gate.run('Persetujuan Gagal Disimpan', () => clientDecideItineraryVersionOnServer(api, id, 'approve'))
   if (result) { showToast('Itinerary Disetujui', `Versi ${result.versionNumber} telah Anda setujui.`, 'success') }
 }
 
-/* --- Request revision --- */
+/* --- Request revision: the team prepares and publishes the next version. --- */
 const isRevisionDialogOpen = ref(false)
 const revisionComment = ref('')
-function submitRevisionRequest () {
-  if (!project.value || !revisionComment.value.trim()) { return }
-  const result = requestItineraryRevision(project.value.id, currentUser.value.id, revisionComment.value.trim())
+async function submitRevisionRequest () {
+  if (!latestVersion.value || !revisionComment.value.trim()) { return }
+  const id = latestVersion.value.id
+  const result = await gate.run('Permintaan Revisi Gagal Dikirim', () => clientDecideItineraryVersionOnServer(api, id, 'request-revision', revisionComment.value.trim()))
+  if (!result) { return }
   revisionComment.value = ''
   isRevisionDialogOpen.value = false
-  if (result) { showToast('Revisi Diajukan', `Versi ${result.versionNumber} disiapkan menunggu approval.`, 'success') }
+  showToast('Revisi Diajukan', 'Tim kami akan menyiapkan versi berikutnya untuk Anda tinjau.', 'success')
 }
 </script>
 
@@ -189,8 +198,14 @@ function submitRevisionRequest () {
           </ResponsiveDataView>
         </template>
 
+        <p v-if="latestVersion?.note" class="mt-4 text-sm text-foreground">
+          <span class="font-medium">Catatan tim kami (v{{ latestVersion.versionNumber }}):</span> {{ latestVersion.note }}
+        </p>
+        <p v-if="latestVersion?.status === 'revision-requested'" class="mt-2 text-sm text-warning">
+          Revisi Anda sedang disiapkan tim kami{{ latestVersion.revisionComment ? ` — "${latestVersion.revisionComment}"` : '' }}.
+        </p>
         <div v-if="canDecide" class="mt-4 pt-4 border-t border-border flex flex-wrap gap-2">
-          <Button @click="submitApprove">
+          <Button :disabled="gate.saving.value" @click="submitApprove">
             Approve
           </Button>
           <ResponsiveFormSheet v-model:open="isRevisionDialogOpen" title="Request Revision" description="Jelaskan perubahan yang Anda butuhkan — versi baru akan disiapkan menunggu approval Anda kembali." content-class="max-w-md">
@@ -207,7 +222,7 @@ function submitRevisionRequest () {
               <Button variant="outline" @click="isRevisionDialogOpen = false">
                 Batal
               </Button>
-              <Button :disabled="!revisionComment.trim()" @click="submitRevisionRequest">
+              <Button :disabled="gate.saving.value || !revisionComment.trim()" @click="submitRevisionRequest">
                 Kirim
               </Button>
             </template>

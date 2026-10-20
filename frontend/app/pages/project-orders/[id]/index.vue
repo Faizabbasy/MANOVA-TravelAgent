@@ -3543,6 +3543,8 @@ const tripDurationDays = computed(() => {
               </div>
             </SectionCard>
           </div>
+          <!-- S12c-4: versi itinerary, pengumuman & komentar itinerary dengan client (server). -->
+          <ClientTripCard class="mt-4" :project-id="project.id" />
         </TabsContent>
 
         <TabsContent value="calendar">

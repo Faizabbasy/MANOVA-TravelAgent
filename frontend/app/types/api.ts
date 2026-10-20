@@ -2128,3 +2128,35 @@ export interface ClientApprovalDto {
   reason: string | null
 }
 export interface ClientApprovalInput { entityType: ClientApprovalDto['entityType']; title: string; description?: string; amountIdr?: number | null; expiresOn?: string | null }
+/** S12c-4: a frozen snapshot of the client-visible itinerary items the client approves or asks to revise. */
+export interface ItineraryVersionItemDto { id: string; date: string; time: string | null; title: string; description: string | null; serviceType: string | null; timezone: string | null; location: string | null }
+export interface ItineraryVersionDto {
+  id: string
+  projectId: string
+  projectName: string
+  versionNumber: number
+  status: 'waiting-approval' | 'approved' | 'revision-requested' | 'superseded'
+  items: ItineraryVersionItemDto[]
+  note: string | null
+  revisionComment: string | null
+  createdBy: string | null
+  createdByName: string
+  createdAt: string
+  decidedBy: string | null
+  decidedByName: string | null
+  decidedAt: string | null
+}
+/** S12c-4: a one-way trip announcement; `confirmedByMe` only in the client portal. */
+export interface TripAnnouncementDto {
+  id: string
+  projectId: string
+  projectName: string
+  title: string
+  message: string
+  requiresConfirmation: boolean
+  publishedBy: string | null
+  publishedByName: string
+  publishedAt: string
+  confirmations: { userId: string; name: string; confirmedAt: string }[]
+  confirmedByMe?: boolean
+}
