@@ -80,21 +80,29 @@ export async function publishItineraryVersion(tx: Queryable, actor: Actor, proje
 export async function clientDecideItineraryVersion(tx: Queryable, actor: Actor, partyId: string, id: string, decision: 'approved' | 'revision-requested', commentInput: unknown, requestId: string) {
   const comment = typeof commentInput === 'string' ? commentInput.trim() : ''
   if (decision === 'revision-requested' && !comment) throw errors.validation({ comment: ['Jelaskan revisi yang Anda butuhkan.'] })
-  const [v] = await tx.query<{ status: string; project_id: string; version_number: number }>(
-    `select v.status, v.project_id, v.version_number from itinerary_versions v join projects p on p.id = v.project_id
+  const [v] = await tx.query<{ status: string; project_id: string; version_number: number; created_by: string }>(
+    `select v.status, v.project_id, v.version_number, v.created_by from itinerary_versions v join projects p on p.id = v.project_id
       where v.id = $1 and p.party_id = $2 for update of v`, [id, partyId])
   if (!v) throw errors.notFound('Versi itinerary')
   if (v.status !== 'waiting-approval') throw rule('Versi itinerary ini tidak sedang menunggu persetujuan Anda.')
   await tx.query('update itinerary_versions set status = $2, revision_comment = $3, decided_by = $4, decided_at = now() where id = $1',
     [id, decision, decision === 'revision-requested' ? comment.slice(0, 2000) : null, actor.userId])
   const project = await ownProject(tx, partyId, v.project_id)
-  await notifyInternal(tx, actor, project.ownerUserId, {
-    type: 'change',
-    title: decision === 'approved' ? `Itinerary v${v.version_number} disetujui client` : `Client minta revisi itinerary v${v.version_number}`,
-    body: decision === 'approved' ? project.name : comment,
-    entityType: 'project',
-    entityId: v.project_id
-  })
+  // Review fix: the owner and whoever published the version; if neither is an active staff member, every active admin.
+  const candidates = [project.ownerUserId, v.created_by].filter((u): u is string => Boolean(u))
+  const active = candidates.length
+    ? (await tx.query<{ id: string }>("select id from users where id = any($1::text[]) and status = 'active' and role not in ('client', 'vendor') order by id", [candidates])).map(r => r.id)
+    : []
+  const targets = active.length ? active : (await tx.query<{ id: string }>("select id from users where role = 'admin' and status = 'active' order by id")).map(r => r.id)
+  for (const userId of targets) {
+    await notifyInternal(tx, actor, userId, {
+      type: 'change',
+      title: decision === 'approved' ? `Itinerary v${v.version_number} disetujui client` : `Client minta revisi itinerary v${v.version_number}`,
+      body: decision === 'approved' ? project.name : comment,
+      entityType: 'project',
+      entityId: v.project_id
+    })
+  }
   await recordAudit(tx, { action: `itinerary_version.${decision}`, actorUserId: actor.userId, entityType: 'itinerary_version', entityId: id, requestId, reason: comment || null })
 }
 

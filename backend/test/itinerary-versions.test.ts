@@ -94,3 +94,19 @@ describe('trip announcements', () => {
     expect(((await call('GET', '/client/announcements', 'client')).json.data as { id: string }[]).some(a => a.id === other)).toBe(false)
   })
 })
+
+describe('review fix (S12c-4)', () => {
+  test('a decision reaches the publisher when the project has no active owner — never nobody', async () => {
+    const ownerId = await owner('PRJ-201')
+    const [publisher] = await t.db.query<{ id: string }>("select id from users where email = 'doni.saputra@manova.id'")
+    const v = (await call('POST', '/projects/PRJ-201/itinerary-versions', 'admin', {})).json.data as Version
+    await t.db.query("update projects set owner_user_id = null where id = 'PRJ-201'")
+    try {
+      const before = await notes(publisher!.id)
+      expect((await call('POST', `/client/itinerary-versions/${v.id}/request-revision`, 'client', { comment: 'Ubah jam' })).status).toBe(200)
+      expect(await notes(publisher!.id)).toBe(before + 1)
+    } finally {
+      await t.db.query("update projects set owner_user_id = $1 where id = 'PRJ-201'", [ownerId])
+    }
+  })
+})
