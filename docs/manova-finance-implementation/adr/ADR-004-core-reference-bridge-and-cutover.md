@@ -345,3 +345,23 @@ tanpa project masuk antrean (semua Admin diberi tahu), kategori billing juga mem
 (tidak pernah dikirim ke client), selesaikan dengan catatan, tutup. Feedback hanya untuk project `ongoing-trip`/
 `completed` (`PUT/POST /client/projects/:id/feedback[/submit]`); CRM (`crm.manage-follow-up`) menerima, menandai
 tindak lanjut (catatan wajib) dan menutup lewat `/feedback/:id/*`. Panel Review & Feedback CRM membaca `GET /feedback`.
+
+## Update 2026-10-20 — Komentar & lampiran, travel request & approval, versi itinerary & pengumuman (S12c-5/3/4)
+
+Tanpa spec terpisah (permintaan user); keputusan tercatat sebagai ruling di laporan tahap.
+- **0042 (S12c-5):** `entity_comments` dan `entity_attachments` (nama file saja, menunggu ADR-005) per `entity_type`
+  (change-request, quotation, document, itinerary = project, travel-request) + `change_request_drafts`. Client hanya
+  menjangkau data party-nya yang terlihat client (quotation setelah dikirim, dokumen akses client); staf membaca dengan
+  VIEW modul dan menulis ke client dengan MANAGE, hanya pada data yang terlihat client. Submit draft = change request
+  client + draft dihapus dalam satu transaksi.
+- **0043 (S12c-3):** `travel_requests` + aktivitas: draft → submitted → ditinjau sales (`sales.manage-lead`) →
+  klarifikasi ⇄ jawaban → dijadikan Lead (`createLead`, sumber client-portal; qualify & quotation lewat alur Lead biasa)
+  atau ditutup. Mock review otomatis (lead + quotation instan) dihapus. `client_approvals`: staf
+  (`project-order.manage-operations`) meminta persetujuan (rooming list, biaya tambahan, laporan akhir, dll. — bukan CR
+  dan itinerary yang punya alur sendiri); client approve / tolak / minta revisi (alasan wajib). Nominal hanya tampilan,
+  belum menjadi invoice Finance.
+- **0044 (S12c-4):** `itinerary_versions` = snapshot beku item `visible_to_client` (tanpa vendor/biaya); versi baru
+  menggantikan semua versi lama; client approve / minta revisi (staf menerbitkan versi berikutnya).
+  `trip_announcements` + konfirmasi client (idempoten).
+Layar staf baru: inbox Travel Request (`/travel-requests`), kartu Persetujuan Client (Overview project order), kartu
+Versi Itinerary & Pengumuman + thread komentar (tab Itinerary), thread komentar di CR, quotation, dan dokumen.

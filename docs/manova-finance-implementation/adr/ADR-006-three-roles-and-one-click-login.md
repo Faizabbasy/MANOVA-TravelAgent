@@ -100,3 +100,10 @@ registrasi/pajak/billing/nama perusahaan (ditinjau Admin) lewat server. Tidak ad
 Tiket support dan feedback perjalanan dari portal client tersimpan di server. Admin menangani tiket di menu Customer >
 Tiket Support (capability `support.manage-ticket`); Finance hanya diberi tahu untuk tiket kategori billing. Travel
 request & approval portal tetap lokal (S12c-3).
+
+## Update 2026-10-20 — Seluruh tulisan portal client di server (S12c-3/4/5)
+
+Travel request, approval, versi itinerary, pengumuman perjalanan, komentar, lampiran (nama file), dan draft change
+request dari portal client kini tersimpan di server. Sales meninjau travel request di menu Travel Request; Admin
+meminta persetujuan dan menerbitkan versi itinerary/pengumuman dari halaman project order. Finance hanya membaca thread
+komentar (tidak menulis ke client). Tidak ada lagi tulisan portal client yang hanya lokal.
