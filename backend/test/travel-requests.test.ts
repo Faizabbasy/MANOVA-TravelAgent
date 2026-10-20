@@ -124,3 +124,21 @@ describe('client approvals', () => {
     expect((await call('GET', `/client-approvals?projectId=${foreign}`, 'admin')).json.data.some((a: { id: string }) => a.id === other)).toBe(true)
   })
 })
+
+describe('review fixes (S12c-3)', () => {
+  test('a long purpose or a big group still converts to a lead (summary trimmed, estimate within the lead limit)', async () => {
+    expect((await call('POST', '/client/travel-requests', 'client', draft({ estimatedParticipants: 200000 }))).status).toBe(400)
+    const { id } = await create({ purpose: 'x'.repeat(3500), estimatedParticipants: 100000 })
+    await call('POST', `/client/travel-requests/${id}/submit`, 'client')
+    const converted = await call('POST', `/travel-requests/${id}/convert`, 'admin')
+    expect(converted.status, JSON.stringify(converted.json)).toBe(200)
+  })
+
+  test('answering a clarification re-checks the submit rules', async () => {
+    const { id } = await create()
+    await call('POST', `/client/travel-requests/${id}/submit`, 'client')
+    await call('POST', `/travel-requests/${id}/clarify`, 'admin', { note: 'Destinasi pasti?' })
+    await call('PATCH', `/client/travel-requests/${id}`, 'client', { destination: '', serviceScope: [] })
+    expect((await call('POST', `/client/travel-requests/${id}/clarification`, 'client', { message: 'Belum pasti' })).status).toBe(400)
+  })
+})

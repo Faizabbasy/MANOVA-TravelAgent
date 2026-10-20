@@ -114,7 +114,7 @@ function values(input: Record<string, unknown>, problems: FieldErrors) {
   for (const [field, column] of [['estimatedParticipants', 'estimated_participants'], ['estimatedBudgetIdr', 'estimated_budget_idr']] as const) {
     const v = input[field]
     if (v === undefined) continue
-    if (v !== null && (typeof v !== 'number' || !Number.isInteger(v) || v < (field === 'estimatedParticipants' ? 1 : 0) || v > 1e13)) problems[field] = ['Harus angka bulat yang wajar.']
+    if (v !== null && (typeof v !== 'number' || !Number.isInteger(v) || v < (field === 'estimatedParticipants' ? 1 : 0) || v > (field === 'estimatedParticipants' ? 100000 : 1e13))) problems[field] = ['Harus angka bulat yang wajar.']
     else out[column] = v
   }
   if (input.serviceScope !== undefined) {
@@ -228,14 +228,19 @@ export async function clientCancelTravelRequest(tx: Queryable, actor: Actor, par
   await recordAudit(tx, { action: 'travel_request.cancelled', actorUserId: actor.userId, entityType: 'travel_request', entityId: id, requestId, reason })
 }
 
-export async function clientSubmitTravelRequest(tx: Queryable, actor: Actor, partyId: string, id: string, requestId: string) {
-  const r = await lockOwn(tx, partyId, id)
-  if (r.status !== 'draft') throw rule('Hanya draft yang bisa dikirim — untuk klarifikasi, kirim jawaban Anda.')
+/** What sales needs to start: a name, a destination and at least one service (submit and every clarification answer). */
+function assertSubmittable(r: { request_name: string; destination: string; service_scope: string[] }) {
   const problems: FieldErrors = {}
   if (!r.request_name.trim()) problems.requestName = ['Nama permintaan wajib diisi.']
   if (!r.destination.trim()) problems.destination = ['Destinasi wajib diisi.']
   if (!r.service_scope.length) problems.serviceScope = ['Pilih minimal satu layanan.']
   if (Object.keys(problems).length) throw errors.validation(problems)
+}
+
+export async function clientSubmitTravelRequest(tx: Queryable, actor: Actor, partyId: string, id: string, requestId: string) {
+  const r = await lockOwn(tx, partyId, id)
+  if (r.status !== 'draft') throw rule('Hanya draft yang bisa dikirim — untuk klarifikasi, kirim jawaban Anda.')
+  assertSubmittable(r)
   await tx.query("update travel_requests set status = 'submitted', submitted_at = now(), updated_at = now() where id = $1", [id])
   await logActivity(tx, actor, id, 'Travel request dikirim ke tim MANOVA.')
   await tellSales(tx, actor, partyId, r.reviewer_user_id, `Travel request baru ${id}`, `${r.request_name} — ${r.destination}`, id)
@@ -247,6 +252,7 @@ export async function clientAnswerClarification(tx: Queryable, actor: Actor, par
   if (!message) throw errors.validation({ message: ['Jawaban wajib diisi.'] })
   const r = await lockOwn(tx, partyId, id)
   if (r.status !== 'need-clarification') throw rule('Travel request ini tidak sedang menunggu klarifikasi.')
+  assertSubmittable(r)
   await tx.query("update travel_requests set status = 'submitted', updated_at = now() where id = $1", [id])
   await logActivity(tx, actor, id, `Client menjawab klarifikasi: ${message}`)
   await tellSales(tx, actor, partyId, r.reviewer_user_id, `Jawaban klarifikasi travel request ${id}`, message, id)
@@ -301,7 +307,7 @@ export async function staffConvertTravelRequest(tx: Queryable, actor: Actor, id:
     ...(r.estimated_participants ? { travelerEstimate: Number(r.estimated_participants) } : {}),
     serviceScope: scope,
     dateFlexible: r.date_flexible as boolean,
-    requirementSummary: [`Travel request ${id} dari ${pa!.name} (${r.party_id}).`, r.purpose, r.additional_services_note].filter(Boolean).join('\n').slice(0, 4000)
+    requirementSummary: [`Travel request ${id} dari ${pa!.name} (${r.party_id}).`, r.purpose, r.additional_services_note].filter(Boolean).join('\n').slice(0, 2000)  // the lead keeps at most 2000 characters (review fix)
   }, today, requestId)
   await tx.query("update travel_requests set status = 'converted-to-lead', lead_id = $2, reviewer_user_id = coalesce(reviewer_user_id, $3), updated_at = now() where id = $1", [id, leadId, actor.userId])
   await logActivity(tx, actor, id, 'Permintaan Anda diteruskan ke tim sales — quotation akan disiapkan.')
