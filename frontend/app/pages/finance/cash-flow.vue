@@ -62,7 +62,7 @@ const cf = useFinanceQuery(async () => (await api.finance.cashFlow({
 })).data, { watch: [horizon, projectId, accountId, floor] })
 
 const flow = computed<CashFlowProjection | null>(() => (cf.data.value?.available ? cf.data.value : null))
-const unavailable = computed(() => (cf.data.value && !cf.data.value.available ? cf.data.value : null))
+const unavailable = computed(() => (cf.data.value?.available === false ? cf.data.value : null))
 const scopeType = computed(() => flow.value?.scope.type ?? (projectId.value ? 'project' : accountId.value ? 'account' : 'company'))
 const isProject = computed(() => scopeType.value === 'project')
 const balanceLabel = computed(() => (isProject.value ? 'Arus bersih kumulatif' : 'Perkiraan saldo'))
@@ -119,7 +119,10 @@ const invoiceId = ref<string | null>(null)
 const vendorInvoiceId = ref<string | null>(null)
 const refundId = ref<string | null>(null)
 function openItem (item: CashFlowItem) {
-  if (item.source === 'customer_invoice') { invoiceId.value = item.id } else if (item.source === 'vendor_invoice') { vendorInvoiceId.value = item.id } else { refundId.value = item.id }
+  if (item.source === 'customer_invoice') { invoiceId.value = item.id } else if (item.source === 'vendor_invoice') { vendorInvoiceId.value = item.id } else if (item.source === 'refund') { refundId.value = item.id } else if (item.source === 'commitment') {
+    // Owner accounting sources live on their own screens.
+    navigateTo(item.project ? `/project-orders/${item.project.id}` : '/finance/payables')
+  } else if (item.source === 'company_expense') { navigateTo('/finance/funding#biaya-rutin') } else if (item.source === 'payroll') { navigateTo('/hr') } else { navigateTo('/finance/staff-funds') }
 }
 function resetView () { projectId.value = null; accountId.value = null }
 </script>

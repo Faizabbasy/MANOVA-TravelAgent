@@ -11,7 +11,7 @@ import type { ActivityEntry, ProjectDocument, ProjectTask, ProjectRisk, ShiftNot
  * `CHG-1023` sengaja dibiarkan `approvalStatus: 'pending'` (selaras `reviewed: false` yang sudah ada sejak
  * Foundation) — skenario approval hidup yang siap didemokan, bukan data baru yang dipaksakan.
  */
-export const ACTIVITIES: ActivityEntry[] = reactive([
+export const ACTIVITIES: ActivityEntry[] = reactive<ActivityEntry[]>([
   { id: 'ACT-1011', projectId: 'PRJ-101', message: 'E-ticket diterbitkan untuk seluruh traveler', isChange: false, reviewed: true, createdAt: '2026-06-26' },
 
   {
@@ -156,7 +156,7 @@ export const DOCUMENTS: ProjectDocument[] = [
  * `assignedTo` (Wajib "Milestones, tasks, dependencies") dibackfill aditif pada beberapa baris existing
  * untuk mendemokan fitur tanpa mengubah task lama yang sudah berjalan.
  */
-export const TASKS: ProjectTask[] = reactive([
+export const TASKS: ProjectTask[] = reactive<ProjectTask[]>([
   { id: 'TSK-1011', projectId: 'PRJ-101', title: 'Konfirmasi manifest penumpang', status: 'done', assignedTo: 'USR-002' },
   { id: 'TSK-1012', projectId: 'PRJ-101', title: 'Kirim briefing pra-keberangkatan ke seluruh traveler', status: 'in-progress', dueAt: '2026-08-15', assignedTo: 'USR-002' },
   { id: 'TSK-1013', projectId: 'PRJ-101', title: 'Siapkan dokumen asuransi perjalanan', status: 'not-started', dueAt: '2026-08-17', assignedTo: 'USR-002' },
@@ -190,7 +190,7 @@ export const TASKS: ProjectTask[] = reactive([
  * `PRJ-101` (supaya Departure Readiness Gate/Alasan Belum Siap punya contoh isi selain "tidak ada blocker"),
  * tidak dipaksakan ke seluruh project demo lain.
  */
-export const PROJECT_RISKS: ProjectRisk[] = reactive([
+export const PROJECT_RISKS: ProjectRisk[] = reactive<ProjectRisk[]>([
   { id: 'RSK-1011', projectId: 'PRJ-101', title: 'Cuaca musim hujan berpotensi mengganggu jadwal penerbangan', description: 'Pantau prakiraan cuaca H-3 keberangkatan, siapkan kontinjensi reschedule bila diperlukan.', severity: 'low', status: 'open', raisedBy: 'USR-002', createdAt: '2026-08-05' },
   { id: 'RSK-1031', projectId: 'PRJ-103', title: 'Ketersediaan venue MICE hari ke-2 belum terkonfirmasi final', description: 'Venue alternatif perlu disiapkan bila konfirmasi tidak turun H-7.', severity: 'high', status: 'open', raisedBy: 'USR-002', createdAt: '2026-07-20' },
   { id: 'RSK-1032', projectId: 'PRJ-103', title: 'Cuaca ekstrem berpotensi mengganggu sesi outdoor', description: 'Rencana cadangan indoor perlu disiapkan tim Operations.', severity: 'medium', status: 'mitigated', raisedBy: 'USR-002', createdAt: '2026-07-18' }
@@ -201,7 +201,7 @@ export const PROJECT_RISKS: ProjectRisk[] = reactive([
  * `PRJ-103` (satu-satunya project berstatus `in-progress`/on-trip pada tanggal referensi demo, skenario
  * paling wajar untuk shift handover nyata), tidak dipaksakan ke project lain yang belum berjalan.
  */
-export const SHIFT_NOTES: ShiftNote[] = reactive([
+export const SHIFT_NOTES: ShiftNote[] = reactive<ShiftNote[]>([
   { id: 'SFT-1031', projectId: 'PRJ-103', authorId: 'USR-002', shift: 'pagi', note: 'Seluruh group tiba tepat waktu, transportasi bandara-hotel lancar tanpa kendala.', createdAt: '2026-08-10' },
   { id: 'SFT-1032', projectId: 'PRJ-103', authorId: 'USR-002', shift: 'siang', note: 'Venue MICE hari ke-1 sudah siap, AV testing selesai. Serah terima ke shift malam untuk persiapan hari ke-2.', createdAt: '2026-08-11' }
 ])
@@ -212,7 +212,7 @@ export const SHIFT_NOTES: ShiftNote[] = reactive([
  * `PROJECTS`/`VENDOR_QUOTATIONS`/`INVOICES`/`USERS`) — bukan log paralel yang memfabrikasi entitas baru.
  * Diurutkan kronologis (lama → baru) mengikuti tanggal transaksi entitas aslinya.
  */
-export const SYSTEM_EVENTS: SystemEvent[] = reactive([
+export const SYSTEM_EVENTS: SystemEvent[] = reactive<SystemEvent[]>([
   { id: 'EVT-001', module: 'user', type: 'user-created', message: 'User Galih Ramadhan (Account Executive) ditambahkan ke sistem', entityId: 'USR-001', userId: 'USR-010', createdAt: '2026-06-01' },
   { id: 'EVT-002', module: 'lead', type: 'lead-qualified', message: 'Lead LED-009 "Manila Business Trip Q3 2026" di-qualify', entityId: 'LED-009', userId: 'USR-001', createdAt: '2026-06-10' },
   { id: 'EVT-003', module: 'quotation', type: 'quotation-approved', message: 'Quotation QUO-001 (Rp 95.000.000) disetujui Management', entityId: 'QUO-001', userId: 'USR-003', createdAt: '2026-06-24' },

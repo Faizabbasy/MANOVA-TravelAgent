@@ -241,7 +241,8 @@ export async function seedDemo(db: Db, options: { appEnv: AppEnv; password?: str
     `select (select count(*) from users where provenance <> 'demo-fixture')
           + (select count(*) from parties where provenance <> 'demo-fixture')
           + (select count(*) from vendors where provenance <> 'demo-fixture')
-          + (select count(*) from projects where provenance <> 'demo-fixture') as n`
+          + (select count(*) from projects where provenance <> 'demo-fixture')
+          + (select count(*) from accounting_books) as n`
   )
   if (Number(real?.n ?? 0) > 0) {
     throw new SeedRefusedError('This database already holds non-demo data; the demo seed only runs on a demo/dev database.')

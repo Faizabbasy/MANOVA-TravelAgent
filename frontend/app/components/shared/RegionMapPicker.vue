@@ -3,7 +3,8 @@ import { computed, ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { Search, MapPin, Trash2, Plus } from 'lucide-vue-next'
 import type { Map as LeafletMap, Marker as LeafletMarker, Polyline as LeafletPolyline } from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { searchDestinations, haversineKm, type GeoPoint, type PlanningPin } from '~/data/geo'
+import { searchDestinations, haversineKm, type PlanningPin } from '~/data/geo'
+import type { GeoPoint } from '~/types/common'
 
 const props = withDefaults(defineProps<{
   pins: PlanningPin[]
@@ -120,7 +121,7 @@ function destroyMap () {
   focusMarker = undefined
 }
 
-watch([plotted, () => props.focusPoint], () => { void nextTick(() => renderMap()) }, { deep: true })
+watch([plotted, () => props.focusPoint], () => { nextTick(() => renderMap()) }, { deep: true })
 
 onMounted(() => { renderMap() })
 onBeforeUnmount(() => { destroyMap() })

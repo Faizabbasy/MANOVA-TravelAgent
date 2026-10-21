@@ -25,7 +25,7 @@ import type { BookingOrchestrationRecord } from '~/types/booking-orchestration'
  *   `flaggedDuplicate: true` sebagai contoh booking yang SENGAJA dibuat sebagai duplicate (dikonfirmasi
  *   eksplisit), bukan kesalahan input.
  */
-export const BOOKING_ORCHESTRATION_RECORDS: BookingOrchestrationRecord[] = reactive([
+export const BOOKING_ORCHESTRATION_RECORDS: BookingOrchestrationRecord[] = reactive<BookingOrchestrationRecord[]>([
   // --- Flight (Section 13) ---
   { id: 'BKO-001', bookingType: 'flight', bookingId: 'FLT-1011', projectId: 'PRJ-101', paymentGateStatus: 'cleared', attemptLog: [] },
   {

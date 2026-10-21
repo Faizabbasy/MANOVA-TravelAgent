@@ -17,7 +17,7 @@ import type { ID, GeoPoint } from '~/types/common'
  * tetap satu sumber; file ini hanya menambahkan koordinatnya.
  */
 
-export const DESTINATION_COORDINATES: GeoPoint[] = reactive([
+export const DESTINATION_COORDINATES: GeoPoint[] = reactive<GeoPoint[]>([
   { destinationId: 'DST-001', name: 'Manila', country: 'Filipina', lat: 14.5995, lng: 120.9842, airportCode: 'MNL' },
   { destinationId: 'DST-002', name: 'Abu Dhabi', country: 'Uni Emirat Arab', lat: 24.4539, lng: 54.3773, airportCode: 'AUH' },
   { destinationId: 'DST-003', name: 'Palu', country: 'Indonesia', lat: -0.8917, lng: 119.8707, airportCode: 'PLW' },
@@ -53,7 +53,7 @@ export interface PlanningPin {
   order?: number
 }
 
-export const PLANNING_PINS: PlanningPin[] = reactive([
+export const PLANNING_PINS: PlanningPin[] = reactive<PlanningPin[]>([
   { id: 'PIN-001', projectId: 'PRJ-103', label: 'Palu — Venue Konferensi', lat: -0.8917, lng: 119.8707, order: 1, note: 'Lokasi utama MICE Conference 2026.' },
   { id: 'PIN-002', projectId: 'PRJ-103', label: 'Makassar — Titik Transit', lat: -5.1477, lng: 119.4327, order: 2, note: 'Transit penerbangan peserta dari Jawa.' },
   { id: 'PIN-003', projectId: 'PRJ-101', label: 'Manila — Kantor Klien', lat: 14.5995, lng: 120.9842, order: 1 },

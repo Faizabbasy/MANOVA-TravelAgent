@@ -2,7 +2,7 @@
 import { newIdempotencyKey } from '~/lib/api/client'
 import type { AdvanceDto } from '~/types/api'
 import { formatBusinessDate, todayJakarta } from '~/lib/finance/dates'
-import { INVOICE_TYPE_LABEL } from '~/lib/finance/labels'
+import { INVOICE_TYPE_LABEL, invoiceSubjectLabel } from '~/lib/finance/labels'
 import type { AllocationTarget } from '~/lib/finance/types'
 import { formatMoneyMinor } from '~/lib/money'
 import { collectPages } from '~/lib/finance/paging'
@@ -32,7 +32,7 @@ const targetsQuery = useFinanceQuery(async (): Promise<AllocationTarget[]> => {
   const a = props.advance!
   if (a.kind === 'customer_receipt') {
     const list = await collectPages(cursor => api.finance.receivables({ partyId: a.party!.id, settlement: 'outstanding', limit: 100, cursor }))
-    return list.map(inv => ({ id: inv.id, title: inv.number ?? inv.id, subtitle: `${INVOICE_TYPE_LABEL[inv.invoiceType]} · ${inv.project.name}`, dueDate: inv.dueDate, outstandingMinor: inv.outstandingMinor }))
+    return list.map(inv => ({ id: inv.id, title: inv.number ?? inv.id, subtitle: `${INVOICE_TYPE_LABEL[inv.invoiceType]} · ${invoiceSubjectLabel(inv)}`, dueDate: inv.dueDate, outstandingMinor: inv.outstandingMinor }))
   }
   const list = await collectPages(cursor => api.finance.payables({ vendorId: a.vendor!.id, view: 'outstanding', limit: 100, cursor }))
   return list.map(inv => ({ id: inv.id, title: inv.vendorInvoiceNumber, subtitle: inv.project?.name ?? 'Tanpa project', dueDate: inv.dueDate, outstandingMinor: inv.outstandingMinor }))

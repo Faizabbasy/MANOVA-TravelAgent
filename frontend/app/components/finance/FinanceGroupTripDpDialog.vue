@@ -56,7 +56,7 @@ async function submit () {
   <FinanceFormDialog
     :open="open"
     title="Konfirmasi DP"
-    :description="order ? `${order.customerName} · ${order.travelerCount} pax · harga ${formatMoneyMinor(order.priceMinor)}. Invoice DP dibuat atas nama peserta; sisa tagihan tetap terbuka.` : ''"
+    :description="order ? `${order.customerName} · ${order.travelerCount} pax · harga ${formatMoneyMinor(order.priceMinor)}. Invoice DP dibuat atas nama customer order (peserta Group Trip atau pembeli B2C); sisa tagihan tetap terbuka.` : ''"
     submit-label="Catat DP"
     :pending="action.pending.value"
     :error="action.error.value"

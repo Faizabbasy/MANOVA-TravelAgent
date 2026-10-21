@@ -18,7 +18,7 @@ import type { HotelBooking } from '~/types/accommodation'
  * `no-show` sengaja tidak di-seed (tetap reachable lewat transisi UI, diverifikasi lewat code review,
  * konsisten pola Section 13 yang tidak mem-pre-seed seluruh state).
  */
-export const HOTEL_BOOKINGS: HotelBooking[] = reactive([
+export const HOTEL_BOOKINGS: HotelBooking[] = reactive<HotelBooking[]>([
   // PRJ-102 — Abu Dhabi, Room Block A: upgrade ke Suite pasca komplain AC (lihat ITIN-1022/1026).
   {
     id: 'HTL-1022',

@@ -10,7 +10,7 @@ import type { Lead, LeadActivity } from '~/types/lead'
  * business dari company yang sama (PTY-001/Hendra Wijaya: LED-009/016/018) sengaja jadi Lead TERPISAH per
  * deal, bukan Lead yang sama dipakai ulang untuk beberapa Quotation.
  */
-export const LEADS: Lead[] = reactive([
+export const LEADS: Lead[] = reactive<Lead[]>([
   {
     id: 'LED-001',
     name: 'CV Nirmala Eventama',
@@ -724,7 +724,7 @@ export const LEADS: Lead[] = reactive([
 ])
 
 /** Activities dan Follow-ups (Prompt 19) — satu entitas, follow-up = activity dengan `dueAt` terisi (pola `PartyActivity`, Section 07). */
-export const LEAD_ACTIVITIES: LeadActivity[] = reactive([
+export const LEAD_ACTIVITIES: LeadActivity[] = reactive<LeadActivity[]>([
   { id: 'LACT-001', leadId: 'LED-001', type: 'call', message: 'Kontak awal, menjelaskan kebutuhan MICE tahunan ~150 peserta', ownerId: 'USR-001', createdAt: '2026-07-11' },
   { id: 'LACT-002', leadId: 'LED-001', type: 'meeting', message: 'Meeting discovery dengan CV Nirmala Eventama', ownerId: 'USR-001', createdAt: '2026-07-18' },
   { id: 'LACT-003', leadId: 'LED-001', type: 'follow-up', message: 'Follow-up keputusan qualifikasi dari Account Executive', ownerId: 'USR-001', createdAt: '2026-07-22', dueAt: '2026-08-05' },

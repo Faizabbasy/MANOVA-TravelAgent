@@ -20,7 +20,7 @@ import type { ChangeRequest, CancellationRecord, RefundRequest, Incident, Change
  *   (`INC-003`, severity `critical` — peringatan cuaca ekstrem Palu).
  */
 
-export const CHANGE_REQUESTS: ChangeRequest[] = reactive([
+export const CHANGE_REQUESTS: ChangeRequest[] = reactive<ChangeRequest[]>([
   {
     id: 'CR-001',
     projectId: 'PRJ-102',
@@ -138,7 +138,7 @@ export const CHANGE_REQUESTS: ChangeRequest[] = reactive([
   }
 ])
 
-export const CANCELLATION_RECORDS: CancellationRecord[] = reactive([
+export const CANCELLATION_RECORDS: CancellationRecord[] = reactive<CancellationRecord[]>([
   {
     id: 'CNX-001',
     projectId: 'PRJ-102',
@@ -173,7 +173,7 @@ export const CANCELLATION_RECORDS: CancellationRecord[] = reactive([
   }
 ])
 
-export const REFUND_REQUESTS: RefundRequest[] = reactive([
+export const REFUND_REQUESTS: RefundRequest[] = reactive<RefundRequest[]>([
   {
     id: 'REF-001',
     projectId: 'PRJ-102',
@@ -241,13 +241,13 @@ export const REFUND_REQUESTS: RefundRequest[] = reactive([
 ])
 
 /** Draft Change Request Client (Repair Phase Section 5) — kosong, dibuat/diisi lewat `saveChangeRequestDraft`. */
-export const CHANGE_REQUEST_DRAFTS: ChangeRequestDraft[] = reactive([])
+export const CHANGE_REQUEST_DRAFTS: ChangeRequestDraft[] = reactive<ChangeRequestDraft[]>([])
 
 /** Comment/Attachment mock Change Request (Repair Phase Section 5) — kosong, pola sama `QUOTATION_COMMENTS`/`QUOTATION_ATTACHMENTS`. */
-export const CHANGE_REQUEST_COMMENTS: ChangeRequestComment[] = reactive([])
-export const CHANGE_REQUEST_ATTACHMENTS: ChangeRequestAttachment[] = reactive([])
+export const CHANGE_REQUEST_COMMENTS: ChangeRequestComment[] = reactive<ChangeRequestComment[]>([])
+export const CHANGE_REQUEST_ATTACHMENTS: ChangeRequestAttachment[] = reactive<ChangeRequestAttachment[]>([])
 
-export const INCIDENTS: Incident[] = reactive([
+export const INCIDENTS: Incident[] = reactive<Incident[]>([
   {
     id: 'INC-001',
     projectId: 'PRJ-103',

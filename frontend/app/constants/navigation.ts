@@ -2,16 +2,16 @@ import type { Component } from 'vue'
 import {
   LayoutDashboard,
   TrendingUp,
-  Target,
   Package,
   Wallet,
+  HandCoins,
+  Building,
   Heart,
   Users,
   Building2,
   ClipboardList,
   Route,
   FolderKanban,
-  CalendarClock,
   CalendarDays,
   BarChart3,
   Activity,
@@ -19,7 +19,6 @@ import {
   ShieldCheck,
   Truck,
   Send,
-  GitPullRequest,
   Briefcase,
   ArrowDownToLine,
   ArrowUpFromLine,
@@ -120,12 +119,18 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Wallet,
     moduleKey: 'finance-acc',
     children: [
-      { key: 'finance.overview', label: 'Ringkasan', to: '/finance', icon: Wallet, moduleKey: 'finance-acc' },
-      { key: 'finance.statement', label: 'Mutasi Rekening', to: '/finance/statement', icon: ArrowLeftRight, moduleKey: 'finance-acc' },
-      { key: 'finance.accounts', label: 'Rekening & Saldo', to: '/finance/accounts', icon: Landmark, moduleKey: 'finance-acc' },
+      // Five work groups (owner accounting F8): Ringkasan Bisnis · Tagihan & Pembayaran · Transaksi Uang · Kasbon & Bukti Biaya ·
+      // Laporan & Cek Bulanan. Keys and routes are unchanged, so bookmarks and deep links keep working.
+      { key: 'finance.overview', label: 'Ringkasan Bisnis', to: '/finance', icon: Wallet, moduleKey: 'finance-acc' },
       { key: 'finance.receivables', label: 'Piutang Customer', to: '/finance/receivables', icon: ArrowDownToLine, moduleKey: 'finance-acc' },
       { key: 'finance.payables', label: 'Utang Vendor', to: '/finance/payables', icon: ArrowUpFromLine, moduleKey: 'finance-acc' },
-      { key: 'finance.cash-flow', label: 'Cash Flow', to: '/finance/cash-flow', icon: ChartNoAxesCombined, moduleKey: 'finance-acc' }
+      { key: 'finance.statement', label: 'Mutasi Rekening', to: '/finance/statement', icon: ArrowLeftRight, moduleKey: 'finance-acc' },
+      { key: 'finance.accounts', label: 'Rekening & Saldo', to: '/finance/accounts', icon: Landmark, moduleKey: 'finance-acc' },
+      { key: 'finance.reconciliation', label: 'Cocokkan Rekening Koran', to: '/finance/reconciliation', icon: ListChecks, moduleKey: 'finance-acc' },
+      { key: 'finance.cash-flow', label: 'Cash Flow', to: '/finance/cash-flow', icon: ChartNoAxesCombined, moduleKey: 'finance-acc' },
+      { key: 'finance.staff-funds', label: 'Kasbon & Bukti Biaya', to: '/finance/staff-funds', icon: HandCoins, moduleKey: 'finance-acc' },
+      { key: 'finance.accounting', label: 'Laporan & Cek Bulanan', to: '/finance/accounting', icon: Landmark, moduleKey: 'finance-acc' },
+      { key: 'finance.funding', label: 'Aset, Pinjaman & Modal', to: '/finance/funding', icon: Building, moduleKey: 'finance-acc' }
     ]
   },
 

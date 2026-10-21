@@ -1295,7 +1295,12 @@ const KPI_HERO_CTA: Record<string, { label: string; to: string }> = {
           <div v-if="outstandingOpenCount" class="mb-4 flex items-center gap-3 pb-4 border-b border-border">
             <div class="relative h-10 w-10 shrink-0">
               <svg viewBox="0 0 36 36" class="h-full w-full -rotate-90">
-                <circle cx="18" cy="18" r="15" fill="none" stroke="hsl(var(--muted))" stroke-width="4" />
+                <circle cx="18"
+cy="18"
+r="15"
+fill="none"
+stroke="hsl(var(--muted))"
+stroke-width="4" />
                 <circle
                   cx="18"
                   cy="18"
@@ -1332,7 +1337,7 @@ const KPI_HERO_CTA: Record<string, { label: string; to: string }> = {
                   {{ invoice.number }} · {{ invoice.party.name }}
                 </p>
                 <p class="text-xs text-muted-foreground mt-0.5 truncate">
-                  {{ invoice.project.name }} · jatuh tempo {{ formatDayLabel(invoice.dueDate) }}
+                  {{ invoice.project?.name ?? "Order" }} · jatuh tempo {{ formatDayLabel(invoice.dueDate) }}
                 </p>
               </NuxtLink>
               <p class="shrink-0 text-right text-sm font-semibold text-foreground tabular-nums">

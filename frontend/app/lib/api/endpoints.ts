@@ -5,6 +5,51 @@ import type { AssetCondition } from '~/types/inventory'
 import type { ChangeRequestType } from '~/types/change-incident'
 import type { QuotationClientResponse } from '~/types/quotation'
 import type {
+  ApiList,
+  PrivateFileDto,
+  PrivateFileSource,
+  ChangeBillingDto,
+  ChangeBillingInput,
+  AccountingBookDto,
+  AccountingSetupDto,
+  AccountingSetupInput,
+  AccountingPolicyInput,
+  AccountingPeriodDto,
+  AccountingTrialBalanceDto,
+  AccountingJournalDto,
+  AccountingJournalDetailDto,
+  AccountingExceptionDto,
+  AccountingSourceStatusDto,
+  AccountingProfitLossDto,
+  AccountingBalanceSheetDto,
+  AccountingProjectContributionDto,
+  AccountingPeriodReviewDto,
+  OpeningPlanDto,
+  ProjectAccountingSummaryDto,
+  OpeningDecisionsInput,
+  AccountingDerivedStatus,
+  FulfillmentOverviewDto,
+  FulfillmentInput,
+  SupplierClaimDto,
+  SupplierClaimInput,
+  VendorRefundInput,
+  StaffFundsDto,
+  StaffCashKind,
+  StaffCashInput,
+  ExpenseClaimInput,
+  FundingOverviewDto,
+  PrepaidExpenseInput,
+  PrepaidExpensesDto,
+  CompanyScheduleInput,
+  CompanyExpenseInput,
+  CompanyExpenseWorkspaceDto,
+  AssetPurchaseInput,
+  LoanInput,
+  LoanRepaymentInput,
+  OwnerFundInput,
+  StatementImportInput,
+  StatementPreviewDto,
+  StatementLineDto,
   ChangeRequestImpactInput,
   FeedbackDto,
   CollabEntityType,
@@ -174,6 +219,8 @@ import type {
   VendorProductDto,
   VendorFinanceSummaryDto,
   VendorInvoiceDetailDto,
+  SupplierReceiptMatchInput,
+  SupplierReceiptWorkspaceDto,
   VendorInvoiceInput,
   VendorPaymentInput,
   VendorPaymentResult
@@ -191,6 +238,15 @@ export function createManovaApi (client: ApiClient) {
 
   return {
     health: () => client.get<HealthDto>('/health'),
+    files: {
+      list: (sourceType: PrivateFileSource, sourceId: string) => client.get<{ items: PrivateFileDto[]; truncated: boolean }>('/private-files', { query: { sourceType, sourceId } }),
+      upload: (sourceType: PrivateFileSource, sourceId: string, file: File, visibility: 'internal' | 'source-party', idempotencyKey: string) => {
+        const body = new FormData()
+        body.set('sourceType', sourceType); body.set('sourceId', sourceId); body.set('file', file); body.set('declaredMime', file.type); body.set('visibility', visibility)
+        return client.post<PrivateFileDto>('/private-files', body, { idempotencyKey })
+      },
+      download: (id: string) => client.download(`/private-files/${seg(id)}/content`)
+    },
 
     auth: {
       login: (email: string, password: string) => client.post<MeDto>('/auth/login', { email, password }),
@@ -357,7 +413,9 @@ export function createManovaApi (client: ApiClient) {
       listPayrollLines: () => client.get<PayrollLineDto[]>('/payroll-lines'),
       createPayrollRun: (period: string, idempotencyKey: string = newIdempotencyKey()) => client.post<PayrollRunDto>('/payroll-runs', { period }, { idempotencyKey }),
       approvePayrollRun: (id: string) => client.post<PayrollRunDto>(`/payroll-runs/${seg(id)}/approve`, {}),
-      payPayrollRun: (id: string) => client.post<PayrollRunDto>(`/payroll-runs/${seg(id)}/pay`, {}),
+      /** Money out (owner accounting F5): the only way a payroll becomes paid. Idempotent — a retry never pays twice. */
+      payPayrollRun: (id: string, input: { bankAccountId: string; effectiveDate: string; reference?: string }, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<PayrollRunDto>(`/payroll-runs/${seg(id)}/pay`, input, { idempotencyKey }),
       updatePayrollLine: (id: string, input: PayrollLineInput) => client.patch<PayrollLineDto>(`/payroll-lines/${seg(id)}`, input),
       listCommissions: () => client.get<CommissionDto[]>('/hr/commissions'),
       createIncentive: (input: IncentiveInput, idempotencyKey: string = newIdempotencyKey()) => client.post<CommissionDto>('/incentives', input, { idempotencyKey }),
@@ -547,7 +605,47 @@ export function createManovaApi (client: ApiClient) {
         client.post<LeadWonDto>(`/leads/${seg(leadId)}/won`, {}, { idempotencyKey })
     },
 
+    accounting: {
+      setup: () => client.get<AccountingSetupDto>('/accounting/setup'),
+      createSetup: (input: AccountingSetupInput, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<AccountingBookDto>('/accounting/setup', input, { idempotencyKey }),
+      createPeriod: (input: { startsOn: string; endsOn: string; reason: string }, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<AccountingPeriodDto>('/accounting/periods', input, { idempotencyKey }),
+      draftPolicy: (input: AccountingPolicyInput, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<{ id: string; version: number; validationStatus: 'draft' }>('/accounting/policies', input, { idempotencyKey }),
+      rehearsePolicy: (id: string, input: {reason:string;confirm:boolean}, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<{id:string;version:number;validationStatus:'test-only';draftPolicyId:string}>(`/accounting/policies/${seg(id)}/rehearse`, input, { idempotencyKey }),
+      lockRehearsalPeriod: (id: string, input: { version: number; reason: string }, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<{ id: string; version: number; status: 'closed' }>(`/accounting/periods/${seg(id)}/lock-rehearsal`, input, { idempotencyKey }),
+      reopenRehearsalPeriod: (id: string, input: { version: number; reason: string }, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<{ id: string; version: number; status: 'open' }>(`/accounting/periods/${seg(id)}/reopen-rehearsal`, input, { idempotencyKey }),
+      trialBalance: (asOf: string) => client.get<AccountingTrialBalanceDto>('/accounting/trial-balance', { query: { asOf } }),
+      journals: (query: { cursor?: string; limit?: number; sourceType?: string; sourceId?: string; projectId?: string } = {}) =>
+        client.request<ApiList<AccountingJournalDto>>('GET', '/accounting/journals', { query: { ...query } }),
+      journal: (id: string) => client.get<AccountingJournalDetailDto>(`/accounting/journals/${seg(id)}`),
+      sourceStatus: (type: string, id: string) => client.get<AccountingSourceStatusDto>(`/accounting/sources/${seg(type)}/${seg(id)}`),
+      profitLoss: (from: string, to: string) => client.get<AccountingProfitLossDto>('/accounting/reports/profit-loss', { query: { from, to } }),
+      balanceSheet: (asOf: string) => client.get<AccountingBalanceSheetDto>('/accounting/reports/balance-sheet', { query: { asOf } }),
+      projectContribution: (from: string, to: string) => client.get<AccountingProjectContributionDto>('/accounting/reports/project-contribution', { query: { from, to } }),
+      projectSummary: (projectId: string) => client.get<ProjectAccountingSummaryDto>(`/accounting/projects/${seg(projectId)}/summary`),
+      orderSummary: (salesOrderId: string) => client.get<import('~/types/api').AccountingOrderSummaryDto>(`/accounting/orders/${seg(salesOrderId)}/summary`),
+      openingPlan: () => client.get<OpeningPlanDto>('/accounting/opening-plan'),
+      previewOpening: (decisions: OpeningDecisionsInput) => client.post<OpeningPlanDto>('/accounting/opening-plan/preview', { decisions }),
+      confirmOpening: (input: { planHash: string; decisions: OpeningDecisionsInput; reason: string }, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<{ journalId: string; validated: boolean; undecided: number }>('/accounting/opening-plan/confirm', input, { idempotencyKey }),
+      periodReview: (id: string) => client.get<AccountingPeriodReviewDto>(`/accounting/periods/${seg(id)}/review`),
+      closePeriod: (id: string, input: { version: number; reason: string; confirm: boolean }, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<{ id: string; status: 'closed'; version: number }>(`/accounting/periods/${seg(id)}/close`, input, { idempotencyKey }),
+      retryException: (eventId: string, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<{ eventId: string; status: 'pending' | 'posted'; message: string | null }>(`/accounting/exceptions/${seg(eventId)}/retry`, {}, { idempotencyKey }),
+      exceptions: (query: { cursor?: string; limit?: number } = {}) =>
+        client.request<ApiList<AccountingExceptionDto>>('GET', '/accounting/exceptions', { query: { ...query } })
+    },
+
     finance: {
+      changeBilling: (id: string) => client.get<ChangeBillingDto>(`/finance/change-requests/${seg(id)}/billing`),
+      configureChangeBilling: (id: string, input: ChangeBillingInput, idempotencyKey: string = newIdempotencyKey()) => client.post<ChangeBillingDto>(`/finance/change-requests/${seg(id)}/billing`, input, { idempotencyKey }),
+      voidChangeBilling: (id: string, reason: string, idempotencyKey: string = newIdempotencyKey()) => client.post<ChangeBillingDto>(`/finance/change-billing-plans/${seg(id)}/void`, { reason }, { idempotencyKey }),
       cashPosition: () => client.get<CashPositionDto>('/finance/cash-position'),
       /** Projection: current cash + outstanding AR − outstanding AP − approved unpaid refunds (Phase 6). */
       cashFlow: (query: CashFlowQuery = {}) => client.get<CashFlowDto>('/finance/cash-flow', { query: { ...query } }),
@@ -638,9 +736,12 @@ export function createManovaApi (client: ApiClient) {
         client.get<AdvanceDto[]>('/finance/advances', { query: { ...query } }),
 
       // ── Payables ─────────────────────────────────────────────────────────────────────────────────
-      payables: (query: PageQuery & { view?: 'outstanding' | 'overdue' | 'paid' | 'review' | 'all'; vendorId?: string; projectId?: string; dueTo?: string } = {}) =>
+      payables: (query: PageQuery & { view?: 'outstanding' | 'overdue' | 'paid' | 'review' | 'all'; vendorId?: string; projectId?: string;salesOrderId?:string; dueTo?: string } = {}) =>
         client.request<PayablesList>('GET', '/finance/payables', { query: { ...query } }),
       getVendorInvoice: (id: string) => client.get<VendorInvoiceDetailDto>(`/finance/vendor-invoices/${seg(id)}`),
+      supplierReceiptMatches: (id: string) => client.get<SupplierReceiptWorkspaceDto>(`/finance/vendor-invoices/${seg(id)}/receipts`),
+      matchSupplierReceipt: (id: string, input: SupplierReceiptMatchInput, key?: string) => client.post<SupplierReceiptWorkspaceDto>(`/finance/vendor-invoices/${seg(id)}/receipts`, input, { idempotencyKey: key }),
+      voidSupplierReceiptMatch: (id: string, reason: string, key?: string) => client.post<SupplierReceiptWorkspaceDto>(`/finance/supplier-receipt-matches/${seg(id)}/void`, { reason }, { idempotencyKey: key }),
       createVendorInvoice: (input: VendorInvoiceInput) => client.post<VendorInvoiceDetailDto>('/finance/vendor-invoices', input),
       updateVendorInvoice: (id: string, input: Partial<Pick<VendorInvoiceInput, 'vendorInvoiceNumber' | 'invoiceDate' | 'dueDate' | 'totalMinor' | 'notes'>>) =>
         client.patch<VendorInvoiceDetailDto>(`/finance/vendor-invoices/${seg(id)}`, input),
@@ -653,6 +754,62 @@ export function createManovaApi (client: ApiClient) {
         client.post<VendorPaymentResult>('/finance/vendor-payments', input, { idempotencyKey }),
       allocateVendorPayment: (transactionId: string, allocations: { vendorInvoiceId: string; amountMinor: string }[], idempotencyKey: string = newIdempotencyKey()) =>
         client.post<VendorPaymentResult>(`/finance/vendor-payments/${seg(transactionId)}/allocations`, { allocations }, { idempotencyKey }),
+
+      // ── Owner accounting source facts: service delivered/received, supplier recovery (no journals from the browser) ──
+      fulfillments: (query: { projectId?: string; salesOrderId?: string }) => client.get<FulfillmentOverviewDto>('/finance/fulfillments', { query: { ...query } }),
+      recordFulfillment: (input: FulfillmentInput, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<{ id: string; accountingStatus: AccountingDerivedStatus }>('/finance/fulfillments', input, { idempotencyKey }),
+      voidFulfillment: (id: string, reason: string, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<{ id: string }>(`/finance/fulfillments/${seg(id)}/void`, { reason }, { idempotencyKey }),
+      supplierClaims: (query: { vendorId?: string; projectId?: string;salesOrderId?:string } = {}) => client.get<SupplierClaimDto[]>('/finance/supplier-claims', { query: { ...query } }),
+      createSupplierClaim: (input: SupplierClaimInput, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<{ id: string; accountingStatus: AccountingDerivedStatus }>('/finance/supplier-claims', input, { idempotencyKey }),
+      voidSupplierClaim: (id: string, reason: string, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<{ id: string }>(`/finance/supplier-claims/${seg(id)}/void`, { reason }, { idempotencyKey }),
+      postVendorRefund: (input: VendorRefundInput, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<{ transactionId: string; claimId: string; outstandingMinor: string }>('/finance/vendor-refunds', input, { idempotencyKey }),
+      staffFunds: (query: { employeeId?: string } = {}) => client.get<StaffFundsDto>('/finance/staff-funds', { query: { ...query } }),
+      postStaffCash: (kind: StaffCashKind, input: StaffCashInput, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<{ transactionId: string; employeeId: string; netMinor: string }>(
+          `/finance/staff-funds/${kind === 'employee_advance' ? 'advances' : kind === 'employee_advance_return' ? 'returns' : 'reimbursements'}`, input, { idempotencyKey }),
+      recordExpenseClaim: (input: ExpenseClaimInput, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<{ id: string; accountingStatus: AccountingDerivedStatus; netMinor: string }>('/finance/expense-claims', input, { idempotencyKey }),
+      voidExpenseClaim: (id: string, reason: string, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<{ id: string; netMinor: string }>(`/finance/expense-claims/${seg(id)}/void`, { reason }, { idempotencyKey }),
+      funding: () => client.get<FundingOverviewDto>('/finance/funding'),
+      companyExpenses: (cursor?:string) => client.get<CompanyExpenseWorkspaceDto>('/finance/company-expenses', { query: { cursor } }),
+      createCompanySchedule: (input:CompanyScheduleInput, key:string) => client.post<{id:string}>('/finance/company-expense-schedules', input, { idempotencyKey: key }),
+      recordCompanyExpense: (input:CompanyExpenseInput, key:string) => client.post<{id:string;accountingStatus:string}>('/finance/company-expenses', input, { idempotencyKey: key }),
+      stopCompanySchedule: (id:string, input:{fromMonth:string;reason:string}, key:string) => client.post<{id:string}>(`/finance/company-expense-schedules/${seg(id)}/stop`, input, { idempotencyKey: key }),
+      matchCompanyInvoice: (id:string, vendorInvoiceId:string, key:string) => client.post<{id:string;vendorInvoiceId:string}>(`/finance/company-expenses/${seg(id)}/invoice`, { vendorInvoiceId }, { idempotencyKey: key }),
+      voidCompanyExpense: (id:string, reason:string, key:string) => client.post<{id:string}>(`/finance/company-expenses/${seg(id)}/void`, { reason }, { idempotencyKey: key }),
+      prepaidExpenses: (query: { asOf?: string; cursor?: string; limit?: string } = {}) => client.get<PrepaidExpensesDto>('/finance/prepaid-expenses', { query }),
+      payPrepaidExpense: (input: PrepaidExpenseInput, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<{ id: string; transactionId: string; accountingStatus: string }>('/finance/prepaid-expenses', input, { idempotencyKey }),
+      runPrepaidAmortization: (throughPeriod: string, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<{ throughPeriod: string; booked: { prepaidExpenseId: string; period: string; amountMinor: string }[] }>('/finance/prepaid-amortization-runs', { throughPeriod }, { idempotencyKey }),
+      // Rekening koran: import never posts cash; lines are matched to existing transactions or recorded once from the line.
+      previewStatement: (input: StatementImportInput) => client.post<StatementPreviewDto>('/finance/bank-statements/preview', input),
+      importStatement: (input: StatementImportInput, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<{ importId: string; imported: number; skippedDuplicates: number; alreadyImported: boolean }>('/finance/bank-statements', input, { idempotencyKey }),
+      statementLines: (query: { bankAccountId: string; from?: string; to?: string; status?: string }) =>
+        client.get<{ lines: StatementLineDto[]; unmatchedCashCount: number }>('/finance/bank-statement-lines', { query: { ...query } }),
+      matchStatementLine: (id: string, matches: { transactionId: string; amountMinor: string }[], idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<Omit<StatementLineDto, 'candidates'>>(`/finance/bank-statement-lines/${seg(id)}/match`, { matches }, { idempotencyKey }),
+      unmatchStatementLine: (id: string, reason: string, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<Omit<StatementLineDto, 'candidates'>>(`/finance/bank-statement-lines/${seg(id)}/unmatch`, { reason }, { idempotencyKey }),
+      recordFromStatementLine: (id: string, input: { category?: string; projectId?: string; memo?: string }, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<{ transactionId: string }>(`/finance/bank-statement-lines/${seg(id)}/record`, input, { idempotencyKey }),
+      purchaseAsset: (assetId: string, input: AssetPurchaseInput, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<{ assetId: string; transactionId: string }>(`/finance/assets/${seg(assetId)}/purchase`, input, { idempotencyKey }),
+      runDepreciation: (throughPeriod: string, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<{ throughPeriod: string; booked: { assetId: string; period: string; amountMinor: string }[] }>('/finance/depreciation-runs', { throughPeriod }, { idempotencyKey }),
+      receiveLoan: (input: LoanInput, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<{ id: string; transactionId: string }>('/finance/loans', input, { idempotencyKey }),
+      repayLoan: (loanId: string, input: LoanRepaymentInput, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<{ transactionId: string; outstandingMinor: string }>(`/finance/loans/${seg(loanId)}/repayments`, input, { idempotencyKey }),
+      ownerFunds: (direction: 'contribution' | 'withdrawal', input: OwnerFundInput, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<{ transactionId: string; accountingStatus: AccountingDerivedStatus }>(`/finance/owner-funds/${direction === 'contribution' ? 'contributions' : 'withdrawals'}`, input, { idempotencyKey }),
 
       // ── Finance context for other screens (full for Finance/Super Admin, status-only for Admin) ──
       /** App dashboard: every project's payment status (Admin) plus cash, forecast and AR/AP (Finance). */
@@ -695,10 +852,10 @@ export function createManovaApi (client: ApiClient) {
       /** Records the cancellation once (write-offs + refund case). Money moves only at settlement. */
       createCancellation: (input: CancellationInput, idempotencyKey: string = newIdempotencyKey()) =>
         client.post<RefundDetailDto | RefundStatusDto>('/finance/cancellations', input, { idempotencyKey }),
-      refunds: (query: PageQuery & { view?: 'open' | 'requested' | 'to_pay' | 'settled' | 'rejected' | 'all'; projectId?: string; partyId?: string } = {}) =>
+      refunds: (query: PageQuery & { view?: 'open' | 'requested' | 'to_pay' | 'settled' | 'rejected' | 'all'; projectId?: string; salesOrderId?:string;partyId?: string } = {}) =>
         client.request<RefundList>('GET', '/finance/refunds', { query: { ...query } }),
       /** Status-only view of the same cases (Admin, Changes screen). */
-      refundStatuses: (query: PageQuery & { view?: 'open' | 'requested' | 'to_pay' | 'settled' | 'rejected' | 'all'; projectId?: string } = {}) =>
+      refundStatuses: (query: PageQuery & { view?: 'open' | 'requested' | 'to_pay' | 'settled' | 'rejected' | 'all'; projectId?: string;salesOrderId?:string } = {}) =>
         client.request<RefundStatusList>('GET', '/finance/refunds', { query: { ...query } }),
       getRefund: (id: string) => client.get<RefundDetailDto | RefundStatusDto>(`/finance/refunds/${seg(id)}`),
       approveRefund: (id: string, input: { refundMinor?: string; note?: string } = {}) => client.post<RefundDetailDto>(`/finance/refunds/${seg(id)}/approve`, input),

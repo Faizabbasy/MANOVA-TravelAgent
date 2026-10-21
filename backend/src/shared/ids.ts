@@ -10,6 +10,7 @@ export type IdPrefix = 'PRJ-' | 'PTY-' | 'CP-' | 'PACT-' | 'VND-' | 'VCT-' | 'VP
   | 'AST-' | 'MNT-' | 'ACO-' | 'CAM-' | 'PRD-' | 'PRP-' | 'VHC-' | 'IT-'
   | 'CTS-' | 'CTD-' | 'EMP-' | 'INS-' | 'PPF-' | 'PPC-' | 'TCK-' | 'TCKR-' | 'FBK-'
   | 'CMT-' | 'ATT-' | 'CRD-' | 'TRQ-' | 'TRQA-' | 'CAP-' | 'ITV-' | 'ANN-'
+  | 'ABK-' | 'ACP-' | 'APL-' | 'AEV-' | 'AJN-' | 'SFL-' | 'SCL-' | 'EXC-' | 'LON-' | 'BSI-' | 'BSL-' | 'PPE-' | 'CES-' | 'COX-' | 'CBP-' | 'CBI-' | 'PFL-' | 'VFM-'
 
 /** Where each prefix's IDs live: table, ID column and an optional fixed filter (bookings share one table). */
 const SOURCES: Record<IdPrefix, { table: string; column?: string; where?: string }> = {
@@ -60,7 +61,12 @@ const SOURCES: Record<IdPrefix, { table: string; column?: string; where?: string
   'TCK-': { table: 'support_tickets' }, 'TCKR-': { table: 'support_ticket_replies' }, 'FBK-': { table: 'project_feedback' },
   'CMT-': { table: 'entity_comments' }, 'ATT-': { table: 'entity_attachments' }, 'CRD-': { table: 'change_request_drafts' },
   'TRQ-': { table: 'travel_requests' }, 'TRQA-': { table: 'travel_request_activities' }, 'CAP-': { table: 'client_approvals' },
-  'ITV-': { table: 'itinerary_versions' }, 'ANN-': { table: 'trip_announcements' }
+  'ITV-': { table: 'itinerary_versions' }, 'ANN-': { table: 'trip_announcements' },
+  'ABK-': { table: 'accounting_books' }, 'ACP-': { table: 'accounting_periods' }, 'APL-': { table: 'accounting_policies' },
+  'AEV-': { table: 'accounting_events' }, 'AJN-': { table: 'accounting_journals' }, 'PPE-': { table: 'prepaid_expenses' }, 'CES-':{table:'company_expense_schedules'}, 'COX-':{table:'company_expenses'},
+  'CBP-':{table:'change_billing_plans'},'CBI-':{table:'change_billing_allocations'},
+  'PFL-':{table:'private_files'},'VFM-':{table:'vendor_fulfillment_matches'},
+  'SFL-': { table: 'service_fulfillments' }, 'SCL-': { table: 'supplier_claims' }, 'EXC-': { table: 'employee_expense_claims' }, 'LON-': { table: 'loans' }, 'BSI-': { table: 'bank_statement_imports' }, 'BSL-': { table: 'bank_statement_lines' }
 }
 
 /** IDs other tables already point at without a row of their own (S6a: projects won from a lead made by the old local mock). */

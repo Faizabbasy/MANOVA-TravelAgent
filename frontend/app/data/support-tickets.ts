@@ -8,7 +8,7 @@ import type { SupportTicket, SupportTicketReply } from '~/types/support'
  * Resolution/Reopen/Rating), `TCK-003` (open, belum ditriase, category `emergency` — mendemokan UI
  * emergency-ticket-menonjol dan kasus belum ada `assignedTo`).
  */
-export const SUPPORT_TICKETS: SupportTicket[] = reactive([
+export const SUPPORT_TICKETS: SupportTicket[] = reactive<SupportTicket[]>([
   {
     id: 'TCK-001',
     clientPartyId: 'PTY-005',
@@ -52,7 +52,7 @@ export const SUPPORT_TICKETS: SupportTicket[] = reactive([
   }
 ])
 
-export const SUPPORT_TICKET_REPLIES: SupportTicketReply[] = reactive([
+export const SUPPORT_TICKET_REPLIES: SupportTicketReply[] = reactive<SupportTicketReply[]>([
   { id: 'TCKR-001', ticketId: 'TCK-001', authorId: 'USR-002', message: 'Sudah kami koordinasikan dengan guide dan transportasi — jadwal city tour digeser ke sore hari. Konfirmasi tertulis menyusul dalam 1x24 jam.', createdAt: '2026-07-27' },
   { id: 'TCKR-002', ticketId: 'TCK-001', authorId: 'USR-021', message: 'Baik, ditunggu konfirmasinya. Terima kasih.', createdAt: '2026-07-28' },
   { id: 'TCKR-003', ticketId: 'TCK-002', authorId: 'USR-002', message: 'Sudah kami cek satu per satu, seluruh dokumen visa lengkap dan sesuai format.', createdAt: '2026-07-21' }

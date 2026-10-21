@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { Search, UserCheck, UserX } from 'lucide-vue-next'
+import type { BadgeTone } from '~/types/common'
 import { USERS } from '~/data'
 import { changeUserRoleOnServer, reactivateUserOnServer, suspendUserOnServer } from '~/data/users-sync'
 import { createSaveGate } from '~/lib/save-gate'
@@ -88,7 +89,7 @@ function getRoleTone (roleId: RoleId) {
 const MODULE_LABELS = computed<{ key: ModuleKey; label: string }[]>(() =>
   BUSINESS_MODULES.map(module => ({ key: module.key, label: module.label })))
 
-const PERMISSION_TONE: Record<string, string> = {
+const PERMISSION_TONE: Record<string, BadgeTone> = {
   NONE: 'neutral',
   VIEW: 'info',
   MANAGE: 'primary',

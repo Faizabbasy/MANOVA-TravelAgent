@@ -6,6 +6,8 @@
  */
 
 export type ErrorCode =
+  | 'PRIVATE_STORAGE_UNCONFIGURED'
+  | 'PRIVATE_FILE_INTEGRITY'
   | 'BAD_REQUEST'
   | 'VALIDATION_FAILED'
   | 'INVALID_JSON'
@@ -19,6 +21,10 @@ export type ErrorCode =
   | 'ALREADY_REVERSED'
   | 'INSUFFICIENT_BALANCE'
   | 'OPENING_BALANCE_UNVERIFIED'
+  | 'ACCOUNTING_REVIEW_REQUIRED'
+  | 'ACCOUNTING_POLICY_REQUIRED'
+  | 'ACCOUNTING_PERIOD_LOCKED'
+  | 'ACCOUNTING_SOURCE_CONFLICT'
   | 'PAYMENTS_CHANGED'
   | 'CSRF_ORIGIN_REJECTED'
   | 'NOT_FOUND'
@@ -50,7 +56,8 @@ export const errors = {
   notFound: (what = 'Data') => new AppError(404, 'NOT_FOUND', `${what} tidak ditemukan.`),
   validation: (fieldErrors: FieldErrors, message = 'Beberapa isian belum valid.') =>
     new AppError(400, 'VALIDATION_FAILED', message, { fieldErrors }),
-  badRequest: (message: string) => new AppError(400, 'BAD_REQUEST', message)
+  badRequest: (message: string) => new AppError(400, 'BAD_REQUEST', message),
+  conflict: (message: string) => new AppError(409, 'CONFLICT', message)
 }
 
 export interface ErrorBody {

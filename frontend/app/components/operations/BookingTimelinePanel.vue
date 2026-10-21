@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { Search } from 'lucide-vue-next'
+import type { BadgeTone } from '~/types/common'
 import { PROJECTS, getBookingTimeline } from '~/data'
 import { BOOKING_ORCHESTRATION_RECORDS } from '~/data/booking-orchestration'
 import { logBookingAttemptOnServer } from '~/data/bookings-sync'
@@ -26,7 +27,7 @@ const canManageBookings = computed(() => canManage('bookings'))
 const canViewBookingFinancials = computed(() => canViewFinancials.value)
 
 const DOMAIN_LABEL: Record<BookingDomain, string> = { flight: 'Flight', hotel: 'Hotel', transport: 'Transport', mice: 'MICE' }
-const DOMAIN_TONE: Record<BookingDomain, string> = { flight: 'info', hotel: 'purple', transport: 'warning', mice: 'primary' }
+const DOMAIN_TONE: Record<BookingDomain, BadgeTone> = { flight: 'info', hotel: 'purple', transport: 'warning', mice: 'primary' }
 
 const searchQuery = ref('')
 const domainFilter = ref<'all' | BookingDomain>('all')

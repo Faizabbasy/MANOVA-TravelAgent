@@ -68,14 +68,6 @@ function requestStatusChange (newStatus: MiceEventStatus) {
     financeCancelOpen.value = true
     return
   }
-  if (newStatus === 'cancelled') {
-    pendingStatus.value = newStatus
-    statusReason.value = ''
-    cancellationPenalty.value = null
-    cancellationRefundEligible.value = true
-    isStatusDialogOpen.value = true
-    return
-  }
   if (!event.value) { return }
   changeStatusOnServer(newStatus)
 }

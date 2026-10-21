@@ -43,6 +43,50 @@ export interface ApiList<T> {
   meta: ApiMeta & { pagination: ApiPagination }
 }
 
+export interface AccountingBookDto {
+  id: string; name: string; purpose: 'rehearsal' | 'production'; mode: 'off' | 'shadow' | 'active'; currency: string
+  timezone: string; entityType: string; accountingStandard: string; ownerMode: string; taxStatus: string
+  cutoverDate: string; openingValidated: boolean; version: number
+}
+export interface AccountingSetupInput {
+  name: string; purpose: 'rehearsal' | 'production'; cutoverDate: string; timezone: string; entityType?: string; accountingStandard?: string
+}
+export interface AccountingPeriodDto { id: string; startsOn: string; endsOn: string; status: 'open' | 'reviewed' | 'closed'; version: number }
+export interface AccountingPolicyInput {
+  sourceKind: string; effectiveFrom: string; principalAgent: string; recognition: string; taxTreatment: string; rationale: string
+  settings?: {costMatching?:'unknown'|'receipt-links';invoiceTreatment?:'unknown'|'prepaid';billingRight?:'unknown'|'unconditional';method?:'unknown'|'equal-months'|'straight-line';
+    classifications?:Record<string, string>;contributionRole?:'unknown'|'capital'|'owner-funds'|'loan';withdrawalRole?:'unknown'|'capital'|'owner-funds'|'loan';deductionRole?:'unknown'|'tax-payable'}
+}
+export interface SupplierReceiptMatchInput {fulfillmentId:string;actualMinor:MoneyMinor;closesReceipt:boolean;postingDate?:IsoDate;reason:string}
+export interface SupplierReceiptWorkspaceDto {
+  invoiceId:string;status:string;invoiceDate:IsoDate;totalMinor:MoneyMinor;remainingMinor:MoneyMinor;mode:'receipt-links'|'unconfigured';truncated:boolean
+  receipts:{id:string;fulfilledOn:IsoDate;amountMinor:MoneyMinor;remainingMinor:MoneyMinor;basis:string;evidence:string}[]
+  matches:{id:string;fulfillmentId:string;actualMinor:MoneyMinor;estimateMinor:MoneyMinor;closesReceipt:boolean;economicDate:IsoDate;postingDate:IsoDate;reason:string;status:'recorded'|'void';voidReason:string|null}[]
+}
+export interface AccountingPolicyDto extends AccountingPolicyInput { id: string; version: number; validationStatus: string }
+export interface AccountingSetupDto {
+  book: AccountingBookDto | null; activationAvailable: false
+  accounts: { code: string; name: string; type: string; controlRole: string | null; requiredDimension: string | null }[]
+  periods: AccountingPeriodDto[]; policies: AccountingPolicyDto[]
+}
+export interface AccountingTrialBalanceDto {
+  asOf: string; timezone: string | null; currency: string; period: string | null; basis: 'rehearsal' | 'recognized'; available: boolean
+  completeness: 'provisional' | 'unavailable'; reasons: { code: string; message: string }[]; policyVersion: number | null
+  totalDebitMinor: MoneyMinor | null; totalCreditMinor: MoneyMinor | null; balanced: boolean | null; netProfitMinor: null
+  rows: { code: string; name: string; type: string; debitMinor: MoneyMinor; creditMinor: MoneyMinor; balanceMinor: MoneyMinor }[]
+}
+export interface AccountingJournalDto {
+  id: string; description: string; effectiveDate: string; sourceType: string; sourceId: string; policyId: string; reversalOfId: string | null
+}
+export interface AccountingJournalDetailDto extends AccountingJournalDto {
+  status: 'posted'; sourceVersion: string; eventKind: string; policyVersion: number; correctionReason: string | null; requestId: string
+  snapshot: Record<string, unknown>
+  lines: { accountCode: string; accountName: string; debitMinor: MoneyMinor; creditMinor: MoneyMinor; bankAccountId: string | null
+    projectId: string | null; salesOrderId: string | null; partyId: string | null; vendorId: string | null; employeeId: string | null }[]
+}
+export interface AccountingExceptionDto { id: string; eventId: string; sourceType: string; sourceId: string; effectiveDate: string; code: string; message: string }
+export interface AccountingSourceStatusDto { status: 'off' | 'before-cutover' | 'pending' | 'posted' | 'not-captured'; basis: string | null; message: string; journals: string[] }
+
 export interface ApiErrorPayload {
   error: {
     code: string
@@ -435,8 +479,9 @@ export function isInternalProject (project: ProjectDto): project is ProjectInter
 
 export type ApiOpeningStatus = 'unset' | 'pending' | 'verified'
 export type ApiTransactionKind =
-  | 'customer_receipt' | 'vendor_refund' | 'other_income' | 'transfer_in'
+  | 'customer_receipt' | 'vendor_refund' | 'other_income' | 'transfer_in' | 'employee_advance_return' | 'loan_proceeds' | 'owner_contribution'
   | 'vendor_payment' | 'refund_settlement' | 'expense' | 'transfer_out' | 'transfer_fee'
+  | 'employee_advance' | 'employee_reimbursement' | 'payroll_payment' | 'asset_purchase' | 'loan_repayment' | 'owner_withdrawal' | 'prepaid_opex'
 export type ApiExpenseCategory =
   | 'payroll' | 'office' | 'marketing' | 'technology' | 'travel' | 'professional' | 'bank_fee' | 'tax'
   // Field costs of one project (Pengeluaran tab)
@@ -481,9 +526,9 @@ export interface CashPositionDto {
 
 export type CashFlowHorizon = '30d' | '3m' | '6m' | '12m'
 export type CashFlowCertainty = 'confirmed' | 'expected' | 'overdue'
-export type CashFlowSource = 'customer_invoice' | 'vendor_invoice' | 'refund'
+export type CashFlowSource = 'customer_invoice' | 'vendor_invoice' | 'refund' | 'payroll' | 'staff_reimbursement' | 'commitment' | 'company_expense'
 export type CashFlowExcludedCode = 'draft_invoices' | 'planned_billing' | 'vendor_invoices_in_review' | 'refunds_awaiting_decision'
-  | 'customer_advances' | 'vendor_deposits' | 'incoming_after_horizon' | 'outgoing_after_horizon'
+  | 'customer_advances' | 'vendor_deposits' | 'incoming_after_horizon' | 'outgoing_after_horizon' | 'loan_principal' | 'supplier_claims'
 
 export interface CashFlowScope { type: 'company' | 'account' | 'project'; id: string | null; name: string | null }
 
@@ -538,7 +583,8 @@ export type CashFlowWarning =
   | { code: 'CASH_GAP'; date: IsoDate; balanceMinor: MoneyMinor; lowestDate: IsoDate; lowestMinor: MoneyMinor; contributors: string[] }
   | { code: 'LOW_CASH'; date: IsoDate; balanceMinor: MoneyMinor; floorMinor: MoneyMinor; contributors: string[] }
   | { code: 'OVERDUE_INCOMING'; count: number; amountMinor: MoneyMinor; inFirstPeriodCount: number }
-  | { code: 'DISPUTED_INCOMING' | 'ADVANCES_NETTED'; count: number; amountMinor: MoneyMinor }
+  | { code: 'DISPUTED_INCOMING'; count: number; amountMinor: MoneyMinor }
+  | { code: 'ADVANCES_NETTED'; count: number; amountMinor: MoneyMinor }
 
 interface CashFlowBase {
   asOf: IsoDate
@@ -743,6 +789,27 @@ export interface StatementQuery extends PageQuery {
 
 /** `debit_note` is issued from an invoice (extra charge), never created as a normal draft. */
 export type ApiInvoiceType = 'dp' | 'progress' | 'final' | 'other' | 'debit_note'
+export interface ChangeBillingInput {
+  mode: 'charge' | 'no-charge'
+  basis: 'commercial' | 'fee' | 'separate' | 'none'
+  reason: string
+  allocations: { salesOrderId?: string; amountMinor: MoneyMinor; dueDate: IsoDate }[]
+}
+export type PrivateFileSource = 'financial_transaction' | 'customer_invoice' | 'vendor_invoice' | 'payment_proof' | 'refund' | 'supplier_claim' | 'expense_claim' | 'company_expense' | 'prepaid_expense' | 'payroll_run' | 'document' | 'traveler' | 'change-request' | 'quotation' | 'travel-request'
+export interface PrivateFileDto {
+  id: string; sourceType: PrivateFileSource; sourceId: string; visibility: 'internal' | 'source-party'; name: string; mime: string; sizeBytes: number; sha256: string; uploadedBy: string; uploadedAt: string
+}
+export interface ChangeBillingDto {
+  changeRequestId: string
+  projectId: string
+  changeStatus: string
+  commercialMinor: MoneyMinor
+  feeMinor: MoneyMinor
+  needsDecision: boolean
+  targets: { salesOrderId: string | null; partyName: string; contractMinor: MoneyMinor | null }[]
+  plans: { id: string; mode: string; basis: string; status: string; totalMinor: MoneyMinor; reason: string; voidReason: string | null;
+    allocations: { id: string; salesOrderId: string | null; partyId: string; partyName: string; amountMinor: MoneyMinor; dueDate: IsoDate; invoiceId: string | null; invoiceStatus: string | null }[] }[]
+}
 /** Derived for issued/approved invoices: open, partially paid, paid, or credited (zeroed by credit notes, no money). */
 export type ApiSettlement = 'open' | 'partial' | 'paid' | 'credited'
 
@@ -750,7 +817,8 @@ export interface CustomerInvoiceDto {
   id: string
   /** Assigned when issued (INV-YYYY-NNNNN); null for drafts. */
   number: string | null
-  project: { id: string; name: string }
+  /** null for a B2C standalone order — billed on its sales order (`salesOrderId`), never a dummy project. */
+  project: { id: string; name: string } | null
   party: { id: string; name: string }
   booking: { type: ApiBookingType; id: string } | null
   billingScheduleItemId: string | null
@@ -758,6 +826,8 @@ export interface CustomerInvoiceDto {
   salesOrderId: string | null
   /** For a debit note: the issued invoice it adds a charge to. */
   adjustsInvoiceId: string | null
+  changeBillingAllocationId?: string | null
+  changeRequestId?: string | null
   invoiceType: ApiInvoiceType
   status: 'draft' | 'issued' | 'void'
   settlement: ApiSettlement | null
@@ -800,6 +870,7 @@ export interface CustomerInvoiceDetailDto extends CustomerInvoiceDto {
 
 export interface VendorInvoiceDto {
   id: string
+  salesOrderId?: string | null
   vendor: { id: string; name: string }
   vendorInvoiceNumber: string
   serviceOrderId: string | null
@@ -899,7 +970,7 @@ export interface FinanceOverviewFull {
     | { available: false; reason: 'NO_ACCOUNTS' | 'OPENING_BALANCE_UNVERIFIED' }
   receivables: { outstandingMinor: MoneyMinor; openCount: number; overdueMinor: MoneyMinor; overdueCount: number }
   payables: { outstandingMinor: MoneyMinor; overdueMinor: MoneyMinor; overdueCount: number; pendingReviewCount: number }
-  overdueInvoices: { id: string; number: string; party: { id: string; name: string }; project: { id: string; name: string }; dueDate: IsoDate; outstandingMinor: MoneyMinor }[]
+  overdueInvoices: { id: string; number: string; party: { id: string; name: string }; project: { id: string; name: string } | null; dueDate: IsoDate; outstandingMinor: MoneyMinor }[]
 }
 
 export type FinanceOverviewDto = FinanceOverviewStatus | FinanceOverviewFull
@@ -956,7 +1027,7 @@ export interface PayableTotals {
 }
 
 /** What can be cancelled: a whole project or one booking. */
-export type ApiSubjectType = 'project' | ApiBookingType
+export type ApiSubjectType = 'project' | ApiBookingType | 'sales_order'
 export type ApiRefundStatus = 'requested' | 'approved' | 'rejected'
 /** Derived for approved cases: nothing to pay / not paid / partly / fully paid. */
 export type ApiRefundSettlement = 'none' | 'unpaid' | 'partial' | 'settled' | null
@@ -1050,6 +1121,7 @@ export type PartyFinanceSummaryDto =
 export interface InvoiceLineInput { description: string; amountMinor: MoneyMinor }
 
 export interface CustomerInvoiceDraftInput {
+  salesOrderId?:string
   projectId?: string
   booking?: { type: ApiBookingType; id: string }
   billingScheduleItemId?: string
@@ -1083,6 +1155,7 @@ export interface ReceiptInput {
 }
 
 export interface VendorInvoiceInput {
+  salesOrderId?: string
   vendorId: string
   vendorInvoiceNumber: string
   serviceOrderId?: string
@@ -1183,7 +1256,7 @@ export interface PolicyAssignmentDto {
 export interface CancellationSubjectDto {
   type: ApiSubjectType
   id: string
-  projectId: string
+  projectId: string | null
   projectName: string
   partyId: string
   partyName: string
@@ -1239,7 +1312,8 @@ export interface CancellationInput {
 interface RefundBase {
   id: string
   subject: { type: ApiSubjectType; id: string }
-  project: { id: string; name: string }
+  project: { id: string; name: string } | null
+  salesOrderId?: string | null
   party: { id: string; name: string }
   cancelDate: IsoDate
   departureDate: IsoDate | null
@@ -1447,7 +1521,7 @@ export interface ClientPaymentProofDto {
 export interface ClientInvoiceDto {
   id: string
   number: string | null
-  project: { id: string; name: string }
+  project: { id: string; name: string } | null
   invoiceType: string
   status: 'issued' | 'void'
   settlement: 'open' | 'partial' | 'paid' | 'credited' | null
@@ -2159,4 +2233,161 @@ export interface TripAnnouncementDto {
   publishedAt: string
   confirmations: { userId: string; name: string; confirmedAt: string }[]
   confirmedByMe?: boolean
+}
+
+// ── Owner accounting F2/F3: service fulfillment facts and supplier recovery (Finance namespace) ──────────
+export type FulfillmentSide = 'customer' | 'supplier'
+export interface FulfillmentDto {
+  id: string; side: FulfillmentSide; projectId: string | null; salesOrderId: string | null; serviceId: string | null
+  booking: { type: string; id: string } | null; serviceOrderId: string | null; partyId: string | null; vendorId: string | null; vendorName: string | null
+  amountMinor: MoneyMinor; fulfilledOn: string; basis: 'actual' | 'estimate'; isFinal: boolean; evidence: string
+  status: 'recorded' | 'void'; voidReason: string | null
+}
+export interface FulfillmentOverviewDto {
+  /** Contractual right to recognise: contract/order value or validly billed, whichever is higher. */
+  contract: { limitMinor: MoneyMinor; recognizedMinor: MoneyMinor; remainingMinor: MoneyMinor }
+  supplierReceivedMinor: MoneyMinor
+  items: FulfillmentDto[]
+  /** Operational status is evidence for the owner to confirm, never an automatic recognition. */
+  bookingPrefills: { booking: { type: string; id: string }; status: string; serviceId: string | null; sellAmountMinor: MoneyMinor | null
+    netCostMinor: MoneyMinor | null; vendorId: string | null; vendorName: string | null; operationallyDone: boolean }[]
+  serviceOrderPrefills: { serviceOrderId: string; vendorId: string; vendorName: string; serviceId: string; status: string
+    netCostMinor: MoneyMinor | null; receivedMinor: MoneyMinor; remainingMinor: MoneyMinor | null }[]
+}
+export interface FulfillmentInput {
+  side: FulfillmentSide; projectId?: string; salesOrderId?: string; serviceId?: string; booking?: { type: string; id: string }
+  serviceOrderId?: string; vendorId?: string; amountMinor: MoneyMinor; fulfilledOn: string; basis?: 'actual' | 'estimate'; isFinal?: boolean; evidence: string
+}
+export type AccountingDerivedStatus = 'off' | 'pending' | 'posted' | 'before-cutover'
+export interface SupplierClaimDto {
+  salesOrderId?:string|null
+  id: string; vendorId: string; vendorName: string; projectId: string | null; basis: 'cost-recovery' | 'deposit-recovery'; sourcePaymentId: string | null
+  amountMinor: MoneyMinor; settledMinor: MoneyMinor; outstandingMinor: MoneyMinor; recognizedOn: string; reason: string
+  status: 'recorded' | 'void'; voidReason: string | null
+}
+export interface SupplierClaimInput {
+  salesOrderId?:string
+  vendorId: string; projectId?: string; basis: 'cost-recovery' | 'deposit-recovery'; sourcePaymentId?: string; amountMinor: MoneyMinor; recognizedOn: string; reason: string
+}
+export interface VendorRefundInput { bankAccountId: string; claimId: string; amountMinor: MoneyMinor; effectiveDate: string; reference?: string; memo?: string }
+export interface AccountingOrderSummaryDto {
+  salesOrderId:string; projectId:string|null; status:string; asOf:string; available:boolean; basis:string|null
+  reasons:{code:string;message:string}[]
+  figures:null|{revenueMinor:MoneyMinor; directCostMinor:MoneyMinor; contributionMinor:MoneyMinor; receivableMinor:MoneyMinor; payableMinor:MoneyMinor; accruedCostMinor:MoneyMinor; prepaidCostMinor:MoneyMinor; supplierClaimMinor:MoneyMinor}
+}
+
+// ── Owner accounting reports (posted journals only; null = unavailable, never zero) ──────────────────────
+export interface AccountingReportHeader {
+  currency: string; timezone: string | null; basis: 'rehearsal' | 'recognized'; available: boolean
+  completeness: 'provisional' | 'unavailable'; reasons: { code: string; message: string }[]; policyVersion: number | null
+}
+export interface AccountingReportSection { lines: { code: string; name: string; amountMinor: MoneyMinor }[]; totalMinor: MoneyMinor }
+export interface AccountingProfitLossDto extends AccountingReportHeader {
+  from: string; to: string
+  revenue: AccountingReportSection | null; directCost: AccountingReportSection | null; grossProfitMinor: MoneyMinor | null
+  operatingExpense: AccountingReportSection | null; profitBeforeTaxMinor: MoneyMinor | null; taxExpense: AccountingReportSection | null
+  /** Only with a validated tax profile and no pending sources. */
+  netProfitMinor: MoneyMinor | null
+}
+export interface AccountingBalanceSheetDto extends AccountingReportHeader {
+  asOf: string; assets: AccountingReportSection | null; liabilities: AccountingReportSection | null; equity: AccountingReportSection | null
+  currentResultMinor: MoneyMinor | null; balanced: boolean | null
+}
+export interface AccountingProjectContributionDto extends AccountingReportHeader {
+  from: string; to: string; companyMinor: MoneyMinor | null; totalMinor: MoneyMinor | null
+  items: { projectId: string | null; salesOrderId: string | null; name: string | null; revenueMinor: MoneyMinor; directCostMinor: MoneyMinor
+    contributionMinor: MoneyMinor; otherExpenseMinor: MoneyMinor }[]
+}
+
+// ── Owner accounting F5: kasbon / bukti biaya staf ─────────────────────────────────────────────────────
+export type StaffCashKind = 'employee_advance' | 'employee_advance_return' | 'employee_reimbursement'
+export interface StaffFundsDto {
+  /** heldMinor = company cash the employee still holds; owedToEmployeeMinor = reimbursement the company owes. */
+  employees: { employeeId: string; name: string; status: string; heldMinor: MoneyMinor; owedToEmployeeMinor: MoneyMinor }[]
+  movements: { id: string; employeeId: string; type: StaffCashKind | 'expense_claim'; amountMinor: MoneyMinor; date: string; projectId: string | null
+    note: string | null; evidenceRef: string | null; status: 'recorded' | 'void' | 'reversed' }[]
+}
+export interface StaffCashInput { bankAccountId: string; employeeId: string; projectId?: string; amountMinor: MoneyMinor; effectiveDate: string; reference?: string; memo?: string }
+export interface ExpenseClaimInput { employeeId: string; projectId?: string; category: string; amountMinor: MoneyMinor; spentOn: string; evidenceRef: string; description: string }
+
+// ── Owner accounting F6: aset, pinjaman, dana owner ─────────────────────────────────────────────────────
+export interface FundingOverviewDto {
+  assets: { assetId: string; name: string; costMinor: MoneyMinor; residualMinor: MoneyMinor; acquiredOn: string; inServiceOn: string; usefulLifeMonths: number
+    accumulatedMinor: MoneyMinor; bookValueMinor: MoneyMinor; lastPeriod: string | null }[]
+  loans: { id: string; lender: string; principalMinor: MoneyMinor; outstandingMinor: MoneyMinor; receivedOn: string; terms: string; status: 'open' | 'repaid' }[]
+}
+export interface AssetPurchaseInput { bankAccountId: string; costMinor: MoneyMinor; acquiredOn: string; inServiceOn?: string; usefulLifeMonths: number; residualMinor?: MoneyMinor; reference?: string }
+export interface LoanInput { lender: string; principalMinor: MoneyMinor; receivedOn: string; terms: string; bankAccountId: string; reference?: string }
+export interface LoanRepaymentInput { bankAccountId: string; principalMinor: MoneyMinor; interestMinor: MoneyMinor; effectiveDate: string; reference?: string }
+export interface OwnerFundInput { bankAccountId: string; amountMinor: MoneyMinor; effectiveDate: string; memo?: string; reference?: string }
+
+// ── Owner accounting F9: cek bulanan ─────────────────────────────────────────────────────────────────────
+export interface AccountingReviewCheck { code: string; status: 'ok' | 'warning' | 'blocker'; title: string; detail: string; action: { label: string; to: string } | null }
+export interface AccountingPeriodReviewDto {
+  period: AccountingPeriodDto; bookPurpose: 'rehearsal' | 'production'; readyToClose: boolean; blockers: number; checks: AccountingReviewCheck[]
+}
+
+// ── Owner accounting F7: rekening koran & pencocokan ─────────────────────────────────────────────────────
+export interface StatementMappingInput {
+  delimiter: ',' | ';' | '\t'; skipRows: number; dateColumn: number; dateFormat: 'YYYY-MM-DD' | 'DD/MM/YYYY' | 'DD-MM-YYYY'; descriptionColumn: number
+  amountColumn?: number; debitColumn?: number; creditColumn?: number; referenceColumn?: number; numberStyle: 'id' | 'en'
+}
+export interface StatementImportInput { bankAccountId: string; fileName: string; csv: string; mapping: StatementMappingInput }
+export interface StatementPreviewDto {
+  rows: { lineNo: number; bookedOn: string; description: string; direction: 'in' | 'out'; amountMinor: MoneyMinor; externalRef: string | null; duplicate: boolean }[]
+  errors: { lineNo: number; message: string }[]
+  totals: { inMinor: MoneyMinor; outMinor: MoneyMinor }
+}
+export interface StatementLineDto {
+  id: string; bankAccountId: string; bookedOn: string; description: string; direction: 'in' | 'out'; amountMinor: MoneyMinor; externalRef: string | null
+  matchedMinor: MoneyMinor; status: 'unmatched' | 'partial' | 'matched'
+  candidates: { transactionId: string; kind: string; effectiveDate: string; label: string | null; openMinor: MoneyMinor; exactAmount: boolean }[]
+}
+
+// ── Owner accounting F9: saldo awal ──────────────────────────────────────────────────────────────────────
+export interface OpeningDecisionsInput {
+  invoices?: Record<string, 'earned' | 'unearned'>; vendorInvoices?: Record<string, 'incurred' | 'prepaid'>; equity?: { capitalMinor: MoneyMinor }
+}
+export interface OpeningPlanDto {
+  cutoverDate: string; bookPurpose: 'rehearsal' | 'production'; planHash: string; netAssetsMinor: MoneyMinor; equityDecided: boolean; undecided: string[]; canConfirm: boolean
+  items: { key: string; group: string; label: string; sourceType: string; sourceId: string; role: string; side: 'debit' | 'credit'; amountMinor: MoneyMinor }[]
+  decisions: { key: string; kind: 'customer-invoice' | 'vendor-invoice'; sourceId: string; label: string; amountMinor: MoneyMinor; suggestion: string; options: string[] }[]
+  exceptions: { code: string; message: string }[]
+  confirmed: { planHash: string; validated: boolean; confirmedAt: string } | null
+}
+
+// ── Owner accounting F3/F8: hasil accounting per project ────────────────────────────────────────────────
+export interface ProjectAccountingSummaryDto {
+  projectId: string; contractValueMinor: MoneyMinor | null; budgetMinor: MoneyMinor; remainingCommitmentMinor: MoneyMinor
+  status: { operational: string; cashSettled: boolean; closed: boolean }
+  available: boolean; basis: 'rehearsal' | 'recognized' | null; reasons: { code: string; message: string }[]
+  accountingReview: { pendingCount: number; estimateCount: number; complete: boolean } | null
+  figures: {
+    recognizedRevenueMinor: MoneyMinor; recognizedDirectCostMinor: MoneyMinor; contributionMinor: MoneyMinor; otherProjectCostMinor: MoneyMinor
+    deferredRevenueMinor: MoneyMinor; unbilledRevenueMinor: MoneyMinor; receivableMinor: MoneyMinor; payableMinor: MoneyMinor
+    accruedCostMinor: MoneyMinor; prepaidCostMinor: MoneyMinor; supplierAdvanceMinor: MoneyMinor; estimatedFinalCostMinor: MoneyMinor|null
+  } | null
+}
+
+export interface PrepaidExpenseInput {
+  bankAccountId: string; amountMinor: MoneyMinor; effectiveDate: string; description: string; evidenceRef: string
+  startMonth: string; months: number; method: 'equal-months'
+}
+export interface PrepaidExpenseDto {
+  id: string; transactionId: string; description: string; evidenceRef: string; paidOn: string
+  startMonth: string; months: number; method: 'equal-months'; totalMinor: MoneyMinor; amortizedMinor: MoneyMinor
+  remainingMinor: MoneyMinor; status: 'open' | 'completed' | 'reversed'
+}
+export interface PrepaidExpensesDto {
+  asOf: string; currency: 'IDR'; items: PrepaidExpenseDto[]; pagination: { limit: number; nextCursor: string | null }
+}
+
+export interface CompanyScheduleInput {vendorId:string;description:string;contractRef:string;category:string;amountMinor:MoneyMinor;startMonth:string;months:number;dueDay:number}
+export interface CompanyExpenseInput {scheduleId?:string;period?:string;vendorId?:string;category?:string;description?:string;amountMinor?:MoneyMinor;incurredOn:string;dueDate?:string;evidenceRef:string;basis:string}
+export interface CompanyExpenseWorkspaceDto {
+  schedules:{id:string;vendorId:string;vendorName:string;description:string;amountMinor:MoneyMinor;startMonth:string;months:number;dueDay:number;stopsOn:string|null}[]
+  schedulesTruncated:boolean
+  items:{id:string;vendorId:string;vendorName:string;description:string;category:string;amountMinor:MoneyMinor;incurredOn:string;dueDate:string;basis:string;status:string;invoiceId:string|null}[]
+  pagination:{limit:number;nextCursor:string|null}
+  invoices:{id:string;vendorId:string;number:string;amountMinor:MoneyMinor;invoiceDate:string}[]
 }

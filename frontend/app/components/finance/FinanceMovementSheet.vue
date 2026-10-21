@@ -121,6 +121,8 @@ const rows = computed(() => {
       <FinanceErrorState v-if="detail.error.value && !m" :error="detail.error.value" compact @retry="detail.refresh" />
 
       <div v-if="m" class="flex-1 space-y-6 px-6 py-5">
+        <AccountingSourceStatus source-type="financial_transaction" :source-id="m.id" />
+        <PrivateEvidencePanel source-type="financial_transaction" :source-id="m.id" :can-upload="session.can('finance.post-cash')" />
         <div v-if="transfer" class="rounded-xl border border-border p-4">
           <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Satu transfer, {{ transfer.legs.length }} catatan

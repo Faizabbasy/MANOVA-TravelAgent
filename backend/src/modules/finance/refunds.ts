@@ -3,6 +3,9 @@ import { STATUS_TRANSITIONS } from '../core/statuses'
 import { BOOKING_TRANSITIONS } from '../core/booking-rules'
 import { setBookingStatus } from '../core/booking-status'
 import type { Db, Queryable } from '../../db/client'
+import { postCashSource } from '../accounting/cash-source'
+import { postCreditNoteSource } from '../accounting/recognition'
+import { getBook } from '../accounting/setup'
 import { ID_PATTERN } from '../../http/envelope'
 import { AppError, errors } from '../../http/errors'
 import { recordAudit } from '../../shared/audit'
@@ -29,6 +32,7 @@ import { applyTier, daysBetween, effectiveAssignment, type PolicySnapshot, resol
 // ── Computation shared by preview and create ─────────────────────────────────────────────────────────
 
 interface SubjectInvoice extends Record<string, unknown> {
+  party_id: string
   id: string
   number: string | null
   invoice_type: string
@@ -45,9 +49,10 @@ interface SubjectInvoice extends Record<string, unknown> {
  * case (they are settled there), so booking and project cases never count the same money.
  */
 function invoiceScope(subject: Subject, alias = 'i'): { where: string; params: unknown[] } {
+  if (subject.type==='sales_order') return {where:`${alias}.sales_order_id=$1`,params:[subject.id]}
   return subject.type === 'project'
     ? {
-        where: `${alias}.project_id = $1 and not (${alias}.booking_id is not null and exists (select 1 from refunds rb where rb.status <> 'rejected' and rb.subject_type = ${alias}.booking_type and rb.subject_id = ${alias}.booking_id))`,
+        where: `${alias}.project_id = $1 and not (${alias}.booking_id is not null and exists (select 1 from refunds rb where rb.status <> 'rejected' and rb.subject_type = ${alias}.booking_type and rb.subject_id = ${alias}.booking_id))${alias==='billing_schedule_items' || alias==='s' ? '' : ` and not exists(select 1 from refunds ro where ro.status<>'rejected' and ro.subject_type='sales_order' and ro.subject_id=${alias}.sales_order_id)`}`,
         params: [subject.id]
       }
     : { where: `${alias}.booking_type = $1 and ${alias}.booking_id = $2`, params: [subject.type, subject.id] }
@@ -59,7 +64,7 @@ async function subjectInvoices(q: Queryable, subject: Subject, lock: boolean): P
     await q.query(`select id from customer_invoices i where ${scope.where} and i.status = 'issued' order by id for update`, scope.params)
   }
   return q.query<SubjectInvoice>(
-    `select i.id, i.number, i.invoice_type, i.issue_date, b.total_minor, b.paid_minor, b.credited_minor,
+    `select i.id,i.party_id, i.number, i.invoice_type, i.issue_date, b.total_minor, b.paid_minor, b.credited_minor,
             coalesce((select sum(c.amount_minor) from credit_notes c where c.customer_invoice_id = i.id and c.status = 'issued' and c.effect = 'refund_liability'), 0) as refund_credited_minor,
             (b.total_minor - b.paid_minor - b.credited_minor) as outstanding_minor
        from customer_invoices i join v_customer_invoice_balances b on b.invoice_id = i.id
@@ -111,6 +116,7 @@ async function computeCase(q: Queryable, subject: Subject, cancelDate: string, l
   const tier = policy && daysBefore !== null ? tierFor(policy.tiers, daysBefore) : null
 
   const invoices = await subjectInvoices(q, subject, lock)
+  if (subject.type==='project' && invoices.some(i=>i.party_id!==subject.partyId)) blockers.push({code:'MULTI_CUSTOMER_CASE_REQUIRED',message:'Tagihan project mencakup customer peserta yang berbeda. Catat pembatalan per order agar refund kembali ke customer yang benar.'})
   const dp = invoices.filter(i => i.invoice_type === 'dp')
   const other = invoices.filter(i => i.invoice_type !== 'dp')
   const basis = dp.reduce((s, i) => s + refundable(i), 0n)
@@ -126,7 +132,7 @@ async function computeCase(q: Queryable, subject: Subject, cancelDate: string, l
     : []
   const byId = new Map(invoices.map(i => [i.id, i]))
 
-  const scope = invoiceScope(subject, 's')
+  const scope = subject.type==='sales_order' ? {where:'false',params:[] as unknown[]} : invoiceScope(subject, 's')
   const [planned] = await q.query<{ n: string }>(`select count(*) as n from billing_schedule_items s where ${scope.where} and s.status = 'planned'`, scope.params)
   const draftScope = invoiceScope(subject, 'i')
   const [drafts] = await q.query<{ n: string }>(`select count(*) as n from customer_invoices i where ${draftScope.where} and i.status = 'draft'`, draftScope.params)
@@ -146,7 +152,7 @@ async function computeCase(q: Queryable, subject: Subject, cancelDate: string, l
     daysBefore,
     policy,
     tier,
-    canCalculate: !!tier && !blockers.some(b => b.code === 'ACTIVE_CASE' || b.code === 'OVERLAPPING_CASE'),
+    canCalculate: !!tier && !blockers.some(b => ['ACTIVE_CASE','OVERLAPPING_CASE','MULTI_CUSTOMER_CASE_REQUIRED'].includes(b.code)),
     blockers,
     invoices,
     basis,
@@ -236,13 +242,14 @@ export interface CancellationInput {
 }
 
 export async function createCancellation(tx: Queryable, actor: Actor, input: CancellationInput, full: boolean, requestId: string) {
+  await getBook(tx, true)
   const reason = validateReason(input.reason)
   const subject = await resolveSubject(tx, input.subjectType, input.subjectId)
   // One cancellation at a time per project (covers project- and booking-level cases).
-  await tx.query('select pg_advisory_xact_lock(hashtext($1))', [`cancel:${subject.projectId}`])
+  await tx.query('select pg_advisory_xact_lock(hashtext($1))', [`cancel:${subject.projectId ?? subject.id}`])
   const cancelDate = parseCancelDate(input.cancelDate)
   const f = await computeCase(tx, subject, cancelDate, true)
-  const hard = f.blockers.find(b => b.code === 'ACTIVE_CASE' || b.code === 'OVERLAPPING_CASE')
+  const hard = f.blockers.find(b => ['ACTIVE_CASE','OVERLAPPING_CASE','MULTI_CUSTOMER_CASE_REQUIRED'].includes(b.code))
   if (hard) throw new AppError(409, 'CONFLICT', hard.message)
 
   const calculation = input.calculation ?? (f.tier ? 'policy' : 'manual')
@@ -277,9 +284,9 @@ export async function createCancellation(tx: Queryable, actor: Actor, input: Can
     ;[row] = await tx.query<{ id: string }>(
       `insert into refunds (subject_type, subject_id, project_id, party_id, cancel_date, departure_date, days_before, calculation,
          policy_id, policy_version, policy_snapshot, tier, basis_minor, other_paid_minor, policy_refund_minor, additional_refund_minor, additional_reason,
-         refundable_minor, retained_minor, written_off_minor, source_payments, reason, status, requested_by, decided_by, decided_at, decision_note)
+         refundable_minor, retained_minor, written_off_minor, source_payments, reason, status, requested_by, decided_by, decided_at, decision_note,sales_order_id)
        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::text::jsonb, $12::text::jsonb, $13, $14, $15, $16, $17, $18, $19, $20, $21::text::jsonb, $22,
-         $23, $24, $25, $26, $27) returning id`,
+         $23, $24, $25, $26, $27,$28) returning id`,
       [subject.type, subject.id, subject.projectId, subject.partyId, cancelDate, subject.departureDate, f.daysBefore, calculation,
         calculation === 'policy' ? f.policy!.policyId : null, calculation === 'policy' ? f.policy!.version : null,
         calculation === 'policy' ? JSON.stringify(f.policy) : null, calculation === 'policy' ? JSON.stringify(f.tier) : null,
@@ -287,7 +294,7 @@ export async function createCancellation(tx: Queryable, actor: Actor, input: Can
         refundableAmount.toString(), calculation === 'policy' ? f.retained.toString() : (f.basis > refundableAmount ? f.basis - refundableAmount : 0n).toString(),
         writeOffTotal.toString(), JSON.stringify(f.sourcePayments), reason,
         autoApproved ? 'approved' : 'requested', actor.userId, autoApproved ? actor.userId : null, autoApproved ? new Date() : null,
-        autoApproved ? 'Tidak ada refund menurut kebijakan pembatalan.' : null]
+        autoApproved ? 'Tidak ada refund menurut kebijakan pembatalan.' : null,subject.type==='sales_order' ? subject.id : null]
     )
   } catch (err) {
     if (isUniqueViolation(err)) throw new AppError(409, 'CONFLICT', 'Sudah ada kasus pembatalan untuk ini.')
@@ -298,12 +305,13 @@ export async function createCancellation(tx: Queryable, actor: Actor, input: Can
 
   // The customer no longer owes what was billed but not paid.
   for (const w of f.writeOffs) {
-    await tx.query(
-      `insert into credit_notes (customer_invoice_id, effect, amount_minor, reason, refund_id, created_by) values ($1, 'reduce_receivable', $2, $3, $4, $5)`,
+    const [cn] = await tx.query<{ id: string }>(
+      `insert into credit_notes (customer_invoice_id, effect, amount_minor, reason, refund_id, created_by) values ($1, 'reduce_receivable', $2, $3, $4, $5) returning id`,
       [w.invoiceId, w.outstandingMinor, `Pembatalan ${label} (${caseId}): sisa tagihan dihapus`, caseId, actor.userId]
     )
+    await postCreditNoteSource(tx, actor, cn!.id, requestId)
   }
-  const s = invoiceScope(subject, 'billing_schedule_items')
+  const s = subject.type==='sales_order' ? {where:'false',params:[] as unknown[]} : invoiceScope(subject, 'billing_schedule_items')
   await tx.query(
     `update billing_schedule_items set status = 'cancelled', cancelled_by_refund = $${s.params.length + 1}, updated_at = now() where ${s.where} and status = 'planned'`,
     [...s.params, caseId]
@@ -326,7 +334,7 @@ export async function createCancellation(tx: Queryable, actor: Actor, input: Can
     }
   }
   // S4a: a booking-level cancellation also cancels the booking, when its status still allows it.
-  if (subject.type !== 'project') {
+  if (subject.type !== 'project' && subject.type!=='sales_order') {
     const [b] = await tx.query<{ status: string }>('select status from booking_refs where booking_type = $1 and booking_id = $2 for update', [subject.type, subject.id])
     if (b && BOOKING_TRANSITIONS[subject.type][b.status]?.includes('cancelled')) {
       await setBookingStatus(tx, actor, subject.type, subject.id, b.status, 'cancelled', reason, requestId)
@@ -345,6 +353,7 @@ async function lockRefund(tx: Queryable, id: string) {
 }
 
 export async function approveRefund(tx: Queryable, actor: Actor, id: string, input: { refundMinor?: string; note?: string }, requestId: string) {
+  await getBook(tx, true)
   const r = await lockRefund(tx, id)
   if (r.status !== 'requested') throw rule('Kasus ini sudah diputuskan.')
   const subject = await resolveSubject(tx, r.subject_type, r.subject_id)
@@ -372,10 +381,11 @@ export async function approveRefund(tx: Queryable, actor: Actor, id: string, inp
     if (left === 0n) break
     const take = refundable(inv) < left ? refundable(inv) : left
     if (take <= 0n) continue
-    await tx.query(
-      `insert into credit_notes (customer_invoice_id, effect, amount_minor, reason, refund_id, created_by) values ($1, 'refund_liability', $2, $3, $4, $5)`,
+    const [cn] = await tx.query<{ id: string }>(
+      `insert into credit_notes (customer_invoice_id, effect, amount_minor, reason, refund_id, created_by) values ($1, 'refund_liability', $2, $3, $4, $5) returning id`,
       [inv.id, take.toString(), `Refund pembatalan (${r.id})`, r.id, actor.userId]
     )
+    await postCreditNoteSource(tx, actor, cn!.id, requestId)
     left -= take
   }
   const retained = BigInt(r.basis_minor) > amount ? BigInt(r.basis_minor) - amount : 0n
@@ -394,6 +404,7 @@ export async function approveRefund(tx: Queryable, actor: Actor, id: string, inp
  * money is out (reverse the settlements first).
  */
 export async function rejectRefund(tx: Queryable, actor: Actor, id: string, reasonInput: unknown, requestId: string) {
+  await getBook(tx, true)
   const reason = validateReason(reasonInput)
   const r = await lockRefund(tx, id)
   if (r.status === 'rejected') throw rule('Kasus ini sudah dibatalkan.')
@@ -406,6 +417,7 @@ export async function rejectRefund(tx: Queryable, actor: Actor, id: string, reas
     "update credit_notes set status = 'void', void_reason = $2, voided_by = $3, voided_at = now() where refund_id = $1 and status = 'issued' returning id",
     [r.id, `Kasus pembatalan ${r.id} dibatalkan: ${reason}`.slice(0, 500), actor.userId]
   )
+  for (const v of voided) await postCreditNoteSource(tx, actor, v.id, requestId, reason, todayBusinessDate())
   const restored = await tx.query<{ id: string }>(
     "update billing_schedule_items set status = 'planned', cancelled_by_refund = null, updated_at = now() where cancelled_by_refund = $1 and status = 'cancelled' returning id", [r.id]
   )
@@ -428,7 +440,7 @@ export async function rejectRefund(tx: Queryable, actor: Actor, id: string, reas
     }
   }
   // S4a: the booking this case cancelled goes back to the status it had before.
-  if (subject.type !== 'project') {
+  if (subject.type !== 'project' && subject.type!=='sales_order') {
     const [prev] = await tx.query<{ status: string }>(
       `select before->>'status' as status from audit_events
         where action = 'booking.status_changed' and entity_id = $1 and after->>'type' = $2 and after->>'status' = 'cancelled' order by id desc limit 1`,
@@ -456,22 +468,25 @@ export async function settleRefund(tx: Queryable, actor: Actor, id: string, inpu
   const effectiveDate = validateEffectiveDate(input.effectiveDate)
   const r = await lockRefund(tx, id)
   if (r.status !== 'approved') throw rule(r.status === 'requested' ? 'Kasus ini belum disetujui; refund baru bisa dibayar setelah disetujui.' : 'Kasus ini ditolak.')
+  const [beforeApproval]=await tx.query(`select 1 from refunds where id=$1 and (decided_at at time zone 'Asia/Jakarta')::date>$2::date`,[id,effectiveDate])
+  if (beforeApproval) throw errors.validation({effectiveDate:['Pembayaran refund tidak boleh sebelum tanggal persetujuan.']})
   const [bal] = await tx.query<{ refundable_minor: string; settled_minor: string }>('select * from v_refund_balances where refund_id = $1', [r.id])
   const outstanding = BigInt(bal!.refundable_minor) - BigInt(bal!.settled_minor)
   if (outstanding <= 0n) throw rule('Refund kasus ini sudah dibayar penuh.')
   if (amount > outstanding) throw errors.validation({ amountMinor: [`Melebihi sisa refund (${outstanding}).`] })
   const account = await lockPostableAccount(tx, input.bankAccountId, effectiveDate)
   await assertOutflowFits(tx, account, effectiveDate, amount)
-  const booking = r.subject_type === 'project' ? { type: null, id: null } : { type: r.subject_type, id: r.subject_id }
+  const booking = r.subject_type === 'project' || r.subject_type==='sales_order' ? { type: null, id: null } : { type: r.subject_type, id: r.subject_id }
   const [row] = await tx.query<{ id: string }>(
     `insert into financial_transactions (bank_account_id, direction, amount_minor, currency, kind, effective_date, project_id, booking_type, booking_id,
-       party_id, counterparty, reference, memo, created_by)
-     values ($1, 'out', $2, $3, 'refund_settlement', $4, $5, $6, $7, $8, $9, $10, $11, $12) returning id`,
+       party_id, counterparty, reference, memo, created_by,sales_order_id)
+     values ($1, 'out', $2, $3, 'refund_settlement', $4, $5, $6, $7, $8, $9, $10, $11, $12,$13) returning id`,
     [account.id, amount.toString(), account.currency, effectiveDate, r.project_id, booking.type, booking.id, r.party_id,
-      trimOrNull(input.recipient, 200), trimOrNull(input.reference, 120), trimOrNull(input.memo) ?? `Refund ${r.id}`, actor.userId]
+      trimOrNull(input.recipient, 200), trimOrNull(input.reference, 120), trimOrNull(input.memo) ?? `Refund ${r.id}`, actor.userId,r.sales_order_id ?? null]
   )
-  await tx.query('insert into payment_allocations (transaction_id, target_type, target_id, amount_minor, created_by) values ($1, $2, $3, $4, $5)',
-    [row!.id, 'refund', r.id, amount.toString(), actor.userId])
+  await postCashSource(tx, actor, row!.id, requestId)
+  await tx.query('insert into payment_allocations (transaction_id, target_type, target_id, amount_minor, created_by, effective_date) values ($1, $2, $3, $4, $5, $6)',
+    [row!.id, 'refund', r.id, amount.toString(), actor.userId, effectiveDate])
   await recordAudit(tx, {
     action: 'finance.refund_settled', actorUserId: actor.userId, entityType: 'refund', entityId: r.id, requestId,
     after: { transactionId: row!.id, accountId: account.id, amountMinor: amount.toString(), effectiveDate }
@@ -485,7 +500,7 @@ interface RefundRow extends Record<string, any> {
   id: string
   subject_type: SubjectType
   subject_id: string
-  project_id: string
+  project_id: string | null
   party_id: string
   calculation: 'policy' | 'manual'
   status: 'requested' | 'approved' | 'rejected'
@@ -497,7 +512,7 @@ const REFUND_SELECT = `
   select r.*, r.requested_at::text as requested_at_text, p.name as project_name, pa.name as party_name, u.name as requested_by_name, d.name as decided_by_name,
          b.settled_minor, (b.refundable_minor - b.settled_minor) as outstanding_minor
     from refunds r
-    join projects p on p.id = r.project_id
+    left join projects p on p.id = r.project_id
     join parties pa on pa.id = r.party_id
     join users u on u.id = r.requested_by
     left join users d on d.id = r.decided_by
@@ -516,7 +531,8 @@ export function refundDto(r: Record<string, any>, full: boolean) {
   const base = {
     id: r.id as string,
     subject: { type: r.subject_type as SubjectType, id: r.subject_id as string },
-    project: { id: r.project_id as string, name: r.project_name as string },
+    project: r.project_id ? { id: r.project_id as string, name: r.project_name as string } : null,
+    salesOrderId:r.sales_order_id ?? null,
     party: { id: r.party_id as string, name: r.party_name as string },
     cancelDate: r.cancel_date as string,
     departureDate: (r.departure_date ?? null) as string | null,
@@ -582,7 +598,7 @@ export async function getRefund(q: Queryable, id: string, full: boolean) {
 }
 
 /** Worklist of cases. `full` = Finance (amounts); otherwise the status view only (Admin, Changes screen). */
-export async function listRefunds(db: Db, filter: { view?: string; projectId?: string; partyId?: string; limit: number; cursor?: string }, full = true) {
+export async function listRefunds(db: Db, filter: { view?: string; projectId?: string; salesOrderId?:string;partyId?: string; limit: number; cursor?: string }, full = true) {
   const view = filter.view ?? 'open'
   const params: unknown[] = []
   const where: string[] = []
@@ -597,6 +613,7 @@ export async function listRefunds(db: Db, filter: { view?: string; projectId?: s
     default: throw errors.validation({ view: ['Pilihan: open, requested, to_pay, settled, rejected, all.'] })
   }
   if (filter.projectId) { if (!ID_PATTERN.test(filter.projectId)) throw errors.validation({ projectId: ['Project tidak valid.'] }); add('r.project_id = ?', filter.projectId) }
+  if (filter.salesOrderId) { if (!ID_PATTERN.test(filter.salesOrderId)) throw errors.validation({salesOrderId:['Order tidak valid.']}); add('r.sales_order_id = ?',filter.salesOrderId) }
   if (filter.partyId) { if (!ID_PATTERN.test(filter.partyId)) throw errors.validation({ partyId: ['Customer tidak valid.'] }); add('r.party_id = ?', filter.partyId) }
   const base = where.length ? where.join(' and ') : 'true'
   const [summary] = await db.query<{ requested: string; to_pay: string; to_pay_minor: string }>(

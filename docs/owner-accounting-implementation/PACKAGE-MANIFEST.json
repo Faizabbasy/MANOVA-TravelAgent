@@ -1,0 +1,110 @@
+﻿{
+    "package":  "MANOVA owner accounting implementation",
+    "created_on":  "2026-10-21",
+    "baseline_commit":  "0a2e5b2",
+    "purpose":  "Integrity snapshot at handoff; regenerate after intentional document updates",
+    "file_count":  20,
+    "files":  [
+                  {
+                      "file":  "00-START-HERE.md",
+                      "sha256":  "AF6C886557B3A7B9204890C7EBB9747727F5F3DAD0F103C21D27D2ADF45CB59B",
+                      "bytes":  3885
+                  },
+                  {
+                      "file":  "01-CURRENT-STATE-AND-CONSTRAINTS.md",
+                      "sha256":  "00F0D4F0B619236DC2700D027A7DACB7EC7D15C818A5E57BEE4F220875528094",
+                      "bytes":  7474
+                  },
+                  {
+                      "file":  "02-PRODUCT-SCOPE-AND-DECISIONS.md",
+                      "sha256":  "09E7ECCE9A4CDB772152697705AC8DFC1B643ADB95DD2401548BFC52E910C40C",
+                      "bytes":  7253
+                  },
+                  {
+                      "file":  "03-PROJECT-FINANCE-INTEGRATION.md",
+                      "sha256":  "AA795624C230FD4598BE9FCD96C1DB1AF0FD7834A04A21DABF00A193F80AF25F",
+                      "bytes":  13242
+                  },
+                  {
+                      "file":  "04-ACCOUNTING-AND-POSTING-RULES.md",
+                      "sha256":  "FFD6AAE960F60699BCD8D7FB631321E91D1DEA418CF631EE91CE019512B21817",
+                      "bytes":  11676
+                  },
+                  {
+                      "file":  "05-TECHNICAL-ARCHITECTURE.md",
+                      "sha256":  "43430F9A3FDE877CDFD41C942A315B694F9E4AE7F287FF46295CA6DB9A1CEC18",
+                      "bytes":  10445
+                  },
+                  {
+                      "file":  "06-OWNER-UX-AND-ACCESS.md",
+                      "sha256":  "CE6DD9C4756E0EF75D13EA074FE3772AAE08ACC12B8F13A61F33F0297911C082",
+                      "bytes":  6883
+                  },
+                  {
+                      "file":  "07-IMPLEMENTATION-PHASES.md",
+                      "sha256":  "80AFDEB5EADD2B80EF3578DF80839E4F9229BAB2EBC036E4D89E42CD6D95D12B",
+                      "bytes":  8795
+                  },
+                  {
+                      "file":  "08-TESTING-AND-ACCEPTANCE.md",
+                      "sha256":  "9FCA39F2BB9139AAE87E233E9F2DF9A9794E151CD169503090B264569BA4EF11",
+                      "bytes":  11424
+                  },
+                  {
+                      "file":  "09-MIGRATION-AND-CUTOVER.md",
+                      "sha256":  "7D95FA48C3D278B36579F05595C7EDE09ED6E748810470EB6D4A5EE77A3D7488",
+                      "bytes":  6634
+                  },
+                  {
+                      "file":  "10-EXECUTION-GUARDRAILS.md",
+                      "sha256":  "2270DDEE6F82F7E1CE561EF3D877CE78137E7C07BC4E54C67F8CBA134D6FDEF6",
+                      "bytes":  6226
+                  },
+                  {
+                      "file":  "11-DECISION-AND-PROGRESS-LOG.md",
+                      "sha256":  "F64B7255E2A559A8E25AFCC65D7710F6E986B997C49A1D1A573C7C880FF9E368",
+                      "bytes":  104230
+                  },
+                  {
+                      "file":  "12-CLAUDE-CODE-START-PROMPT.md",
+                      "sha256":  "066E2ADF671C7B927982BFB3EC74A3934D64BCDDB9949A24660F4BE27FB5BD1C",
+                      "bytes":  3269
+                  },
+                  {
+                      "file":  "13-PANDUAN-OWNER.md",
+                      "sha256":  "F2FA043EB0E2B2876B83207FC5407D62A21A7641A4DA69DC23C872C3786633B7",
+                      "bytes":  12522
+                  },
+                  {
+                      "file":  "14-PRIVATE-EVIDENCE-RUNBOOK.md",
+                      "sha256":  "20280352E4CFE9CDAA042169C34B5795CEB74E3719188465AEAA522A3F003DD4",
+                      "bytes":  5375
+                  },
+                  {
+                      "file":  "15-DEMO-PERUSAHAAN-12-BULAN.md",
+                      "sha256":  "BD96E984D1119DA254E0452735BA42C4D36EEA281FA2412B40CF4F240AF869E3",
+                      "bytes":  3839
+                  },
+                  {
+                      "file":  "LOCAL-CHECKPOINT-GUIDE.md",
+                      "sha256":  "553654B9FBD8C2EE87F618134AF06C004EF4986DD673E361D2D049DDE79A3C3E",
+                      "bytes":  10097
+                  },
+                  {
+                      "file":  "PHASE-00-AUDIT.md",
+                      "sha256":  "1159C3F305CF70605E9C6F698961E07AFFC8ADD55FAACF6D93F6F3BA180DFD06",
+                      "bytes":  8235
+                  },
+                  {
+                      "file":  "PHASE-01-02-CHECKPOINT.md",
+                      "sha256":  "D98BCEE41C3FA8F6CEB55696B243634F4A76F372532A6CA77DEF4FE8726A3001",
+                      "bytes":  6758
+                  },
+                  {
+                      "file":  "README.md",
+                      "sha256":  "E7770B3255986B26952F961E2DF30D6CD4148FA720176C0B5156740A6C3C6D23",
+                      "bytes":  532
+                  }
+              ],
+    "updated_on":  "2026-10-22"
+}

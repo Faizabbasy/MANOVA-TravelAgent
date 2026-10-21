@@ -32,7 +32,6 @@ const projectFilter = ref<'all' | string>('all')
 const statusFilter = ref<'all' | ProjectMilestoneStatus>('all')
 
 const filteredMilestones = computed(() => {
-  void PROJECT_MILESTONES.length
   return PROJECT_MILESTONES
     .filter(milestone => projectFilter.value === 'all' || milestone.projectId === projectFilter.value)
     .filter(milestone => statusFilter.value === 'all' || milestone.status === statusFilter.value)

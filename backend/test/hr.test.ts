@@ -126,15 +126,24 @@ describe('payroll', () => {
     expect((await call('PATCH', `/payroll-lines/${line.id}`, 'admin', { allowanceMinor: '1' })).status).toBe(403)
     expect((await call('PATCH', `/payroll-lines/${line.id}`, 'finance', { allowanceMinor: -1 })).status).toBe(400)
 
-    expect((await call('POST', `/payroll-runs/${run.id}/pay`, 'finance')).status).toBe(422) // not approved yet
+    // Paid = real money out of a bank account (owner accounting F5), never a status flip.
+    await t.db.query(`insert into bank_accounts (id,code,bank_name,holder_name,account_number,opening_status,opening_balance_minor,opening_date,opening_submitted_by,opening_submitted_at,opening_verified_by,opening_verified_at,created_by)
+      values ('BA-HRTEST','HRTEST','Synthetic','TEST_ONLY','99887766','verified',100000000000,'2026-01-01','USR-001',now(),'USR-010',now(),'USR-010')`)
+    const paidOn = new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10)
+    const payBody = { bankAccountId: 'BA-HRTEST', effectiveDate: paidOn }
+    expect((await call('POST', `/payroll-runs/${run.id}/pay`, 'finance', payBody)).status).toBe(422) // not approved yet
     const approved = await call('POST', `/payroll-runs/${run.id}/approve`, 'finance')
     expect(approved.json.data).toMatchObject({ status: 'approved', approvedBy: 'USR-008' })
     expect((await call('PATCH', `/payroll-lines/${line.id}`, 'finance', { allowanceMinor: '1' })).status).toBe(422)
     expect((await call('POST', `/payroll-runs/${run.id}/approve`, 'finance')).status).toBe(422)
     expect((await call('POST', `/payroll-runs/${run.id}/pay`, 'admin')).status).toBe(403)
-    const paid = await call('POST', `/payroll-runs/${run.id}/pay`, 'finance')
+    expect((await call('POST', `/payroll-runs/${run.id}/pay`, 'finance')).status).toBe(400) // no bank account / date
+    const paid = await call('POST', `/payroll-runs/${run.id}/pay`, 'finance', payBody)
     expect(paid.json.data.status).toBe('paid')
-    expect(paid.json.data.paidOn).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    expect(paid.json.data.paidOn).toBe(paidOn)
+    const [cash] = await t.db.query<{ amount_minor: string }>("select amount_minor from financial_transactions where payroll_run_id = $1 and kind = 'payroll_payment'", [run.id])
+    const [net] = await t.db.query<{ net: string }>('select sum(base_salary_minor + allowance_minor - deduction_minor) as net from payroll_lines where payroll_run_id = $1', [run.id])
+    expect(cash!.amount_minor).toBe(net!.net)
     const actions = (await t.db.query<{ action: string }>("select action from audit_events where entity_id = $1 order by id", [run.id])).map(r => r.action)
     expect(actions).toEqual(['finance.payroll.created', 'finance.payroll.approved', 'finance.payroll.paid'])
   })
@@ -163,5 +172,17 @@ describe('commissions and incentives', () => {
     expect(res.json.data).toMatchObject({ employeeId: e.id, amountMinor: '2500000', status: 'approved', source: 'manual', note: 'Bonus closing' })
     expect(res.json.data.id).toMatch(/^INS-\d+$/)
     expect((await t.db.query("select 1 from audit_events where action = 'finance.incentive.created'")).length).toBe(1)
+  })
+})
+
+describe('commission status never claims a payment that was not made', () => {
+  test('a closed project gives an approved commission, not a paid one', async () => {
+    const [p] = await t.db.query<{ id: string }>(`select p.id from projects p join employees e on e.user_id = p.owner_user_id
+      where e.commission_rate_percent is not null and p.contract_value_minor is not null limit 1`)
+    if (!p) return
+    await t.db.query("update projects set status = 'completed', closed_at = now() where id = $1", [p.id])
+    const list = (await call('GET', '/hr/commissions', 'finance')).json.data as { projectId: string | null; status: string }[]
+    expect(list.find(c => c.projectId === p.id)?.status).toBe('approved')
+    expect(list.some(c => c.status === 'paid')).toBe(false)
   })
 })

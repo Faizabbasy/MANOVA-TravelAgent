@@ -2,7 +2,7 @@
 import { Plus, Trash2 } from 'lucide-vue-next'
 import type { ApiInvoiceType, CustomerInvoiceDetailDto } from '~/types/api'
 import { todayJakarta } from '~/lib/finance/dates'
-import { DRAFT_INVOICE_TYPES, INVOICE_TYPE_LABEL } from '~/lib/finance/labels'
+import { DRAFT_INVOICE_TYPES, INVOICE_TYPE_LABEL, invoiceSubjectLabel } from '~/lib/finance/labels'
 
 /**
  * Create or edit a customer invoice DRAFT. A draft is not a receivable and moves no money; issuing it (from the
@@ -33,7 +33,7 @@ watch(() => props.open, (open) => {
   if (!open) { return }
   action.reset()
   const inv = props.invoice
-  form.projectId = inv?.project.id ?? props.projectId ?? null
+  form.projectId = inv?.project?.id ?? props.projectId ?? null
   form.invoiceType = inv?.invoiceType ?? 'dp'
   form.lines = inv?.lines.length
     ? inv.lines.map(l => ({ key: ++lineKey, description: l.description, amount: l.amountMinor }))
@@ -88,7 +88,7 @@ const lineError = (i: number, field: 'description' | 'amountMinor') => action.fi
 <template>
   <FinanceFormDialog
     :open="open"
-    :title="isEdit ? `Ubah draft ${invoice?.project.name ?? ''}` : 'Buat invoice customer'"
+    :title="isEdit ? `Ubah draft ${invoice ? invoiceSubjectLabel(invoice) : ''}` : 'Buat invoice customer'"
     description="Disimpan sebagai draft dulu. Draft bisa diubah atau dihapus, dan belum dihitung sebagai tagihan sampai diterbitkan."
     :submit-label="isEdit ? 'Simpan draft' : 'Simpan sebagai draft'"
     size="lg"
@@ -108,7 +108,7 @@ const lineError = (i: number, field: 'description' | 'amountMinor') => action.fi
           placeholder="Pilih project"
         />
         <p v-else class="flex h-10 items-center rounded-md border border-border bg-muted/40 px-3 text-sm">
-          {{ invoice?.project.name }} · {{ invoice?.party.name }}
+          {{ invoice ? invoiceSubjectLabel(invoice) : "" }} · {{ invoice?.party.name }}
         </p>
       </FinanceField>
       <FinanceField id="inv-type" label="Jenis tagihan" :error="action.fieldError('invoiceType')">

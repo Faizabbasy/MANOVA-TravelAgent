@@ -83,7 +83,7 @@ const PRINT_PAGES: Record<string, string[]> = {
 describe('print pages load the server data they print', () => {
   it.each(Object.entries(PRINT_PAGES))('%s', (page, syncs) => {
     const source = readFileSync(join(appDir, page), 'utf8')
-    expect(syncs.filter(sync => !new RegExp(`${sync}\(\)`).test(source))).toEqual([])
+    expect(syncs.filter(sync => !new RegExp(`${sync}[(]`).test(source))).toEqual([])
     expect(source).toMatch(/onMounted\(/)
   })
 })

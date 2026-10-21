@@ -134,6 +134,12 @@ function openReason (kind: ReasonKind) { reasonAction.reset(); reasonKind.value 
       <FinanceErrorState v-if="detail.error.value && !inv" :error="detail.error.value" compact @retry="detail.refresh" />
 
       <div v-if="inv" class="flex-1 space-y-6 px-6 py-5">
+        <AccountingSourceStatus source-type="vendor_invoice" :source-id="inv.id" />
+        <FinanceSupplierReceipts :key="inv.id" :invoice-id="inv.id" :status="inv.status" />
+        <PrivateEvidencePanel source-type="vendor_invoice" :source-id="inv.id" :can-upload="session.can('finance.post-cash')" />
+        <NuxtLink v-if="inv.salesOrderId" :to="`/sales-orders/${inv.salesOrderId}`" class="text-sm text-primary hover:underline">
+          Order {{ inv.salesOrderId }}
+        </NuxtLink>
         <div v-if="inReview" class="rounded-lg border border-chart-5/25 bg-chart-5/5 px-3 py-2.5 text-sm">
           Periksa invoice ini terhadap order/booking-nya. Setelah disetujui, invoice masuk daftar yang harus dibayar.
         </div>

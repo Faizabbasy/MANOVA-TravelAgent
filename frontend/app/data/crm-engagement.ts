@@ -1,5 +1,10 @@
 import { reactive } from 'vue'
 import { differenceInCalendarDays, parseISO, addDays, format } from 'date-fns'
+import { LEADS } from './leads'
+import { PARTIES } from './parties'
+import { PROJECTS } from './projects'
+import { INVOICES } from './finance'
+import { CONTACTS } from './parties'
 import type {
   FollowUpRule,
   FollowUpTask,
@@ -8,11 +13,6 @@ import type {
   LoyaltyAccountSummary,
   LoyaltyTier
 } from '~/types/crm-engagement'
-import { LEADS } from './leads'
-import { PARTIES } from './parties'
-import { PROJECTS } from './projects'
-import { INVOICES } from './finance'
-import { CONTACTS } from './parties'
 import { DEMO_REFERENCE_DATE } from '~/utils/attention'
 
 /**
@@ -22,7 +22,7 @@ import { DEMO_REFERENCE_DATE } from '~/utils/attention'
  * yang ditetapkan untuk inisiatif ini: domain baru mengekspor selector-nya sendiri.
  */
 
-export const FOLLOW_UP_RULES: FollowUpRule[] = reactive([
+export const FOLLOW_UP_RULES: FollowUpRule[] = reactive<FollowUpRule[]>([
   {
     id: 'FUR-001',
     name: 'Sapa Lead Baru',
@@ -72,7 +72,7 @@ export const LOYALTY_TIERS: LoyaltyTier[] = [
   { key: 'platinum', label: 'Platinum', minSpendIdr: 2_000_000_000, pointsPerMillion: 20, benefits: ['Dedicated account executive', 'Penyesuaian itinerary tanpa batas', 'Termin pembayaran lebih panjang', 'Complimentary tour leader'] }
 ]
 
-export const LOYALTY_ADJUSTMENTS: LoyaltyAdjustment[] = reactive([
+export const LOYALTY_ADJUSTMENTS: LoyaltyAdjustment[] = reactive<LoyaltyAdjustment[]>([
   { id: 'LYA-001', partyId: 'PTY-001', points: 250, reason: 'Bonus referral — merekomendasikan dua klien korporat baru.', createdAt: '2026-06-15', createdBy: 'USR-001' },
   { id: 'LYA-002', partyId: 'PTY-002', points: -100, reason: 'Penukaran poin untuk upgrade kelas penerbangan.', createdAt: '2026-07-02', createdBy: 'USR-001' }
 ])

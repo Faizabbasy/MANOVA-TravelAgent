@@ -54,6 +54,10 @@ const ids: Record<string, string> = {}
 beforeAll(async () => {
   t = await makeTestApp()
   for (const [k, email] of Object.entries({ finance: DEMO.finance, superAdmin: DEMO.superAdmin, admin: DEMO.admin })) who[k] = await t.login(email)
+  // The fixture's figures cover AR/AP/refunds/cash; demo supplier commitments and the demo approved payroll (owner accounting F8
+  // forecast sources, tested in finance-cashflow) are taken out of this controlled fixture.
+  await t.db.query("update service_orders set status = 'draft' where status in ('sent', 'acknowledged', 'amended', 'fulfilled')")
+  await t.db.query("update payroll_runs set status = 'draft', approved_by = null, approved_on = null where status = 'approved' and provenance = 'demo-fixture'")
   // The fixture's dates move with today, so H-7 and "due in 20 days" hold on any day the suite runs.
   await t.db.query("update booking_refs set departure_date = $1 where booking_type = 'flight' and booking_id = 'FLT-1021'", [addDays(TODAY, 7)])
   await t.db.query('update projects set travel_start_date = $1, travel_end_date = $2 where id = $3', [addDays(TODAY, 40), addDays(TODAY, 45), A.project])

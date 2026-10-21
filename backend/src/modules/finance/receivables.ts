@@ -1,5 +1,9 @@
 import type { Actor } from '../../auth/rbac'
 import type { Db, Queryable } from '../../db/client'
+import { postCashSource } from '../accounting/cash-source'
+import { postAllocationSource, postInvoiceSource } from '../accounting/invoice-source'
+import { postCreditNoteSource } from '../accounting/recognition'
+import { getBook } from '../accounting/setup'
 import { ID_PATTERN } from '../../http/envelope'
 import { AppError, errors } from '../../http/errors'
 import { recordAudit } from '../../shared/audit'
@@ -7,6 +11,7 @@ import { isIsoDate } from '../../shared/dates'
 import { isUniqueViolation, MAX_MOVEMENT_MINOR, parseMovementAmount, rule, todayBusinessDate } from './common'
 import { lockPostableAccount, resolveReferences, trimOrNull, validateEffectiveDate, validateReason } from './postings'
 import { assertBillable } from './refunds'
+import { assertOrderBillable } from './order-scope'
 
 /**
  * Receivables (Phase 3): billing schedule → customer invoice (draft → issued → void) → receipts with
@@ -189,19 +194,24 @@ export async function createInvoiceDraft(tx: Queryable, actor: Actor, input: Inv
   }
   let salesOrder: { id: string; project_id: string | null; party_id: string } | undefined
   if (input.salesOrderId) {
+    await assertOrderBillable(tx,input.salesOrderId)
     if (input.billingScheduleItemId) throw errors.validation({ salesOrderId: ['Invoice peserta tidak memakai termin project.'] })
     if (!ID_PATTERN.test(input.salesOrderId)) throw errors.validation({ salesOrderId: ['Sales order tidak valid.'] })
     ;[salesOrder] = await tx.query<NonNullable<typeof salesOrder>>('select id, project_id, party_id from sales_order_refs where id = $1', [input.salesOrderId])
     if (!salesOrder) throw errors.validation({ salesOrderId: ['Sales order tidak ditemukan.'] })
-    if (!salesOrder.project_id) throw rule('Sales order tanpa project (B2C standalone) belum bisa ditagih lewat Finance.')
     if (input.projectId && input.projectId !== salesOrder.project_id) throw errors.validation({ projectId: ['Project berbeda dengan project sales order.'] })
   }
+  // B2C standalone (F4): the order itself is the billing dimension — no project, no booking, never a dummy project.
+  const standalone = !!salesOrder && !salesOrder.project_id
+  if (standalone && (input.projectId || input.booking)) throw errors.validation({ salesOrderId: ['Order B2C mandiri tidak memakai project atau booking.'] })
   const projectInput = {
     projectId: input.projectId ?? schedule?.project_id ?? salesOrder?.project_id ?? undefined,
     booking: input.booking ?? (schedule?.booking_id ? { type: schedule.booking_type!, id: schedule.booking_id } : undefined)
   }
-  const { refs, project } = await lockProjectRef(tx, projectInput)
-  await assertBillable(tx, project.id, { type: refs.bookingType, id: refs.bookingId })
+  const { refs, project } = standalone
+    ? { refs: { bookingType: null as string | null, bookingId: null as string | null }, project: { id: null as string | null, party_id: salesOrder!.party_id } }
+    : await lockProjectRef(tx, projectInput)
+  if (project.id) await assertBillable(tx, project.id, { type: refs.bookingType, id: refs.bookingId })
   // A participant booking is billed to its own customer; everything else to the project's customer.
   const partyId = salesOrder?.party_id ?? project.party_id
   const invoiceType = requireInvoiceType(input.invoiceType ?? schedule?.invoice_type)
@@ -243,6 +253,7 @@ export async function lockInvoice(tx: Queryable, id: string) {
 
 export async function updateInvoiceDraft(tx: Queryable, actor: Actor, id: string, input: InvoiceDraftInput, requestId: string) {
   const inv = await lockInvoice(tx, id)
+  if(inv.change_billing_allocation_id) throw rule('Draft ini mengikuti perubahan komersial. Koreksi rencana penagihan sumber agar kontrak dan invoice tetap cocok.')
   if (inv.status !== 'draft') throw rule('Invoice yang sudah terbit tidak bisa diubah. Pakai credit note atau void.')
   if (input.projectId || input.booking || input.billingScheduleItemId) throw errors.validation({ projectId: ['Project, booking, dan termin tidak bisa dipindah; buat draft baru.'] })
   const invoiceType = input.invoiceType === undefined ? null : requireInvoiceType(input.invoiceType)
@@ -265,6 +276,7 @@ export async function updateInvoiceDraft(tx: Queryable, actor: Actor, id: string
 
 export async function deleteInvoiceDraft(tx: Queryable, actor: Actor, id: string, requestId: string) {
   const inv = await lockInvoice(tx, id)
+  if(inv.change_billing_allocation_id) throw rule('Batalkan rencana penagihan perubahan terlebih dahulu. Draft sumber tidak dihapus terpisah.')
   if (inv.status !== 'draft') throw rule('Hanya draft yang bisa dihapus. Invoice terbit di-void.')
   await tx.query('delete from customer_invoices where id = $1', [id])
   await recordAudit(tx, { action: 'finance.invoice_draft_deleted', actorUserId: actor.userId, entityType: 'customer_invoice', entityId: id, requestId })
@@ -273,24 +285,33 @@ export async function deleteInvoiceDraft(tx: Queryable, actor: Actor, id: string
 
 /** Issuing makes the invoice a receivable: number, dates and amounts freeze. No money moves. */
 export async function issueInvoice(tx: Queryable, actor: Actor, id: string, input: { issueDate?: string; dueDate?: string }, requestId: string) {
+  await getBook(tx, true)
   const inv = await lockInvoice(tx, id)
   if (inv.status !== 'draft') throw rule('Invoice ini sudah terbit atau dibatalkan.')
-  await assertBillable(tx, inv.project_id, { type: inv.booking_type, id: inv.booking_id })
+  await assertOrderBillable(tx,inv.sales_order_id)
+  if(inv.adjusts_invoice_id && !(await tx.query("select 1 from customer_invoices where id=$1 and status='issued'",[inv.adjusts_invoice_id])).length) throw rule('Invoice dasar tambahan tagihan sudah berubah/void. Koreksi sumber sebelum menerbitkan tambahan ini.')
+  if (inv.project_id) await assertBillable(tx, inv.project_id, { type: inv.booking_type, id: inv.booking_id })
   const issueDate = input.issueDate === undefined ? todayBusinessDate() : requireDate(input.issueDate, 'issueDate', { notFuture: true })
   const dueDate = input.dueDate !== undefined ? requireDate(input.dueDate, 'dueDate') : inv.due_date
   if (!dueDate) throw errors.validation({ dueDate: ['Tanggal jatuh tempo wajib diisi sebelum invoice diterbitkan.'] })
   if (dueDate < issueDate) throw errors.validation({ dueDate: ['Jatuh tempo tidak boleh sebelum tanggal terbit.'] })
   if (BigInt(inv.total_minor) <= 0n) throw rule('Total invoice harus lebih dari 0.')
 
-  const [ctx] = await tx.query<{ project_name: string; party_name: string; contract_value_minor: string | null; invoiced: string }>(
+  const [ctx] = inv.sales_order_id ? await tx.query<{ project_name: string | null; party_name: string; contract_value_minor: string | null; invoiced: string }>(
+    `select p.name as project_name,pa.name as party_name,s.price_minor as contract_value_minor,
+      coalesce((select sum(b.total_minor-b.credited_minor) from customer_invoices i join v_customer_invoice_balances b on b.invoice_id=i.id where i.sales_order_id=s.id and i.status='issued'),0) as invoiced
+      from sales_order_refs s join parties pa on pa.id=s.party_id left join projects p on p.id=s.project_id where s.id=$1`,[inv.sales_order_id])
+    : inv.project_id ? await tx.query<{ project_name: string | null; party_name: string; contract_value_minor: string | null; invoiced: string }>(
     `select p.name as project_name, pa.name as party_name, p.contract_value_minor,
             coalesce((select sum(b.total_minor - b.credited_minor) from customer_invoices i join v_customer_invoice_balances b on b.invoice_id = i.id
                        where i.project_id = p.id and i.status = 'issued'), 0) as invoiced
        from projects p join parties pa on pa.id = p.party_id where p.id = $1`,
     [inv.project_id]
-  )
+  ) : await tx.query<{ project_name: string | null; party_name: string; contract_value_minor: string | null; invoiced: string }>(
+    `select null as project_name, pa.name as party_name, null as contract_value_minor, '0' as invoiced from parties pa where pa.id = $1`, [inv.party_id])
   const [numbered] = await tx.query<{ number: string }>(
-    `select 'INV-' || to_char($1::date, 'YYYY') || '-' || lpad(nextval('finance_invoice_number_seq')::text, 5, '0') as number`, [issueDate]
+    inv.invoice_type==='debit_note' ? `select 'DN-' || to_char($1::date, 'YYYY') || '-' || lpad(nextval('finance_debit_note_number_seq')::text, 5, '0') as number`
+      : `select 'INV-' || to_char($1::date, 'YYYY') || '-' || lpad(nextval('finance_invoice_number_seq')::text, 5, '0') as number`, [issueDate]
   )
   await tx.query(
     `update customer_invoices set status = 'issued', number = $2, issue_date = $3, due_date = $4, issued_by = $5, issued_at = now(),
@@ -301,6 +322,7 @@ export async function issueInvoice(tx: Queryable, actor: Actor, id: string, inpu
     await tx.query("update billing_schedule_items set status = 'invoiced', updated_at = now() where id = $1", [inv.billing_schedule_item_id])
   }
   // Advisory, never blocking: billing beyond the contract value is sometimes right (change requests).
+  await postInvoiceSource(tx, actor, 'customer_invoice', id, issueDate, requestId)
   const warnings: { code: string; message: string }[] = []
   if (ctx!.contract_value_minor !== null && BigInt(ctx!.invoiced) + BigInt(inv.total_minor) > BigInt(ctx!.contract_value_minor)) {
     warnings.push({ code: 'EXCEEDS_CONTRACT_VALUE', message: 'Total tagihan project ini kini melebihi nilai kontrak. Pastikan ada perubahan pesanan yang disetujui.' })
@@ -313,6 +335,7 @@ export async function issueInvoice(tx: Queryable, actor: Actor, id: string, inpu
 }
 
 export async function voidInvoice(tx: Queryable, actor: Actor, id: string, reasonInput: unknown, requestId: string) {
+  await getBook(tx, true)
   const reason = validateReason(reasonInput)
   const inv = await lockInvoice(tx, id)
   if (inv.status !== 'issued') throw rule(inv.status === 'draft' ? 'Draft cukup dihapus, tidak perlu di-void.' : 'Invoice ini sudah dibatalkan.')
@@ -326,6 +349,7 @@ export async function voidInvoice(tx: Queryable, actor: Actor, id: string, reaso
     await tx.query("update billing_schedule_items set status = 'planned', updated_at = now() where id = $1", [inv.billing_schedule_item_id])
   }
   await recordAudit(tx, { action: 'finance.invoice_voided', actorUserId: actor.userId, entityType: 'customer_invoice', entityId: id, requestId, reason })
+  await postInvoiceSource(tx, actor, 'customer_invoice', id, todayBusinessDate(), requestId, reason)
   return { id }
 }
 
@@ -366,6 +390,7 @@ export async function invoiceOutstanding(q: Queryable, id: string): Promise<bigi
 
 /** Reduces what the customer still owes (never below zero). Money already received needs a refund (Phase 5). */
 export async function issueCreditNote(tx: Queryable, actor: Actor, input: { invoiceId: string; amountMinor: string; reason: string }, requestId: string) {
+  await getBook(tx, true)
   const amount = parseMovementAmount(input.amountMinor)
   const reason = validateReason(input.reason)
   const inv = await lockInvoice(tx, input.invoiceId)
@@ -384,10 +409,12 @@ export async function issueCreditNote(tx: Queryable, actor: Actor, input: { invo
     action: 'finance.credit_note_issued', actorUserId: actor.userId, entityType: 'credit_note', entityId: row!.id, requestId, reason,
     after: { invoiceId: inv.id, amountMinor: amount.toString() }
   })
+  await postCreditNoteSource(tx, actor, row!.id, requestId)
   return { id: row!.id, outstandingMinor: (outstanding - amount).toString() }
 }
 
 export async function voidCreditNote(tx: Queryable, actor: Actor, id: string, reasonInput: unknown, requestId: string) {
+  await getBook(tx, true)
   const reason = validateReason(reasonInput)
   if (!ID_PATTERN.test(id)) throw errors.notFound('Credit note')
   const [cn] = await tx.query<{ status: string; customer_invoice_id: string; refund_id: string | null }>('select status, customer_invoice_id, refund_id from credit_notes where id = $1 for update', [id])
@@ -397,6 +424,7 @@ export async function voidCreditNote(tx: Queryable, actor: Actor, id: string, re
   await lockInvoice(tx, cn.customer_invoice_id)
   await tx.query("update credit_notes set status = 'void', void_reason = $2, voided_by = $3, voided_at = now() where id = $1", [id, reason, actor.userId])
   await recordAudit(tx, { action: 'finance.credit_note_voided', actorUserId: actor.userId, entityType: 'credit_note', entityId: id, requestId, reason })
+  await postCreditNoteSource(tx, actor, id, requestId, reason, todayBusinessDate())
   return { id }
 }
 
@@ -408,7 +436,7 @@ interface AllocationInput { invoiceId: string; amountMinor: string }
  * Allocates part of a receipt to issued invoices of the same customer. Invoices are locked in id order,
  * each allocation ≤ its outstanding, and the total ≤ what is still unallocated on the receipt.
  */
-async function allocateToInvoices(tx: Queryable, actor: Actor, receipt: { id: string; party_id: string; unallocated: bigint }, allocations: AllocationInput[]) {
+async function allocateToInvoices(tx: Queryable, actor: Actor, receipt: { id: string; party_id: string; unallocated: bigint }, allocations: AllocationInput[], effectiveDate: string, requestId: string) {
   if (!Array.isArray(allocations)) return []
   const seen = new Set<string>()
   const parsed = allocations.map((a, i) => {
@@ -423,8 +451,8 @@ async function allocateToInvoices(tx: Queryable, actor: Actor, receipt: { id: st
   }
   const results: { invoiceId: string; amountMinor: string; outstandingMinor: string }[] = []
   for (const a of [...parsed].sort((x, y) => x.invoiceId.localeCompare(y.invoiceId))) {
-    const [inv] = await tx.query<{ id: string; status: string; party_id: string; number: string | null }>(
-      'select id, status, party_id, number from customer_invoices where id = $1 for update', [a.invoiceId]
+    const [inv] = await tx.query<{ id: string; status: string; party_id: string; number: string | null; issue_date: string }>(
+      'select id, status, party_id, number, issue_date from customer_invoices where id = $1 for update', [a.invoiceId]
     )
     const field = `allocations.${a.index}.invoiceId`
     if (!inv) throw errors.validation({ [field]: ['Invoice tidak ditemukan.'] })
@@ -434,8 +462,9 @@ async function allocateToInvoices(tx: Queryable, actor: Actor, receipt: { id: st
     if (a.amount > outstanding) {
       throw errors.validation({ [`allocations.${a.index}.amountMinor`]: [`Melebihi sisa tagihan ${inv.number} (${outstanding}).`] })
     }
-    await tx.query('insert into payment_allocations (transaction_id, target_type, target_id, amount_minor, created_by) values ($1, $2, $3, $4, $5)',
-      [receipt.id, 'customer_invoice', inv.id, a.amount.toString(), actor.userId])
+    const [allocation] = await tx.query<{ id: string }>('insert into payment_allocations (transaction_id, target_type, target_id, amount_minor, created_by, effective_date) values ($1, $2, $3, $4, $5, $6) returning id',
+      [receipt.id, 'customer_invoice', inv.id, a.amount.toString(), actor.userId, effectiveDate < inv.issue_date ? inv.issue_date : effectiveDate])
+    await postAllocationSource(tx, actor, allocation!.id, requestId)
     results.push({ invoiceId: inv.id, amountMinor: a.amount.toString(), outstandingMinor: (outstanding - a.amount).toString() })
   }
   return results
@@ -456,6 +485,7 @@ export interface ReceiptInput {
 
 /** Money in from a customer. Whatever is not allocated stays as the customer's advance (uang muka). */
 export async function postReceipt(tx: Queryable, actor: Actor, input: ReceiptInput, requestId: string) {
+  await getBook(tx, true)
   const amount = parseMovementAmount(input.amountMinor)
   const effectiveDate = validateEffectiveDate(input.effectiveDate)
   if (!input.partyId) throw errors.validation({ partyId: ['Pilih customer yang membayar.'] })
@@ -477,7 +507,8 @@ export async function postReceipt(tx: Queryable, actor: Actor, input: ReceiptInp
     [account.id, amount.toString(), account.currency, effectiveDate, refs.projectId, refs.bookingType, refs.bookingId, input.partyId,
       trimOrNull(input.counterparty, 200), trimOrNull(input.reference, 120), trimOrNull(input.memo), actor.userId]
   )
-  const allocations = await allocateToInvoices(tx, actor, { id: row!.id, party_id: input.partyId, unallocated: amount }, input.allocations ?? [])
+  await postCashSource(tx, actor, row!.id, requestId)
+  const allocations = await allocateToInvoices(tx, actor, { id: row!.id, party_id: input.partyId, unallocated: amount }, input.allocations ?? [], effectiveDate, requestId)
   const allocated = allocations.reduce((s, a) => s + BigInt(a.amountMinor), 0n)
   await recordAudit(tx, {
     action: 'finance.receipt_posted', actorUserId: actor.userId, entityType: 'financial_transaction', entityId: row!.id, requestId,
@@ -488,6 +519,7 @@ export async function postReceipt(tx: Queryable, actor: Actor, input: ReceiptInp
 
 /** Allocate a customer's advance (an earlier receipt) to invoices issued later. */
 export async function allocateReceipt(tx: Queryable, actor: Actor, transactionId: string, allocations: AllocationInput[], requestId: string) {
+  await getBook(tx, true)
   if (!ID_PATTERN.test(transactionId)) throw errors.notFound('Penerimaan')
   const [t] = await tx.query<{ id: string; kind: string; party_id: string; unallocated_minor: string }>(
     `select t.id, t.kind, t.party_id, u.unallocated_minor from financial_transactions t
@@ -499,7 +531,7 @@ export async function allocateReceipt(tx: Queryable, actor: Actor, transactionId
   await tx.query('select pg_advisory_xact_lock(hashtext($1))', [`alloc:${transactionId}`])
   const [fresh] = await tx.query<{ unallocated_minor: string }>('select unallocated_minor from v_unallocated_payments where transaction_id = $1', [transactionId])
   if (!fresh) throw rule('Penerimaan ini sudah dibatalkan.')
-  const result = await allocateToInvoices(tx, actor, { id: t.id, party_id: t.party_id, unallocated: BigInt(fresh!.unallocated_minor) }, allocations)
+  const result = await allocateToInvoices(tx, actor, { id: t.id, party_id: t.party_id, unallocated: BigInt(fresh!.unallocated_minor) }, allocations, todayBusinessDate(), requestId)
   const allocated = result.reduce((s, a) => s + BigInt(a.amountMinor), 0n)
   await recordAudit(tx, { action: 'finance.receipt_allocated', actorUserId: actor.userId, entityType: 'financial_transaction', entityId: transactionId, requestId, after: { allocations: result } })
   return { transactionId, allocations: result, unallocatedMinor: (BigInt(fresh!.unallocated_minor) - allocated).toString() }
@@ -509,9 +541,10 @@ export async function allocateReceipt(tx: Queryable, actor: Actor, transactionId
 
 const INVOICE_SELECT = `
   select i.*, p.name as project_name, pa.name as party_name, b.paid_minor, b.credited_minor,
+         (select h.change_request_id from change_billing_allocations ca join change_billing_plans h on h.id=ca.plan_id where ca.id=i.change_billing_allocation_id) as change_request_id,
          (b.total_minor - b.paid_minor - b.credited_minor) as outstanding_minor
     from customer_invoices i
-    join projects p on p.id = i.project_id
+    left join projects p on p.id = i.project_id
     join parties pa on pa.id = i.party_id
     join v_customer_invoice_balances b on b.invoice_id = i.id`
 
@@ -526,7 +559,8 @@ export function invoiceRowDto(r: Record<string, any>, today = todayBusinessDate(
   return {
     id: r.id,
     number: r.number,
-    project: { id: r.project_id, name: r.project_name },
+    /** null for a B2C standalone order (billed on its sales order, never a dummy project). */
+    project: r.project_id ? { id: r.project_id as string, name: r.project_name as string } : null,
     party: { id: r.party_id, name: r.party_name },
     booking: r.booking_id ? { type: r.booking_type, id: r.booking_id } : null,
     billingScheduleItemId: r.billing_schedule_item_id,
@@ -534,6 +568,8 @@ export function invoiceRowDto(r: Record<string, any>, today = todayBusinessDate(
     salesOrderId: r.sales_order_id ?? null,
     /** For a debit note: the issued invoice it adds a charge to. */
     adjustsInvoiceId: r.adjusts_invoice_id ?? null,
+    changeBillingAllocationId: r.change_billing_allocation_id ?? null,
+    changeRequestId: r.change_request_id ?? null,
     invoiceType: r.invoice_type,
     status: r.status,
     /** Derived for issued invoices: open / partial / paid / credited (zeroed by credit notes, no money). */

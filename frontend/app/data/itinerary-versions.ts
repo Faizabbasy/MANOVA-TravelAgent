@@ -8,7 +8,7 @@ import type { ItineraryVersion, ItineraryComment } from '~/types/itinerary-versi
  * (Korea) `waiting-approval` (persis narasi Skenario A "Itinerary waiting approval"), PRJ-202 (Abu Dhabi,
  * trip berjalan) `approved`, PRJ-203 (Manila, selesai) `final`, PRJ-204 (Singapore, confirmed) `approved`.
  */
-export const ITINERARY_VERSIONS: ItineraryVersion[] = reactive([
+export const ITINERARY_VERSIONS: ItineraryVersion[] = reactive<ItineraryVersion[]>([
   {
     id: 'ITVER-001',
     projectId: 'PRJ-201',
@@ -57,4 +57,4 @@ export const ITINERARY_VERSIONS: ItineraryVersion[] = reactive([
   }
 ])
 
-export const ITINERARY_COMMENTS: ItineraryComment[] = reactive([])
+export const ITINERARY_COMMENTS: ItineraryComment[] = reactive<ItineraryComment[]>([])

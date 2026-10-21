@@ -10,9 +10,14 @@
 const router = useRouter()
 const isLoading = ref(false)
 const progress = ref(0)
-let interval: NodeJS.Timeout | null = null
+let interval: ReturnType<typeof setInterval> | null = null
+let finishTimer: ReturnType<typeof setTimeout> | null = null
+let removeBefore: (() => void) | undefined
+let removeAfter: (() => void) | undefined
+let removeError: (() => void) | undefined
 
 const startLoading = () => {
+  if (finishTimer) { clearTimeout(finishTimer) }
   isLoading.value = true
   progress.value = 0
 
@@ -35,30 +40,25 @@ const finishLoading = () => {
   progress.value = 100
 
   // Keep the bar visible a bit longer before hiding
-  setTimeout(() => {
+  finishTimer = setTimeout(() => {
     isLoading.value = false
     progress.value = 0
   }, 400)
 }
 
 // Watch for route changes - this will trigger on ALL navigations
-router.beforeEach((to, from, next) => {
-  if (to.path !== from.path) {
-    startLoading()
-  }
-  next()
-})
-
-router.afterEach(() => {
-  finishLoading()
-})
-
-router.onError(() => {
-  finishLoading()
+onMounted(() => {
+  removeBefore = router.beforeEach((to, from) => {
+    if (to.path !== from.path) { startLoading() }
+  })
+  removeAfter = router.afterEach(finishLoading)
+  removeError = router.onError(finishLoading)
 })
 
 onUnmounted(() => {
   if (interval) { clearInterval(interval) }
+  if (finishTimer) { clearTimeout(finishTimer) }
+  removeBefore?.(); removeAfter?.(); removeError?.()
 })
 </script>
 

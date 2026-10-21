@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { unref } from 'vue'
 import { computed, ref } from 'vue'
 import { MapPin, Search } from 'lucide-vue-next'
 import { cn } from '~/lib/utils'
@@ -21,7 +22,7 @@ const mapProjectId = ref<'all' | string>('all')
 const projectSearch = ref('')
 
 const mapPins = computed(() => {
-  void refreshKey.value
+  unref(refreshKey)
   return mapProjectId.value === 'all' ? [...PLANNING_PINS] : getPinsByProject(mapProjectId.value)
 })
 

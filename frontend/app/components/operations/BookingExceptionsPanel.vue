@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { ListChecks } from 'lucide-vue-next'
+import type { BadgeTone } from '~/types/common'
 import { getBookingExceptionQueue } from '~/data'
 import { formatDate } from '~/utils/format'
 import type { BookingDomain } from '~/types/booking-orchestration'
@@ -12,7 +13,7 @@ import type { BookingDomain } from '~/types/booking-orchestration'
 const { canView } = usePermissions()
 
 const DOMAIN_LABEL: Record<BookingDomain, string> = { flight: 'Flight', hotel: 'Hotel', transport: 'Transport', mice: 'MICE' }
-const DOMAIN_TONE: Record<BookingDomain, string> = { flight: 'info', hotel: 'purple', transport: 'warning', mice: 'primary' }
+const DOMAIN_TONE: Record<BookingDomain, BadgeTone> = { flight: 'info', hotel: 'purple', transport: 'warning', mice: 'primary' }
 
 const rows = computed(() => getBookingExceptionQueue())
 </script>

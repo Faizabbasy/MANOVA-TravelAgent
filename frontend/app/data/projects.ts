@@ -9,7 +9,7 @@ import type { Project, ProjectService, TravelerGroup, Traveler, RoomAssignment, 
  */
 
 /** docs/mockup-data-scenarios.md bagian 1-3 — 3 skenario demo wajib (Normal/High-Change/Complex). */
-export const PROJECTS: Project[] = reactive([
+export const PROJECTS: Project[] = reactive<Project[]>([
   {
     id: 'PRJ-101',
     name: 'Manila Business Trip',
@@ -310,7 +310,7 @@ for (const project of PROJECTS) { project.destinationGeo = resolveDestinationGeo
  * service yang belum `confirmed`/`changed` — merefleksikan kondisi realistis (referensi baru ada setelah
  * booking terkonfirmasi).
  */
-export const PROJECT_SERVICES: ProjectService[] = reactive([
+export const PROJECT_SERVICES: ProjectService[] = reactive<ProjectService[]>([
   { id: 'SVC-1011', projectId: 'PRJ-101', type: 'flight', label: 'Flight Manila', status: 'confirmed', vendorId: 'VND-001', bookingReference: 'PNR-MNL8201', budgetIdr: 85_000_000 },
 
   { id: 'SVC-1021', projectId: 'PRJ-102', type: 'flight', label: 'Flight Abu Dhabi', status: 'confirmed', vendorId: 'VND-001', bookingReference: 'PNR-AUH9221' },
@@ -370,7 +370,7 @@ export const PROJECT_SERVICES: ProjectService[] = reactive([
  * yang TIDAK boleh terlihat Client (briefing internal, bukan bagian itinerary yang disepakati client) —
  * mendemokan "Internal vs client-shared itinerary" secara nyata, bukan hanya field kosong tanpa contoh.
  */
-export const ITINERARY_ITEMS: ItineraryItem[] = reactive([
+export const ITINERARY_ITEMS: ItineraryItem[] = reactive<ItineraryItem[]>([
   // PRJ-101 — Manila, 20-23 Agustus 2026, flight only.
   { id: 'ITIN-1011', projectId: 'PRJ-101', date: '2026-08-20', time: '08:00', title: 'Keberangkatan Jakarta → Manila', description: 'Seluruh 6 traveler berangkat bersama', serviceType: 'flight', timezone: 'Asia/Jakarta' },
   { id: 'ITIN-1012', projectId: 'PRJ-101', date: '2026-08-21', time: '09:00', title: 'Agenda Bisnis Hari 1', description: 'Pertemuan dengan client di kantor cabang Manila', timezone: 'Asia/Manila' },
@@ -444,7 +444,7 @@ export const ITINERARY_ITEMS: ItineraryItem[] = reactive([
  * pola yang sama seperti fixture awal Foundation (`TRV-1031` sendirian mewakili 60 traveler PRJ-103).
  * Tab Travelers menampilkan catatan transparan soal ini, bukan berpura-pura lengkap.
  */
-export const TRAVELER_GROUPS: TravelerGroup[] = reactive([
+export const TRAVELER_GROUPS: TravelerGroup[] = reactive<TravelerGroup[]>([
   { id: 'GRP-001', projectId: 'PRJ-103', name: 'Management', paxCount: 10, roomingNote: '5 kamar twin (10 pax)' },
   { id: 'GRP-002', projectId: 'PRJ-103', name: 'Sales Team', paxCount: 25, roomingNote: '12 kamar twin + 1 kamar single (25 pax)' },
   { id: 'GRP-003', projectId: 'PRJ-103', name: 'Partner / VIP', paxCount: 25, roomingNote: '2 suite VIP (termasuk kebutuhan aksesibilitas)' },
@@ -462,7 +462,7 @@ export const TRAVELER_GROUPS: TravelerGroup[] = reactive([
  * setiap kondisi (visa lengkap/tidak lengkap, companion, verified/belum, dietary/accessibility) punya
  * contoh nyata tanpa mengubah makna profil existing. `idNumber` KTP fiktif format 16 digit standar.
  */
-export const TRAVELERS: Traveler[] = reactive([
+export const TRAVELERS: Traveler[] = reactive<Traveler[]>([
   // PRJ-101 — Normal Project, travelerCount 6, seluruhnya profil lengkap (skenario "berjalan mulus").
   { id: 'TRV-1011', projectId: 'PRJ-101', name: 'Hendra Wijaya', passportNumber: 'B1234561', passportExpiryDate: '2029-04-10', emergencyContactName: 'Rina Wijaya', emergencyContactPhone: '0812-1000-1001', idNumber: '3171012501850001', documentsVerifiedAt: '2026-07-15', documentsVerifiedBy: 'USR-002' },
   { id: 'TRV-1012', projectId: 'PRJ-101', name: 'Siti Rahmawati', passportNumber: 'B1234562', passportExpiryDate: '2029-06-15', emergencyContactName: 'Budi Rahman', emergencyContactPhone: '0812-1000-1002' },
@@ -547,7 +547,7 @@ export const TRAVELERS: Traveler[] = reactive([
 ])
 
 /** Rooming list eksplisit (Section 11) — hanya untuk traveler bernama yang datanya sudah tercatat di atas. */
-export const ROOM_ASSIGNMENTS: RoomAssignment[] = reactive([
+export const ROOM_ASSIGNMENTS: RoomAssignment[] = reactive<RoomAssignment[]>([
   { id: 'ROOM-001', projectId: 'PRJ-103', groupId: 'GRP-001', roomLabel: 'Twin 101', roomType: 'twin', travelerIds: ['TRV-1032', 'TRV-1033'] },
   { id: 'ROOM-002', projectId: 'PRJ-103', groupId: 'GRP-002', roomLabel: 'Twin 205', roomType: 'twin', travelerIds: ['TRV-1034', 'TRV-1035'] },
   { id: 'ROOM-003', projectId: 'PRJ-103', groupId: 'GRP-003', roomLabel: 'Suite VIP 1', roomType: 'suite', travelerIds: ['TRV-1031', 'TRV-1036'] },

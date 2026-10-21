@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { FileX } from 'lucide-vue-next'
 import { getSalesOrderById, getPartyById, getSalesOrderStatusTransitions } from '~/data'
-import { changeSalesOrderStatusOnServer } from '~/data/sales-orders-sync'
+import { changeSalesOrderStatusOnServer, reloadSalesOrder } from '~/data/sales-orders-sync'
 import { reloadTravelersAfterOrderChange } from '~/data/travelers-sync'
 import { isApiError } from '~/lib/api/errors'
 import { SALES_ORDER_STATUSES, findStatusOption } from '~/constants/status'
@@ -39,11 +39,22 @@ const summaryMetadata = computed(() => {
   ]
 })
 
-/** A Group Trip booking becomes paid only through the Finance DP confirmation (S6b), never by hand here. */
-const nextStatuses = computed(() => (order.value
-  ? getSalesOrderStatusTransitions(order.value.status).filter(status => status !== 'paid' || !order.value?.projectId)
-  : []))
-const paidViaFinance = computed(() => Boolean(order.value?.projectId && order.value.status === 'draft'))
+/**
+ * Every order (Group Trip and B2C standalone) becomes paid only through the Finance DP/payment confirmation — money
+ * actually received — never by hand here (owner accounting F4).
+ */
+const nextStatuses = computed(() => (order.value ? getSalesOrderStatusTransitions(order.value.status).filter(status => status !== 'paid') : []))
+const paidViaFinance = computed(() => order.value?.status === 'draft')
+const session = useServerSession()
+const canConfirmDp = computed(() => order.value?.status === 'draft' && session.can('finance.post-cash'))
+const confirmDpOpen = ref(false)
+const dpOrder = computed(() => order.value
+  ? { id: order.value.id, customerName: customer.value?.name ?? order.value.customerId, travelerCount: order.value.travelerCount, priceMinor: String(order.value.priceIdr) }
+  : null)
+async function onDpConfirmed () {
+  if (!order.value) { return }
+  try { await reloadSalesOrder(api, order.value.id) } catch { /* the next sales order sync brings it */ }
+}
 
 /* Status changes run on the server (S6b); cancelling asks for a reason. */
 const api = useApi()
@@ -126,14 +137,27 @@ async function advanceTo (status: SalesOrderStatus, reason?: string) {
           </Button>
         </div>
         <p v-if="paidViaFinance" class="text-xs text-muted-foreground mt-3">
-          Booking Group Trip menjadi Paid lewat konfirmasi DP di Finance.
+          Order menjadi Paid lewat konfirmasi DP/pembayaran di Finance, setelah uang benar-benar diterima.
         </p>
       </SectionCard>
+
+      <SectionCard v-if="canConfirmDp" title="Pembayaran customer">
+        <p class="text-sm text-muted-foreground">
+          {{ order.projectId ? 'Booking Group Trip' : 'Order B2C mandiri' }} ditagih atas order ini (tanpa project tambahan). Konfirmasi DP membuat invoice dan mencatat uang masuk sekaligus.
+        </p>
+        <Button size="sm" class="mt-3" @click="confirmDpOpen = true">
+          Konfirmasi DP
+        </Button>
+        <FinanceGroupTripDpDialog v-model:open="confirmDpOpen" :order="dpOrder" @confirmed="onDpConfirmed" />
+      </SectionCard>
+
+      <FinanceOrderCosts v-if="!order.projectId && session.can('finance.view-project-finance')" :sales-order-id="order.id" />
+      <FinanceRefundCaseList v-if="order.projectId || !session.can('finance.view-project-finance')" :sales-order-id="order.id" />
 
       <ResponsiveFormSheet
         v-model:open="isCancelOpen"
         title="Batalkan Sales Order"
-        description="Kursi Group Trip dibebaskan. Invoice/DP yang sudah ada tetap di Finance untuk refund atau void."
+        description="Kursi Group Trip dibebaskan. Bila sudah ditagih, kasus pembatalan Finance dibuat dari invoice dan pembayaran yang sama; refund menunggu persetujuan dan pembayaran aktual."
         content-class="max-w-md"
       >
         <div class="space-y-1.5 py-2">

@@ -1,7 +1,19 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
+  // Explicit local UAT environment; use a separate generated directory from the full build.
+  $env: {
+    'accounting-uat': { buildDir: '.nuxt-accounting-uat' }
+  },
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
+
+  // Prebundle the dependencies discovered by the first login/dashboard journey. Late discovery reloads
+  // the document after a successful demo-login response and can discard its client-side navigation.
+  vite: {
+    optimizeDeps: {
+      include: ['date-fns', 'date-fns/locale', 'lucide-vue-next', 'class-variance-authority', 'clsx', 'reka-ui', 'tailwind-merge', '@internationalized/date', 'chart.js', 'vue-chartjs']
+    }
+  },
 
   typescript: {
     strict: false, // Match React's relaxed mode
@@ -71,7 +83,6 @@ export default defineNuxtConfig({
   app: {
     head: {
       title: 'MANOVA',
-      titleTemplate: title => title && title !== 'MANOVA' ? `${title} · MANOVA` : 'MANOVA — Travel Operations Platform',
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },

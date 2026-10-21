@@ -301,7 +301,12 @@ const { height: calendarCardHeight } = useElementSize(calendarCardRef)
           <EmptyState v-else :icon="CalendarDays" title="Tidak ada jadwal" :description="`Tidak ada jadwal project ini pada ${sideRangeNoun} ini.`" />
         </SectionCard>
 
-        <SectionCard v-else compact class="flex min-h-0 flex-1 flex-col" content-class="min-h-0 flex-1 overflow-y-auto" :title="formatDate(selectedDate)" :description="`${selectedEvents.length} jadwal pada tanggal ini.`">
+        <SectionCard v-else
+compact
+class="flex min-h-0 flex-1 flex-col"
+content-class="min-h-0 flex-1 overflow-y-auto"
+:title="formatDate(selectedDate)"
+:description="`${selectedEvents.length} jadwal pada tanggal ini.`">
           <ul v-if="selectedEvents.length" class="space-y-1.5">
             <li
               v-for="event in selectedEvents"

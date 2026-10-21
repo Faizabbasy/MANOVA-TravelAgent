@@ -60,7 +60,7 @@ export const CHECKOUT_STATUSES: StatusOption<AssetCheckout['status']>[] = [
   { value: 'overdue', label: 'Telat Kembali', tone: 'destructive', order: 4 }
 ]
 
-export const ASSETS: Asset[] = reactive([
+export const ASSETS: Asset[] = reactive<Asset[]>([
   { id: 'AST-001', code: 'CAM-001', name: 'Sony A7 IV Body', category: 'camera', brand: 'Sony', serialNumber: 'SN-A7IV-88213', purchasedAt: '2024-03-12', purchasePriceIdr: 38_500_000, condition: 'excellent', status: 'in-use', location: 'Gudang Jakarta', quantity: 1 },
   { id: 'AST-002', code: 'CAM-002', name: 'Sony A7 III Body', category: 'camera', brand: 'Sony', serialNumber: 'SN-A7III-55190', purchasedAt: '2022-09-04', purchasePriceIdr: 27_000_000, condition: 'good', status: 'available', location: 'Gudang Jakarta', quantity: 1 },
   { id: 'AST-003', code: 'CAM-003', name: 'Lensa Sony 24-70mm f/2.8 GM II', category: 'camera', brand: 'Sony', serialNumber: 'SN-2470-11902', purchasedAt: '2024-03-12', purchasePriceIdr: 34_000_000, condition: 'excellent', status: 'in-use', location: 'Gudang Jakarta', quantity: 1 },
@@ -79,7 +79,7 @@ export const ASSETS: Asset[] = reactive([
   { id: 'AST-016', code: 'IT-002', name: 'Printer Label & Badge Event', category: 'it', brand: 'Brother', purchasedAt: '2023-09-27', purchasePriceIdr: 6_400_000, condition: 'damaged', status: 'retired', location: 'Gudang Jakarta', quantity: 1, note: 'Head printer rusak, biaya perbaikan melebihi nilai sisa.' }
 ])
 
-export const MAINTENANCE_SCHEDULES: MaintenanceSchedule[] = reactive([
+export const MAINTENANCE_SCHEDULES: MaintenanceSchedule[] = reactive<MaintenanceSchedule[]>([
   { id: 'MNT-001', assetId: 'AST-005', type: 'repair', scheduledAt: '2026-07-18', status: 'in-progress', vendorName: 'DJI Authorized Service', costIdr: 2_400_000, note: 'Penggantian motor pan.' },
   { id: 'MNT-002', assetId: 'AST-001', type: 'routine', scheduledAt: '2026-07-10', completedAt: '2026-07-10', status: 'completed', vendorName: 'Sony Service Center', costIdr: 850_000, intervalDays: 180 },
   { id: 'MNT-003', assetId: 'AST-014', type: 'routine', scheduledAt: '2026-07-22', status: 'overdue', vendorName: 'Auto2000', costIdr: 3_200_000, intervalDays: 90, note: 'Servis 40.000 km.' },
@@ -89,7 +89,7 @@ export const MAINTENANCE_SCHEDULES: MaintenanceSchedule[] = reactive([
   { id: 'MNT-007', assetId: 'AST-009', type: 'routine', scheduledAt: '2026-09-01', status: 'scheduled', intervalDays: 180 }
 ])
 
-export const ASSET_CHECKOUTS: AssetCheckout[] = reactive([
+export const ASSET_CHECKOUTS: AssetCheckout[] = reactive<AssetCheckout[]>([
   { id: 'ACO-001', assetId: 'AST-001', projectId: 'PRJ-103', borrowedBy: 'USR-002', checkedOutAt: '2026-07-20', dueAt: '2026-08-20', status: 'checked-out' },
   { id: 'ACO-002', assetId: 'AST-003', projectId: 'PRJ-103', borrowedBy: 'USR-002', checkedOutAt: '2026-07-20', dueAt: '2026-08-20', status: 'checked-out' },
   { id: 'ACO-003', assetId: 'AST-006', projectId: 'PRJ-103', borrowedBy: 'USR-002', checkedOutAt: '2026-07-22', dueAt: '2026-08-20', status: 'checked-out' },

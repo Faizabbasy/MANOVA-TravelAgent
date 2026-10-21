@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { unref } from 'vue'
 import { computed, ref } from 'vue'
 import { Bell, Clock, Zap, Power, MessageCircle, Mail, Phone, ExternalLink } from 'lucide-vue-next'
 import { cn } from '~/lib/utils'
@@ -27,7 +28,7 @@ const channelFilter = ref<'all' | FollowUpChannel>('all')
 const dueOnly = ref(true)
 
 const tasks = computed(() => {
-  void refreshKey.value
+  unref(refreshKey)
   return getFollowUpTasks()
 })
 

@@ -6,5 +6,5 @@ import type { ClientReservationDto } from '~/types/api'
  * carries no money, vendor or internal note, and must never overwrite the internal booking objects. `loaded` tells
  * the portal helpers to read this instead of deriving reservations from the local booking fixtures.
  */
-export const CLIENT_RESERVATIONS: ClientReservationDto[] = reactive([])
+export const CLIENT_RESERVATIONS: ClientReservationDto[] = reactive<ClientReservationDto[]>([])
 export const CLIENT_COMMERCE_STATE = reactive({ reservationsLoaded: false })

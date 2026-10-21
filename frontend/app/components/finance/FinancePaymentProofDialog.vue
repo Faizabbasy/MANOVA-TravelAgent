@@ -62,6 +62,7 @@ async function submit () {
     @update:open="emit('update:open', $event)"
     @submit="submit"
   >
+    <PrivateEvidencePanel v-if="proof" source-type="payment_proof" :source-id="proof.id" />
     <div v-if="proof" class="rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm">
       <p class="font-medium text-foreground">
         {{ proof.partyName }} — {{ proof.invoiceNumber ?? proof.invoiceId }}

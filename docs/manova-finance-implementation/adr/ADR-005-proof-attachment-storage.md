@@ -1,6 +1,6 @@
 # ADR-005 — Penyimpanan bukti transaksi (proof/attachment)
 
-- **Status:** Proposed — diputuskan final di awal Phase 2 (belum ada kode di Phase 1)
+- **Status:** Implemented locally (0058 private_files + scoped source API + local BlobStore); production provider/retention remains undecided. Historical proposals below remain context; current execution/evidence is in owner-accounting docs11/14.
 - **Konteks:** Receipt, disbursement, transfer, dan settlement (Phase 2–5) membawa bukti. Paket `05`/`09`: upload lewat endpoint terpisah dengan cek tipe/ukuran/kepemilikan, mengembalikan `attachmentId`, bukan path; file tidak boleh di `public/`; akses lewat otorisasi; hash tersimpan; nominal tidak pernah dibaca dari file. Hosting target belum diketahui.
 
 ## Usulan

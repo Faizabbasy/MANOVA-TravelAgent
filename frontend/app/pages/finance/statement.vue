@@ -96,7 +96,7 @@ function dayLabel (date: string) {
   return formatBusinessDateLong(date)
 }
 
-const selected = ref<string | null>(null)
+const selected = ref<string | null>(typeof route.query.transactionId === 'string' ? route.query.transactionId : null)
 const accountFilterOptions = computed(() => (lookups.accounts.data.value ?? []).map(a => ({ value: a.id, label: `${a.bankName} · ${a.code}` })))
 
 function resetFilters () {

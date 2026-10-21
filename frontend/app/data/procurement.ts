@@ -17,7 +17,7 @@ import type { RFQ, RFQInvitation, RFQResponse, RFQClarificationMessage, ServiceO
  * VIP tambahan yang TERPISAH, menghindari dua mekanisme keputusan vendor yang saling bertentangan untuk baris
  * service yang sama.
  */
-export const RFQS: RFQ[] = reactive([
+export const RFQS: RFQ[] = reactive<RFQ[]>([
   {
     id: 'RFQ-001',
     projectId: 'PRJ-102',
@@ -75,7 +75,7 @@ export const RFQS: RFQ[] = reactive([
   }
 ])
 
-export const RFQ_INVITATIONS: RFQInvitation[] = reactive([
+export const RFQ_INVITATIONS: RFQInvitation[] = reactive<RFQInvitation[]>([
   { id: 'RFQINV-001', rfqId: 'RFQ-002', vendorId: 'VND-004', status: 'responded', invitedAt: '2026-07-18' },
   { id: 'RFQINV-002', rfqId: 'RFQ-002', vendorId: 'VND-007', status: 'responded', invitedAt: '2026-07-18' },
   { id: 'RFQINV-003', rfqId: 'RFQ-003', vendorId: 'VND-002', status: 'responded', invitedAt: '2026-07-20' },
@@ -84,7 +84,7 @@ export const RFQ_INVITATIONS: RFQInvitation[] = reactive([
   { id: 'RFQINV-006', rfqId: 'RFQ-004', vendorId: 'VND-005', status: 'responded', invitedAt: '2026-06-28' }
 ])
 
-export const RFQ_RESPONSES: RFQResponse[] = reactive([
+export const RFQ_RESPONSES: RFQResponse[] = reactive<RFQResponse[]>([
   {
     id: 'RFQRESP-001',
     rfqId: 'RFQ-002',
@@ -152,7 +152,7 @@ export const RFQ_RESPONSES: RFQResponse[] = reactive([
 ])
 
 /** Thread klarifikasi RFQ-003 dengan PT ABC (VND-006) — dua arah, menjaga status RFQ tetap `clarification` sampai terjawab. */
-export const RFQ_CLARIFICATIONS: RFQClarificationMessage[] = reactive([
+export const RFQ_CLARIFICATIONS: RFQClarificationMessage[] = reactive<RFQClarificationMessage[]>([
   { id: 'RFQCLR-001', rfqId: 'RFQ-003', vendorId: 'VND-006', from: 'procurement', message: 'Mohon konfirmasi kebijakan pembatalan/no-show untuk harga khusus partner yang diajukan.', createdAt: '2026-07-27' },
   { id: 'RFQCLR-002', rfqId: 'RFQ-003', vendorId: 'VND-006', from: 'supplier', message: 'Pembatalan H-3 dikenakan penalti 20%, di bawah H-3 dikenakan 50%. Akan kami kirimkan dokumen kebijakan resmi.', createdAt: '2026-07-28' }
 ])
@@ -163,7 +163,7 @@ export const RFQ_CLARIFICATIONS: RFQClarificationMessage[] = reactive([
  * engagement langsung (tanpa RFQ) dengan PT ABC untuk PRJ-102, sudah `amended` (upgrade tipe kamar) — bersama
  * `SO-001` mendemokan "one plain, one amended" sesuai kebutuhan literal.
  */
-export const SERVICE_ORDERS: ServiceOrder[] = reactive([
+export const SERVICE_ORDERS: ServiceOrder[] = reactive<ServiceOrder[]>([
   {
     id: 'SO-001',
     rfqId: 'RFQ-004',
@@ -238,6 +238,6 @@ export const SERVICE_ORDERS: ServiceOrder[] = reactive([
   }
 ])
 
-export const SERVICE_ORDER_AMENDMENTS: ServiceOrderAmendment[] = reactive([
+export const SERVICE_ORDER_AMENDMENTS: ServiceOrderAmendment[] = reactive<ServiceOrderAmendment[]>([
   { id: 'SOA-001', serviceOrderId: 'SO-002', reason: 'Upgrade tipe kamar dari Deluxe ke Suite atas permintaan klien — penyesuaian harga net cost dan sell price.', changedAt: '2026-07-19', changedBy: 'USR-002' }
 ])

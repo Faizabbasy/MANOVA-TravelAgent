@@ -183,6 +183,7 @@ async function handleImplemented () {
       <SectionCard>
         <DetailMetadataList :items="summaryMetadata" />
       </SectionCard>
+      <FinanceChangeBilling :change-request-id="request.id" :status="request.status" />
 
       <SectionCard title="Before / After">
         <div class="grid gap-4 sm:grid-cols-2">

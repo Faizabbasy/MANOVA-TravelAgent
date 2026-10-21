@@ -38,7 +38,7 @@ const p = computed(() => preview.data.value)
 const fresh = computed(() => !!p.value && !preview.pending.value && !preview.error.value &&
   p.value.cancelDate === form.cancelDate && p.value.subject.id === props.subject.id && p.value.subject.type === props.subject.type)
 const full = computed(() => (p.value?.view === 'full' ? p.value : null))
-const hardBlock = computed(() => p.value?.blockers.find(b => b.code === 'ACTIVE_CASE' || b.code === 'OVERLAPPING_CASE') ?? null)
+const hardBlock = computed(() => p.value?.blockers.find(b => ['ACTIVE_CASE', 'OVERLAPPING_CASE', 'MULTI_CUSTOMER_CASE_REQUIRED'].includes(b.code)) ?? null)
 const needsManual = computed(() => !!p.value && !p.value.canCalculate && !hardBlock.value)
 const useManual = computed(() => needsManual.value || form.manual)
 const isFinance = computed(() => session.can('finance.view-project-finance'))

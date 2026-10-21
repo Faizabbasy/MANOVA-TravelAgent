@@ -21,5 +21,5 @@ module.exports = {
     'vue/multi-word-component-names': 'off',
     'vue/no-v-html': 'warn',
   },
-  ignorePatterns: ['.nuxt', '.output', 'dist', 'node_modules', '*.d.ts'],
+  ignorePatterns: ['.nuxt', '.nuxt-accounting-uat', '.output', 'dist', 'node_modules', '*.d.ts'],
 }

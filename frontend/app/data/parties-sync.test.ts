@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest'
 import { CONTACTS, PARTIES, PARTY_ACTIVITIES } from './parties'
 import { applyServerActivityId, setCreditLimitOnServer, makeActivitySink, mergeServerActivities, mergeServerContacts, mergeServerParties, upsertServerParty } from './parties-sync'
 import { serverPartyDto } from './parties-sync.test-utils'
-import { createPartyActivity, LEADS, setPartyActivitySink } from './index'
+import { createPartyActivity, setPartyActivitySink } from './index'
 
 const snap = <T>(a: T[]) => a.map(x => ({ ...x }))
 const p0 = snap(PARTIES); const c0 = snap(CONTACTS); const a0 = snap(PARTY_ACTIVITIES)

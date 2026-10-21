@@ -25,7 +25,17 @@ export const KIND_LABEL: Record<ApiTransactionKind, string> = {
   refund_settlement: 'Refund ke customer',
   expense: 'Pengeluaran operasional',
   transfer_out: 'Transfer keluar',
-  transfer_fee: 'Biaya transfer'
+  transfer_fee: 'Biaya transfer',
+  employee_advance: 'Uang jalan / kasbon staf',
+  employee_advance_return: 'Pengembalian kasbon staf',
+  employee_reimbursement: 'Reimbursement staf',
+  payroll_payment: 'Pembayaran gaji',
+  asset_purchase: 'Pembelian aset',
+  loan_proceeds: 'Pinjaman diterima',
+  loan_repayment: 'Cicilan pinjaman',
+  owner_contribution: 'Setoran owner',
+  owner_withdrawal: 'Pengambilan dana owner',
+  prepaid_opex: 'Biaya kantor dibayar di muka'
 }
 
 export const CATEGORY_LABEL: Record<ApiExpenseCategory, string> = {
@@ -128,4 +138,9 @@ export function movementSubtitle (m: MovementDto): string {
   if (m.project) { parts.push(m.project.name ?? m.project.id) }
   if (m.memo) { parts.push(m.memo) }
   return parts.join(' · ')
+}
+
+/** What an invoice bills: its project, or — for a B2C standalone order — the sales order itself (never a dummy project). */
+export function invoiceSubjectLabel (inv: { project: { name: string } | null; salesOrderId?: string | null }): string {
+  return inv.project?.name ?? (inv.salesOrderId ? `Order ${inv.salesOrderId}` : 'Tanpa project')
 }

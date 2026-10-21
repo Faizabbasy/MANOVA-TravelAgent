@@ -16,7 +16,7 @@ import { trimOrNull, validateReason } from './postings'
  * change is a new version. Assigning a policy stores a snapshot, so later versions never change a case.
  */
 
-export const SUBJECT_TYPES = ['project', 'flight', 'hotel', 'transport', 'mice'] as const
+export const SUBJECT_TYPES = ['project', 'flight', 'hotel', 'transport', 'mice','sales_order'] as const
 export type SubjectType = (typeof SUBJECT_TYPES)[number]
 const POLICY_BOOKING_TYPES = ['flight', 'hotel', 'transport', 'mice'] as const
 
@@ -293,7 +293,7 @@ export async function newPolicyVersion(tx: Queryable, actor: Actor, id: string, 
 export interface Subject {
   type: SubjectType
   id: string
-  projectId: string
+  projectId: string | null
   projectName: string
   partyId: string
   partyName: string
@@ -311,6 +311,12 @@ export function parseSubjectType(value: unknown, field = 'subjectType'): Subject
 
 export async function resolveSubject(q: Queryable, type: SubjectType, id: string): Promise<Subject> {
   if (!ID_PATTERN.test(id)) throw errors.notFound(type === 'project' ? 'Project' : 'Booking')
+  if (type==='sales_order') {
+    const [o]=await q.query<{project_id:string|null;project_name:string|null;party_id:string;party_name:string;travel_start_date:string|null}>(`select s.project_id,p.name as project_name,s.party_id,pa.name as party_name,s.travel_start_date
+      from sales_order_refs s join parties pa on pa.id=s.party_id left join projects p on p.id=s.project_id where s.id=$1`,[id])
+    if (!o) throw errors.notFound('Order')
+    return {type,id,projectId:o.project_id,projectName:o.project_name ?? id,partyId:o.party_id,partyName:o.party_name,departureDate:o.travel_start_date,bookingType:null}
+  }
   if (type === 'project') {
     const [p] = await q.query<{ id: string; name: string; party_id: string; party_name: string; travel_start_date: string | null }>(
       'select p.id, p.name, p.party_id, pa.name as party_name, p.travel_start_date from projects p join parties pa on pa.id = p.party_id where p.id = $1', [id]
@@ -328,7 +334,7 @@ export async function resolveSubject(q: Queryable, type: SubjectType, id: string
 }
 
 function policyFitsSubject(p: { booking_type: string | null }, subject: Subject): boolean {
-  if (subject.type === 'project') return p.booking_type === null
+  if (subject.type === 'project' || subject.type==='sales_order') return p.booking_type === null
   return p.booking_type === null || p.booking_type === subject.type
 }
 
@@ -358,13 +364,14 @@ export async function getAssignment(q: Queryable, subject: Subject) {
  */
 export async function effectiveAssignment(q: Queryable, subject: Subject) {
   const own = await getAssignment(q, subject)
-  if (own || subject.type === 'project') return { assignment: own, inherited: false }
+  if (own || subject.type === 'project' || subject.type==='sales_order' || !subject.projectId) return { assignment: own, inherited: false }
   const project = await getAssignment(q, { ...subject, type: 'project', id: subject.projectId, bookingType: null })
   if (project && (project.snapshot.bookingType === null || project.snapshot.bookingType === subject.type)) return { assignment: project, inherited: true }
   return { assignment: null, inherited: false }
 }
 
 export async function assignPolicy(tx: Queryable, actor: Actor, subject: Subject, input: { policyId?: string; note?: string }, requestId: string) {
+  await tx.query('select pg_advisory_xact_lock(hashtext($1))',[`cancel:${subject.projectId ?? subject.id}`])
   if (!input.policyId || !ID_PATTERN.test(input.policyId)) throw errors.validation({ policyId: ['Pilih kebijakan.'] })
   const [p] = await tx.query<PolicyRow>('select * from cancellation_policies where id = $1 for share', [input.policyId])
   if (!p) throw errors.validation({ policyId: ['Kebijakan tidak ditemukan.'] })

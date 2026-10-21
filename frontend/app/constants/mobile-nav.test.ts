@@ -6,7 +6,7 @@ import type { RoleId } from '~/types/user'
 import { getVisibleNavItems } from '~/utils/nav-visibility'
 
 /** The server-backed finance screens; the old mock finance routes must never be linked again. */
-const FINANCE_ROUTES = ['/finance', '/finance/statement', '/finance/accounts', '/finance/receivables', '/finance/payables', '/finance/cash-flow']
+const FINANCE_ROUTES = ['/finance', '/finance/accounting', '/finance/statement', '/finance/reconciliation', '/finance/accounts', '/finance/receivables', '/finance/payables', '/finance/staff-funds', '/finance/funding', '/finance/cash-flow']
 
 function gatesFor (role: RoleId) {
   return {

@@ -69,10 +69,14 @@ export function hrRoutes(deps: AppDeps, auth: AuthContext) {
       await db.transaction(tx => approvePayrollRun(tx, actor, id, todayBusinessDate(), requestIdOf(request)))
       return ok(request, (await listPayrollRuns(db, actor, id))[0])
     }, anyBody)
-    .post('/payroll-runs/:id/pay', async ({ request, params }) => {
+    // Money out: requires the bank account and date, and an Idempotency-Key (a retry never pays twice).
+    .post('/payroll-runs/:id/pay', async ({ request, params, body: b, set }) => {
       const actor = await internalActor(request)
       const id = assertIdParam(params.id, 'Payroll')
-      await db.transaction(tx => payPayrollRun(tx, actor, id, todayBusinessDate(), requestIdOf(request)))
+      const key = requireIdempotencyKey(request)
+      const result = await withIdempotency(db, { actorUserId: actor.userId, route: `POST /payroll-runs/${id}/pay`, key, body: b }, tx =>
+        payPayrollRun(tx, actor, id, body(b), requestIdOf(request)))
+      if (result.replayed) set.headers['idempotent-replayed'] = 'true'
       return ok(request, (await listPayrollRuns(db, actor, id))[0])
     }, anyBody)
     .patch('/payroll-lines/:id', async ({ request, params, body: b }) => {

@@ -229,7 +229,14 @@ function secondaryValue (metric: HeroSecondaryMetric): string {
               </linearGradient>
             </defs>
             <path :d="sparklines[0]?.area" fill="url(#hero-spark-fill-mobile)" stroke="none" />
-            <path :d="sparklines[0]?.line" fill="none" stroke="white" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round" class="spark-line" />
+            <path :d="sparklines[0]?.line"
+fill="none"
+stroke="white"
+stroke-width="2"
+vector-effect="non-scaling-stroke"
+stroke-linecap="round"
+stroke-linejoin="round"
+class="spark-line" />
             <circle :cx="sparklines[0]?.last.x" :cy="sparklines[0]?.last.y" r="2.4" fill="white" />
           </svg>
         </div>

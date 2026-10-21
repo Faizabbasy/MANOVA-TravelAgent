@@ -24,6 +24,8 @@ export interface AppConfig {
   /** Allow client/vendor portal users to sign in (portals are switched off for now). */
   portalLogin: boolean
   version: string
+  /** Explicit private root; production upload/download remain unavailable until configured. */
+  privateFilesPath?: string
 }
 
 export class ConfigError extends Error {
@@ -112,6 +114,7 @@ export function loadConfig(env: Env = process.env): AppConfig {
     trustProxy,
     demoLogin,
     portalLogin,
-    version: env.APP_VERSION ?? '0.1.0'
+    version: env.APP_VERSION ?? '0.1.0',
+    ...(env.PRIVATE_FILE_ROOT ? {privateFilesPath:env.PRIVATE_FILE_ROOT} : {})
   }
 }

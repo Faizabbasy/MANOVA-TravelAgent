@@ -29,3 +29,10 @@ logs
 
 # Server runtime (deploy/server-deploy.sh)
 .runtime
+.nuxt-accounting-uat/
+
+# Local accounting verification output (may contain session traces; source/tests/docs stay tracked).
+docs/owner-accounting-implementation/browser-artifacts*/
+docs/owner-accounting-implementation/checkpoint*.png
+docs/owner-accounting-implementation/checkpoint*.json
+docs/owner-accounting-implementation/local-preview-*.png

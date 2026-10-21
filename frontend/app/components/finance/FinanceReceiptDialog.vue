@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { newIdempotencyKey } from '~/lib/api/client'
 import { todayJakarta } from '~/lib/finance/dates'
-import { INVOICE_TYPE_LABEL } from '~/lib/finance/labels'
+import { INVOICE_TYPE_LABEL, invoiceSubjectLabel } from '~/lib/finance/labels'
 import type { AllocationTarget } from '~/lib/finance/types'
 import { formatMoneyMinor } from '~/lib/money'
 import { collectPages } from '~/lib/finance/paging'
@@ -47,7 +47,7 @@ const openInvoices = useFinanceQuery(
 const targets = computed<AllocationTarget[]>(() => (form.partyId && openInvoices.data.value?.partyId === form.partyId ? openInvoices.data.value.list : []).map(inv => ({
   id: inv.id,
   title: inv.number ?? inv.id,
-  subtitle: `${INVOICE_TYPE_LABEL[inv.invoiceType]} · ${inv.project.name}`,
+  subtitle: `${INVOICE_TYPE_LABEL[inv.invoiceType]} · ${invoiceSubjectLabel(inv)}`,
   dueDate: inv.dueDate,
   outstandingMinor: inv.outstandingMinor
 })))

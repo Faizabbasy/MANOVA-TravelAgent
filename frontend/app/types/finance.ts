@@ -90,6 +90,7 @@ export interface Invoice {
    */
   viewedAt?: string
   paymentProofUploadedAt?: string
+  paymentProofId?: string
   paymentProofSubmittedBy?: ID
   paymentProofReference?: string
   paymentProofNote?: string

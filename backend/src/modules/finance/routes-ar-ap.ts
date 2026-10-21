@@ -99,12 +99,15 @@ export function arApRoutes(deps: AppDeps, auth: AuthContext) {
     })
     .post('/finance/customer-invoices', async ({ request, body, set }) => {
       const actor = await auth.requireCapability(request, 'finance.manage-receivables')
+        if(body.salesOrderId && (await db.query('select 1 from sales_order_refs where id=$1 and project_id is not null',[body.salesOrderId])).length) {
+          throw errors.validation({salesOrderId:['Invoice dasar peserta Group Trip dibuat melalui konfirmasi DP. Tambahan memakai sumber perubahan atau debit note.']})
+        }
       set.status = 201
       const created = await inTx(tx => createInvoiceDraft(tx, actor, body, requestIdOf(request)))
       return ok(request, await getInvoice(db, created.id))
     }, {
       body: t.Object({
-        projectId: t.Optional(t.String()), booking: t.Optional(bookingRef), billingScheduleItemId: t.Optional(t.String()),
+        projectId: t.Optional(t.String()), salesOrderId:t.Optional(t.String()),booking: t.Optional(bookingRef), billingScheduleItemId: t.Optional(t.String()),
         invoiceType: t.Optional(t.String()), lines: t.Optional(t.Array(line)), dueDate: t.Optional(t.String()),
         expectedDate: t.Optional(t.String()), notes: t.Optional(t.String({ maxLength: 1000 }))
       })
@@ -237,7 +240,7 @@ export function arApRoutes(deps: AppDeps, auth: AuthContext) {
       return { data: result.items, meta: { requestId: requestIdOf(request), pagination: result.pagination, summary: result.summary } }
     }, {
       query: t.Object({
-        view: t.Optional(t.String()), vendorId: t.Optional(t.String()), projectId: t.Optional(t.String()),
+        view: t.Optional(t.String()), vendorId: t.Optional(t.String()), projectId: t.Optional(t.String()),salesOrderId:t.Optional(t.String()),
         dueTo: t.Optional(t.String()), cursor: t.Optional(t.String()), limit: t.Optional(t.String())
       })
     })
@@ -253,7 +256,7 @@ export function arApRoutes(deps: AppDeps, auth: AuthContext) {
     }, {
       body: t.Object({
         vendorId: t.String({ error: 'Pilih vendor.' }), vendorInvoiceNumber: t.String({ maxLength: 80, error: 'Nomor invoice vendor wajib diisi.' }),
-        serviceOrderId: t.Optional(t.String()), projectId: t.Optional(t.String()), booking: t.Optional(bookingRef),
+        serviceOrderId: t.Optional(t.String()), projectId: t.Optional(t.String()), salesOrderId:t.Optional(t.String()), booking: t.Optional(bookingRef),
         invoiceDate: t.String({ error: 'Tanggal invoice wajib diisi.' }), dueDate: t.String({ error: 'Jatuh tempo wajib diisi.' }),
         expectedDate: t.Optional(t.String()), totalMinor: t.String({ error: 'Nominal wajib diisi.' }), notes: t.Optional(t.String({ maxLength: 1000 }))
       })
@@ -266,7 +269,7 @@ export function arApRoutes(deps: AppDeps, auth: AuthContext) {
     }, {
       body: t.Object({
         vendorId: t.Optional(t.String()), vendorInvoiceNumber: t.Optional(t.String({ maxLength: 80 })), serviceOrderId: t.Optional(t.String()),
-        projectId: t.Optional(t.String()), booking: t.Optional(bookingRef), invoiceDate: t.Optional(t.String()), dueDate: t.Optional(t.String()),
+        projectId: t.Optional(t.String()), salesOrderId:t.Optional(t.String()), booking: t.Optional(bookingRef), invoiceDate: t.Optional(t.String()), dueDate: t.Optional(t.String()),
         totalMinor: t.Optional(t.String()), notes: t.Optional(t.String({ maxLength: 1000 }))
       })
     })

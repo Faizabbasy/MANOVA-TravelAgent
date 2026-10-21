@@ -113,7 +113,7 @@ export async function financeOverview(db: Db, full: boolean) {
       id: i.id as string,
       number: i.number as string,
       party: { id: i.party_id, name: i.party_name as string },
-      project: { id: (i as { project_id: string }).project_id, name: i.project_name as string },
+      project: (i as { project_id: string | null }).project_id ? { id: (i as { project_id: string }).project_id, name: i.project_name as string } : null,
       dueDate: i.due_date,
       outstandingMinor: i.outstanding_minor
     }))

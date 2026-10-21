@@ -1,5 +1,7 @@
 import type { Actor } from '../../auth/rbac'
 import type { Queryable } from '../../db/client'
+import { postCashSource } from '../accounting/cash-source'
+import { getBook } from '../accounting/setup'
 import { ID_PATTERN } from '../../http/envelope'
 import { AppError, errors } from '../../http/errors'
 import { recordAudit } from '../../shared/audit'
@@ -111,6 +113,10 @@ export async function resolveReferences(
   if (input.partyId && !(ID_PATTERN.test(input.partyId) && (await tx.query('select 1 from parties where id = $1', [input.partyId])).length)) {
     fieldErrors.partyId = ['Customer tidak ditemukan.']
   }
+  if(projectId && input.partyId && !fieldErrors.projectId && !fieldErrors.partyId && !(await tx.query(`select 1 from projects p where p.id=$1 and
+    (p.party_id=$2 or exists(select 1 from sales_order_refs s where s.project_id=p.id and s.party_id=$2))`,[projectId,input.partyId])).length) {
+    fieldErrors.partyId=['Customer bukan pemilik kontrak atau peserta project ini.']
+  }
   if (input.vendorId && !(ID_PATTERN.test(input.vendorId) && (await tx.query('select 1 from vendors where id = $1', [input.vendorId])).length)) {
     fieldErrors.vendorId = ['Vendor tidak ditemukan.']
   }
@@ -140,6 +146,7 @@ export interface ManualTransactionInput {
 
 /** Other income (in) or an expense (out). Returns the new transaction id. */
 export async function postManualTransaction(tx: Queryable, actor: Actor, input: ManualTransactionInput, requestId: string): Promise<{ transactionId: string }> {
+  await getBook(tx, true)
   if (!(MANUAL_KINDS as readonly string[]).includes(input.kind)) {
     throw errors.validation({ kind: ['Jenis harus "other_income" (uang masuk lain) atau "expense" (pengeluaran). Pembayaran invoice dicatat dari menu Piutang/Utang.'] })
   }
@@ -171,6 +178,7 @@ export async function postManualTransaction(tx: Queryable, actor: Actor, input: 
     action: 'finance.transaction_posted', actorUserId: actor.userId, entityType: 'financial_transaction', entityId: row!.id, requestId,
     after: { accountId: account.id, direction, kind, amountMinor: amount.toString(), effectiveDate, projectId: refs.projectId }
   })
+  await postCashSource(tx, actor, row!.id, requestId)
   return { transactionId: row!.id }
 }
 
@@ -191,6 +199,11 @@ interface TxRow extends Record<string, unknown> {
   category: string | null
   transfer_id: string | null
   reversal_of_id: string | null
+  employee_id?: string | null
+  payroll_run_id?: string | null
+  asset_id?: string | null
+  loan_id?: string | null
+  sales_order_id?: string | null
 }
 
 async function insertReversal(tx: Queryable, actor: Actor, original: TxRow, reason: string, effectiveDate: string): Promise<string> {
@@ -198,12 +211,12 @@ async function insertReversal(tx: Queryable, actor: Actor, original: TxRow, reas
     const [row] = await tx.query<{ id: string }>(
       `insert into financial_transactions
          (bank_account_id, direction, amount_minor, currency, kind, effective_date, project_id, booking_type, booking_id,
-          party_id, vendor_id, counterparty, reference, memo, category, transfer_id, reversal_of_id, reversal_reason, created_by)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19) returning id`,
+          party_id, vendor_id, counterparty, reference, memo, category, transfer_id, reversal_of_id, reversal_reason, created_by, employee_id, payroll_run_id, asset_id, loan_id,sales_order_id)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23,$24) returning id`,
       [original.bank_account_id, original.direction === 'in' ? 'out' : 'in', original.amount_minor, original.currency, original.kind,
         effectiveDate, original.project_id, original.booking_type, original.booking_id, original.party_id, original.vendor_id,
         original.counterparty, original.reference, `Pembatalan ${original.id}`, original.category, original.transfer_id,
-        original.id, reason, actor.userId]
+        original.id, reason, actor.userId, original.employee_id ?? null, original.payroll_run_id ?? null, original.asset_id ?? null, original.loan_id ?? null,original.sales_order_id ?? null]
     )
     return row!.id
   } catch (err) {
@@ -220,6 +233,7 @@ export function validateReason(reason: unknown): string {
 
 /** Compensating entry: the original stays visible; the reversal moves the same amount the other way, today. */
 export async function reverseTransaction(tx: Queryable, actor: Actor, transactionId: string, reasonInput: unknown, requestId: string): Promise<{ reversalId: string }> {
+  await getBook(tx, true)
   const reason = validateReason(reasonInput)
   const [original] = await tx.query<TxRow>('select * from financial_transactions where id = $1', [transactionId])
   if (!original) throw errors.notFound('Transaksi')
@@ -241,11 +255,40 @@ export async function reverseTransaction(tx: Queryable, actor: Actor, transactio
     )
     if (c) throw rule(`Pembayaran ini menjadi dasar kasus pembatalan ${c.id}. Batalkan kasus itu dulu (Refund & Pembatalan), baru pembayarannya bisa dibatalkan.`)
   }
+  if (original.kind === 'employee_advance') {
+    await tx.query('select id from employees where id = $1 for update', [original.employee_id])
+    const [b] = await tx.query<{ net_minor: string }>('select net_minor from v_employee_fund_balances where employee_id = $1', [original.employee_id])
+    if (BigInt(b?.net_minor ?? '0') < BigInt(original.amount_minor)) throw rule('Sebagian uang jalan ini sudah dipertanggungjawabkan. Batalkan bukti pengeluarannya dulu, baru uang jalan bisa dibatalkan.')
+  }
+  if (original.kind === 'asset_purchase' && (await tx.query('select 1 from asset_depreciations where asset_id = $1 limit 1', [original.asset_id])).length) {
+    throw rule('Aset ini sudah disusutkan. Koreksi pembelian aset memerlukan pelepasan/penjualan aset, bukan pembatalan kas.')
+  }
+  if (original.kind === 'prepaid_opex') {
+    const [p] = await tx.query<{ id: string }>('select id from prepaid_expenses where transaction_id=$1 for update', [transactionId])
+    if (p && (await tx.query('select 1 from prepaid_expense_amortizations where prepaid_expense_id=$1 limit 1', [p.id])).length) {
+      throw rule('Biaya dibayar di muka ini sudah dibebankan. Pembatalan memerlukan koreksi beban terkait; kas saja tidak dapat dibatalkan.')
+    }
+  }
+  if (original.kind === 'loan_proceeds') {
+    const [paid] = await tx.query(`select 1 from financial_transactions t where t.loan_id = $1 and t.kind = 'loan_repayment' and t.reversal_of_id is null
+      and not exists (select 1 from financial_transactions x where x.reversal_of_id = t.id) limit 1`, [original.loan_id])
+    if (paid) throw rule('Pinjaman ini sudah dicicil. Batalkan cicilannya dulu.')
+  }
+  if (original.kind === 'vendor_payment') {
+    const [claim] = await tx.query<{ id: string }>("select id from supplier_claims where source_payment_id = $1 and status = 'recorded' for update", [transactionId])
+    if (claim) throw rule(`Deposit ini sudah menjadi klaim pengembalian supplier ${claim.id}. Batalkan klaim itu dulu, baru pembayarannya bisa dibatalkan.`)
+  }
   const today = todayBusinessDate()
   const account = assertActiveForReversal(await findAccount(tx, original.bank_account_id, true))
   // Undoing money that came in takes it out again, today.
   if (original.direction === 'in') await assertOutflowFits(tx, account, today, BigInt(original.amount_minor))
   const reversalId = await insertReversal(tx, actor, original, reason, today)
+  await postCashSource(tx, actor, reversalId, requestId)
+  if (original.kind === 'loan_repayment') await tx.query("update loans set status = 'open' where id = $1", [original.loan_id])
+  if (original.kind === 'payroll_payment') {
+    // The run is owed again: paid only ever means a standing payroll payment.
+    await tx.query("update payroll_runs set status = 'approved', paid_on = null, changed_by_api_at = now(), updated_at = now() where id = $1", [original.payroll_run_id])
+  }
   await recordAudit(tx, {
     action: 'finance.transaction_reversed', actorUserId: actor.userId, entityType: 'financial_transaction', entityId: transactionId, requestId,
     reason, after: { reversalId, amountMinor: original.amount_minor, direction: original.direction }
@@ -264,6 +307,7 @@ export interface TransferInput {
 
 /** One transfer = out from A + in to B (+ fee out from A), atomically. Company cash changes only by the fee. */
 export async function postTransfer(tx: Queryable, actor: Actor, input: TransferInput, requestId: string): Promise<{ transferId: string; transactionIds: string[] }> {
+  await getBook(tx, true)
   const amount = parseMovementAmount(input.amountMinor)
   const typedFee = input.feeMinor === undefined || input.feeMinor === '' ? null : parseMovementAmount(input.feeMinor, 'feeMinor', { allowZero: true })
   const effectiveDate = validateEffectiveDate(input.effectiveDate)
@@ -308,6 +352,7 @@ export async function postTransfer(tx: Queryable, actor: Actor, input: TransferI
         kind === 'transfer_fee' ? 'bank_fee' : null, transfer!.id, actor.userId]
     )
     transactionIds.push(row!.id)
+    await postCashSource(tx, actor, row!.id, requestId)
   }
   await recordAudit(tx, {
     action: 'finance.transfer_posted', actorUserId: actor.userId, entityType: 'transfer', entityId: transfer!.id, requestId,
@@ -318,6 +363,7 @@ export async function postTransfer(tx: Queryable, actor: Actor, input: TransferI
 
 /** Reverses every leg of a transfer together (never one side alone). */
 export async function reverseTransfer(tx: Queryable, actor: Actor, transferId: string, reasonInput: unknown, requestId: string): Promise<{ reversalIds: string[] }> {
+  await getBook(tx, true)
   const reason = validateReason(reasonInput)
   const [transfer] = await tx.query<{ id: string; from_account_id: string; to_account_id: string; amount_minor: string }>(
     'select id, from_account_id, to_account_id, amount_minor from transfers where id = $1', [transferId]
@@ -336,7 +382,11 @@ export async function reverseTransfer(tx: Queryable, actor: Actor, transferId: s
   await assertOutflowFits(tx, to!, today, BigInt(transfer.amount_minor))
 
   const reversalIds: string[] = []
-  for (const leg of legs) reversalIds.push(await insertReversal(tx, actor, leg, reason, today))
+  for (const leg of legs) {
+    const id = await insertReversal(tx, actor, leg, reason, today)
+    await postCashSource(tx, actor, id, requestId)
+    reversalIds.push(id)
+  }
   await recordAudit(tx, {
     action: 'finance.transfer_reversed', actorUserId: actor.userId, entityType: 'transfer', entityId: transferId, requestId, reason,
     after: { reversalIds }

@@ -18,6 +18,10 @@ const tone: Record<string, string> = {
 /** Why the item sits where it does — built from where it was placed, not only from its label. */
 function dateNote (item: CashFlowItem, today: string): string {
   if (item.source === 'refund') { return 'Disetujui, belum dibayar — dihitung segera' }
+  if (item.source === 'staff_reimbursement') { return 'Terutang ke karyawan — dihitung segera' }
+  if (item.source === 'company_expense') { return 'Rencana atau biaya kantor belum ditagih; diganti invoice asli saat disetujui' }
+  if (item.source === 'commitment') { return item.expectedDate ? `Rencana keberangkatan ${formatBusinessDate(item.expectedDate, { short: true, today })} · sisa SO yang belum ditagih` : 'Sisa SO yang belum ditagih — dihitung segera' }
+  if (item.source === 'payroll') { return `Gaji disetujui, belum dibayar · akhir bulan ${formatBusinessDate(item.dueDate, { short: true, today })}` }
   const d = (iso: string | null) => formatBusinessDate(iso, { short: true, today })
   const due = `jatuh tempo ${d(item.dueDate)}`
   const parts: string[] = []

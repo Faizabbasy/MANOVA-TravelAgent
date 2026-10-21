@@ -204,7 +204,7 @@ function removeSegmentRow (index: number) {
 
 async function submitEdit () {
   if (!booking.value) { return }
-  const incompleteSegment = editSegments.value.some(segment => {
+  const incompleteSegment = editSegments.value.some((segment) => {
     const hasAny = segment.origin.trim() || segment.destination.trim() || segment.departureAt.trim()
     const hasAll = segment.origin.trim() && segment.destination.trim() && segment.departureAt.trim()
     return hasAny && !hasAll

@@ -8,6 +8,8 @@ import { nextId } from '../../shared/ids'
 import { parseAmountMinor } from '../../shared/money'
 import { createParty } from '../core/party-writes'
 import { cancelTravelersOfOrder } from '../core/travelers'
+import { createCancellation } from '../finance/refunds'
+import { hasCapability } from '../../auth/rbac'
 
 /**
  * Sales orders (S6b): B2C standalone orders and Group Trip participant bookings. Status runs
@@ -135,7 +137,8 @@ export async function changeSalesOrderStatus(tx: Queryable, actor: Actor, id: st
   const [so] = await tx.query<{ status: string; project_id: string | null }>('select status, project_id from sales_order_refs where id = $1 for update', [id])
   if (!so) throw errors.notFound('Sales order')
   if (!FLOW[so.status]!.includes(to as string)) throw rule(`Status tidak bisa berpindah dari ${so.status} ke ${to as string}.`)
-  if (to === 'paid' && so.project_id) throw rule('Booking Group Trip menjadi paid lewat konfirmasi DP di Finance.')
+  // Paid only from a real payment (owner accounting): Group Trip and B2C standalone orders alike go through the DP confirmation.
+  if (to === 'paid') throw rule('Order menjadi paid lewat konfirmasi DP/pembayaran di Finance, bukan diubah manual.')
   const invoices = to === 'cancelled'
     ? (await tx.query<{ id: string }>("select id from customer_invoices where sales_order_id = $1 and status <> 'void'", [id])).map(r => r.id)
     : []
@@ -151,4 +154,10 @@ export async function changeSalesOrderStatus(tx: Queryable, actor: Actor, id: st
     action: 'sales_order.status_changed', actorUserId: actor.userId, entityType: 'sales_order', entityId: id, requestId, reason,
     before: { status: so.status }, after: { status: to }, details: invoices.length ? { invoiceIds: invoices } : undefined
   })
+  // One operational cancellation creates the native financial case for issued billing, never a second input of the same facts.
+  if (to==='cancelled' && invoices.length) {
+    const issued=(await tx.query("select 1 from customer_invoices where sales_order_id=$1 and status='issued' limit 1",[id])).length>0
+    const active=(await tx.query("select 1 from refunds where subject_type='sales_order' and subject_id=$1 and status<>'rejected'",[id])).length>0
+    if (issued && !active) await createCancellation(tx,actor,{subjectType:'sales_order',subjectId:id,reason:reason!},hasCapability(actor.role,'finance.view-project-finance'),requestId)
+  }
 }

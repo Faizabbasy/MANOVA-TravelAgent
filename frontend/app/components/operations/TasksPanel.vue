@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import type { SortableEvent } from 'vue-draggable-plus'
 import { VueDraggable } from 'vue-draggable-plus'
-import { AlertTriangle, Calendar, CheckCircle2, CircleDashed, Clock, GripVertical, LayoutGrid, List as ListIcon, Lock, Plus, Search, UserRound } from 'lucide-vue-next'
+import { AlertTriangle, Calendar, CheckCircle2, CircleDashed, GripVertical, LayoutGrid, List as ListIcon, Lock, Plus, Search, UserRound } from 'lucide-vue-next'
 import { PROJECTS, USERS, getProjectById, getUserById } from '~/data'
 import { createTaskOnServer, updateTaskOnServer } from '~/data/work-items-sync'
 import { createSaveGate } from '~/lib/save-gate'
@@ -213,7 +213,7 @@ async function submitForm () {
 
         <VueDraggable
           v-model="boardColumns[status.value]"
-          :group="{ name: 'tasks-global', disabled: !canManage }"
+          :group="{ name: 'tasks-global' }"
           :disabled="!canManage"
           :animation="150"
           item-key="id"

@@ -15,6 +15,7 @@ const props = withDefaults(defineProps<{ entityType: CollabEntityType; entityId:
 })
 
 const api = useApi()
+const privateSource = computed(() => props.entityType === 'itinerary' ? null : props.entityType)
 const session = useServerSession()
 const { showToast } = useToast()
 const gate = createSaveGate((title, message, tone) => showToast(title, message, tone))
@@ -60,6 +61,10 @@ async function submit () {
     </ul>
     <p v-else-if="!loadError" class="text-sm text-muted-foreground mb-3">
       Belum ada lampiran.
+    </p>
+    <PrivateEvidencePanel v-if="privateSource" :source-type="privateSource" :source-id="entityId" :can-upload="!readonly" :allow-sharing="!portal" />
+    <p class="text-xs text-muted-foreground">
+      Daftar nama legacy di atas belum menyimpan file asli. Gunakan unggah file asli untuk bukti yang dapat diunduh.
     </p>
     <div v-if="!readonly" class="flex gap-2">
       <Input v-model="fileName" placeholder="Nama file (mis. foto-kondisi.jpg)" class="flex-1" @keyup.enter="submit" />

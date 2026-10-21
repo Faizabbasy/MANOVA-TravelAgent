@@ -139,8 +139,8 @@ export async function createPayrollRunOnServer (api: CoreApi, period: string): P
 export async function approvePayrollRunOnServer (api: CoreApi, id: string): Promise<PayrollRun> {
   return upsert(PAYROLL_RUNS, runFromServer((await api.core.approvePayrollRun(id)).data))
 }
-export async function payPayrollRunOnServer (api: CoreApi, id: string): Promise<PayrollRun> {
-  return upsert(PAYROLL_RUNS, runFromServer((await api.core.payPayrollRun(id)).data))
+export async function payPayrollRunOnServer (api: CoreApi, id: string, input: { bankAccountId: string; effectiveDate: string }, idempotencyKey?: string): Promise<PayrollRun> {
+  return upsert(PAYROLL_RUNS, runFromServer((await api.core.payPayrollRun(id, input, idempotencyKey)).data))
 }
 export async function updatePayrollLineOnServer (api: CoreApi, id: string, input: PayrollLineInput): Promise<PayrollLine> {
   return upsert(PAYROLL_LINES, lineFromServer((await api.core.updatePayrollLine(id, input)).data))

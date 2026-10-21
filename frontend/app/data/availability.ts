@@ -14,7 +14,7 @@ import type { AvailabilitySlot } from '~/types/availability'
  *   ("hold tidak mengembalikan stok", Phase 0 Section 9).
  * - AVL-004: `heldQuantity` persis mencerminkan `CSL-001` (soft hold aktif, belum expired).
  */
-export const AVAILABILITY_SLOTS: AvailabilitySlot[] = reactive([
+export const AVAILABILITY_SLOTS: AvailabilitySlot[] = reactive<AvailabilitySlot[]>([
   { id: 'AVL-001', commodityProductId: 'CMD-001', variantId: 'CMV-001', periodStart: '2026-08-10', periodEnd: '2026-08-15', totalQuantity: 10, heldQuantity: 2, bookedQuantity: 3, bookingCutoff: '2026-08-08', createdAt: '2026-07-01' },
   { id: 'AVL-002', commodityProductId: 'CMD-001', variantId: 'CMV-002', periodStart: '2026-08-10', periodEnd: '2026-08-15', totalQuantity: 4, heldQuantity: 0, bookedQuantity: 4, bookingCutoff: '2026-08-08', createdAt: '2026-07-01' },
   { id: 'AVL-003', commodityProductId: 'CMD-002', periodStart: '2026-07-01', periodEnd: '2026-07-20', totalQuantity: 6, heldQuantity: 2, bookedQuantity: 4, bookingCutoff: '2026-06-28', createdAt: '2026-06-01' },

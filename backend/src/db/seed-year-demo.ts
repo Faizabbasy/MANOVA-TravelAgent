@@ -52,7 +52,8 @@ export async function seedYearDemo(rawDb: Db, options: { appEnv: AppEnv }): Prom
   if (options.appEnv === 'production') throw new SeedRefusedError('Year demo seed is disabled in production (APP_ENV=production).')
   const [real] = await rawDb.query<{ n: string }>(
     `select (select count(*) from users where provenance <> 'demo-fixture')
-          + (select count(*) from projects where provenance <> 'demo-fixture') as n`
+          + (select count(*) from projects where provenance <> 'demo-fixture')
+          + (select count(*) from accounting_books) as n`
   )
   if (Number(real?.n ?? 0) > 0) throw new SeedRefusedError('This database holds non-demo data; the year demo seed only runs on a demo/dev database.')
   const [history] = await rawDb.query<{ n: string }>("select count(*) as n from projects where id between 'PRJ-301' and 'PRJ-399'")

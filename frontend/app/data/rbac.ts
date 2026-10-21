@@ -1,10 +1,10 @@
 import { reactive, ref } from 'vue'
+import { SYSTEM_EVENTS } from './activity'
+import { USERS } from './users'
 import type { PermissionLevel, RoleId, ModuleKey } from '~/types/user'
 import type { RoleCapabilityGrant, RoleDefinition, RoleMenuGrant, RoleModuleGrant } from '~/types/rbac'
 import { MODULE_KEYS, resolveModuleKey } from '~/constants/modules'
 import { serviceCapabilityKey } from '~/constants/capabilities'
-import { SYSTEM_EVENTS } from './activity'
-import { USERS } from './users'
 import { DEMO_REFERENCE_DATE } from '~/utils/attention'
 
 /**
@@ -55,7 +55,7 @@ export const LEGACY_ROLE_ALIAS: Record<string, RoleId> = {
   supplier: 'vendor'
 }
 
-export const ROLE_DEFINITIONS: RoleDefinition[] = reactive([
+export const ROLE_DEFINITIONS: RoleDefinition[] = reactive<RoleDefinition[]>([
   { id: 'super-admin', label: 'Super Admin', tone: 'destructive', order: 1, kind: 'internal', isSystem: true, isSuperAdmin: true, canViewFullFinancials: true, description: 'Akses penuh seluruh modul, termasuk Finance. Sengaja mem-bypass matriks grant sehingga tidak mungkin terkunci dari Administration.' },
   { id: 'admin', label: 'Admin', tone: 'info', order: 2, kind: 'internal', isSystem: true, canViewFullFinancials: true, description: 'Mengelola seluruh operasional — Sales & CRM, Project, Booking, Vendor, HR, Inventory, Marketing, Reporting, dokumen, dan master data — kecuali modul Finance. Menggabungkan Management, Sales, dan Operations lama.' },
   { id: 'finance', label: 'Finance', tone: 'success', order: 3, kind: 'internal', isSystem: true, canViewFullFinancials: true, description: 'Modul Finance: tagihan customer, kewajiban vendor, pembayaran, rekening, dan arus kas. Melihat modul lain sebagai konteks.' },
@@ -78,13 +78,28 @@ const SEED_ROLE_DEFINITIONS: RoleDefinition[] = JSON.parse(JSON.stringify(ROLE_D
 const SEED_MODULE_LEVELS: Record<RoleId, Partial<Record<ModuleKey, PermissionLevel>>> = {
   'super-admin': Object.fromEntries(MODULE_KEYS.map(key => [key, 'ADMIN' as PermissionLevel])),
   admin: {
-    sales: 'APPROVE', crm: 'APPROVE', operations: 'APPROVE',
-    'vendor-partner': 'MANAGE', inventory: 'MANAGE', marketing: 'MANAGE',
-    hr: 'MANAGE', bi: 'MANAGE', administration: 'MANAGE', documents: 'MANAGE'
+    sales: 'APPROVE',
+    crm: 'APPROVE',
+    operations: 'APPROVE',
+    'vendor-partner': 'MANAGE',
+    inventory: 'MANAGE',
+    marketing: 'MANAGE',
+    hr: 'MANAGE',
+    bi: 'MANAGE',
+    administration: 'MANAGE',
+    documents: 'MANAGE'
   },
   finance: {
-    sales: 'VIEW', 'finance-acc': 'MANAGE', crm: 'VIEW', 'vendor-partner': 'VIEW', operations: 'VIEW',
-    hr: 'VIEW', inventory: 'VIEW', marketing: 'VIEW', bi: 'VIEW', documents: 'VIEW'
+    sales: 'VIEW',
+    'finance-acc': 'MANAGE',
+    crm: 'VIEW',
+    'vendor-partner': 'VIEW',
+    operations: 'VIEW',
+    hr: 'VIEW',
+    inventory: 'VIEW',
+    marketing: 'VIEW',
+    bi: 'VIEW',
+    documents: 'VIEW'
   },
   client: { 'client-portal': 'MANAGE' },
   vendor: { 'vendor-portal': 'MANAGE' }
@@ -108,7 +123,7 @@ export const ROLE_MODULE_GRANTS: RoleModuleGrant[] = reactive(buildSeedModuleGra
  * Kosong saat seed — seluruh role mewarisi level dari modulnya. Baris baru hanya muncul ketika admin
  * meng-override satu menu tertentu dari Admin > Roles > Menus.
  */
-export const ROLE_MENU_GRANTS: RoleMenuGrant[] = reactive([])
+export const ROLE_MENU_GRANTS: RoleMenuGrant[] = reactive<RoleMenuGrant[]>([])
 
 /**
  * Capability seed — menerjemahkan narrow role exception lama (array role literal di dalam halaman) ke
@@ -144,6 +159,11 @@ const SEED_CAPABILITIES: Record<string, RoleId[]> = {
   'finance.close-period': ['finance'],
   'finance.edit-contract-value': ['finance'],
   'finance.edit-credit-limit': ['finance'],
+  'accounting.view-business-finance': ['finance'],
+  'accounting.view-posting-detail': ['finance'],
+  'accounting.manage-setup': [],
+  'accounting.close-period': ['finance'],
+  'accounting.reopen-period': [],
   'hr.manage-employee': ['admin'],
   // S11c: gaji, payroll, komisi & insentif dipegang Finance (dan Super Admin), bukan Admin.
   'hr.manage-payroll': ['finance'],

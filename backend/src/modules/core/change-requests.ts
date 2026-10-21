@@ -7,6 +7,8 @@ import { PG_BIGINT_MAX } from '../../shared/money'
 import { actorName, decidePendingChange, insertChangeEntry, recordProjectActivity } from './activities'
 import { notify } from './notifications'
 import { notifyInternal } from './client-writes'
+import { applyChangeBilling } from '../finance/change-billing'
+import { getBook } from '../accounting/setup'
 
 /**
  * Change requests (S8; S12b-2 client steps): submitted → under-review → (a client request that costs something)
@@ -153,6 +155,7 @@ export async function reviewChangeRequest(tx: Queryable, actor: Actor, id: strin
 }
 
 export async function decideChangeRequest(tx: Queryable, actor: Actor, id: string, decision: 'approved' | 'rejected', reasonInput: unknown, requestId: string) {
+  await getBook(tx,true)
   const reason = typeof reasonInput === 'string' ? reasonInput.trim() : ''
   if (decision === 'rejected' && !reason) throw errors.validation({ reason: ['Alasan penolakan wajib diisi.'] })
   const cr = await lockRequest(tx, id)
@@ -173,6 +176,7 @@ export async function decideChangeRequest(tx: Queryable, actor: Actor, id: strin
       body: decision === 'rejected' ? reason : 'Perubahan akan kami laksanakan.' })
   }
   await recordAudit(tx, { action: `change_request.${decision}`, actorUserId: actor.userId, entityType: 'change_request', entityId: id, requestId, reason: reason || null })
+  if (decision==='approved') await applyChangeBilling(tx,actor,id,requestId)
 }
 
 /** The client users of the project's party (the people who answer in the portal); never the actor. */
@@ -244,6 +248,7 @@ export async function clientCreateChangeRequest(tx: Queryable, actor: Actor, par
 }
 
 export async function clientDecideChangeRequest(tx: Queryable, actor: Actor, partyId: string, id: string, decision: 'approved' | 'rejected', reasonInput: unknown, requestId: string) {
+  await getBook(tx,true)
   const reason = typeof reasonInput === 'string' ? reasonInput.trim() : ''
   if (decision === 'rejected' && !reason) throw errors.validation({ reason: ['Alasan penolakan wajib diisi.'] })
   const cr = await clientRequest(tx, partyId, id)
@@ -255,6 +260,7 @@ export async function clientDecideChangeRequest(tx: Queryable, actor: Actor, par
   await logStep(tx, actor, cr.project_id, id, decision === 'approved' ? 'disetujui client' : `ditolak client (${reason})`, `change_request.client_${decision}`)
   await notifyInternal(tx, actor, cr.owner_user_id, { type: 'change', title: `Change Request ${id} ${decision === 'approved' ? 'disetujui' : 'ditolak'} client`, body: reason || 'Client menyetujui dampak perubahan.', entityType: 'project', entityId: cr.project_id })
   await recordAudit(tx, { action: `change_request.client_${decision}`, actorUserId: actor.userId, entityType: 'change_request', entityId: id, requestId, reason: reason || null })
+  if (decision==='approved') await applyChangeBilling(tx,actor,id,requestId)
 }
 
 const CLIENT_CANCELLABLE = ['submitted', 'under-review', 'waiting-client-approval']

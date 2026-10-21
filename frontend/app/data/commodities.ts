@@ -10,7 +10,7 @@ import type { CommodityProduct, CommodityVariant } from '~/types/commodity'
  * `draft` (CMD-003), `published`/`available` (CMD-001, CMD-008), `limited` (CMD-007), `sold-out`
  * (CMD-002), `expired` (CMD-005), `archived` (CMD-004), `suspended` (CMD-006).
  */
-export const COMMODITY_PRODUCTS: CommodityProduct[] = reactive([
+export const COMMODITY_PRODUCTS: CommodityProduct[] = reactive<CommodityProduct[]>([
   { id: 'CMD-001', vendorId: 'VND-002', name: 'Kamar Deluxe Bali Resort', category: 'hotel', description: 'Kamar deluxe menghadap taman, sarapan termasuk.', sellPriceIdr: 1200000, costPriceIdr: 900000, status: 'available', createdAt: '2026-07-01' },
   { id: 'CMD-002', vendorId: 'VND-002', name: 'Kamar Superior Bali Resort', category: 'hotel', description: 'Kamar superior standar.', sellPriceIdr: 850000, costPriceIdr: 620000, status: 'sold-out', createdAt: '2026-07-01' },
   { id: 'CMD-003', vendorId: 'VND-001', name: 'Tiket Grup Jakarta-Denpasar', category: 'flight', description: 'Tiket grup pergi-pulang, belum dipublikasikan.', sellPriceIdr: 2100000, costPriceIdr: 1750000, status: 'draft', createdAt: '2026-07-20' },
@@ -21,7 +21,7 @@ export const COMMODITY_PRODUCTS: CommodityProduct[] = reactive([
   { id: 'CMD-008', vendorId: 'VND-007', name: 'Venue Meeting Eksekutif Full Day', category: 'mice', description: 'Venue meeting kapasitas 100 orang.', sellPriceIdr: 8000000, costPriceIdr: 6200000, status: 'available', createdAt: '2026-07-08' }
 ])
 
-export const COMMODITY_VARIANTS: CommodityVariant[] = reactive([
+export const COMMODITY_VARIANTS: CommodityVariant[] = reactive<CommodityVariant[]>([
   { id: 'CMV-001', commodityProductId: 'CMD-001', name: 'Twin Bed', createdAt: '2026-07-01' },
   { id: 'CMV-002', commodityProductId: 'CMD-001', name: 'King Bed', sellPriceIdr: 1350000, createdAt: '2026-07-01' },
   { id: 'CMV-003', commodityProductId: 'CMD-002', name: 'Twin Bed', createdAt: '2026-07-01' }

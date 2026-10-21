@@ -13,7 +13,7 @@ import type { CommoditySelection } from '~/types/selection'
  * - CSL-004: `confirmed` — dipasangkan dengan `CMO-001` (`app/data/commodity-orders.ts`) untuk
  *   mendemonstrasikan snapshot harga pada Commodity Order.
  */
-export const COMMODITY_SELECTIONS: CommoditySelection[] = reactive([
+export const COMMODITY_SELECTIONS: CommoditySelection[] = reactive<CommoditySelection[]>([
   { id: 'CSL-001', requirementId: 'CRQ-003', commodityProductId: 'CMD-007', quantity: 3, choiceRank: 'primary', status: 'soft-hold', availabilitySlotId: 'AVL-004', holdExpiresAt: '2026-08-05', createdAt: '2026-07-25' },
   { id: 'CSL-002', requirementId: 'CRQ-003', commodityProductId: 'CMD-001', variantId: 'CMV-001', quantity: 2, choiceRank: 'secondary', status: 'draft', createdAt: '2026-07-25' },
   { id: 'CSL-004', requirementId: 'CRQ-006', commodityProductId: 'CMD-008', quantity: 1, choiceRank: 'primary', status: 'confirmed', availabilitySlotId: 'AVL-005', createdAt: '2026-07-10', updatedAt: '2026-07-24' },

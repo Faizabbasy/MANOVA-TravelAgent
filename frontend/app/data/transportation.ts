@@ -17,7 +17,7 @@ import type { TransportBooking } from '~/types/transportation'
  * — `requested`/`no-show` sengaja tidak di-seed (tetap reachable lewat transisi UI, diverifikasi lewat code
  * review, konsisten pola Section 13/14).
  */
-export const TRANSPORT_BOOKINGS: TransportBooking[] = reactive([
+export const TRANSPORT_BOOKINGS: TransportBooking[] = reactive<TransportBooking[]>([
   // PRJ-103 — Management (GRP-001, 10 pax), multi-day charter, driver sudah ditugaskan.
   {
     id: 'TRN-1034',

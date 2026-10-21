@@ -29,7 +29,7 @@ import type { User } from '~/types/user'
  * menambah akun `client` baru saat Opportunity di-Won — "1 akun per role" berlaku untuk SEED, bukan
  * larangan terhadap penambahan akun saat runtime.
  */
-export const USERS: User[] = reactive([
+export const USERS: User[] = reactive<User[]>([
   { id: 'USR-001', name: 'Rani Kusuma', email: 'rani.kusuma@manova.id', role: 'admin', status: 'active' },
   { id: 'USR-002', name: 'Doni Saputra', email: 'doni.saputra@manova.id', role: 'admin', status: 'active' },
   { id: 'USR-003', name: 'Sari Wijaya', email: 'sari.wijaya@manova.id', role: 'admin', status: 'active' },

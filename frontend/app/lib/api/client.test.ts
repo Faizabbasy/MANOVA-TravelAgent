@@ -24,6 +24,25 @@ describe('buildUrl', () => {
 })
 
 describe('createApiClient', () => {
+  it('sends an actual multipart body with a browser-generated boundary and a stable retry key', async () => {
+    const { calls, transport } = fakeTransport(201, { data: { id: 'PFL-1' }, meta: { requestId: 'r' } })
+    const api = createManovaApi(createApiClient({ baseURL: '/api/v1', transport }))
+    const file = new File(['%PDF-1.4 TEST_ONLY'], 'bukti.pdf', { type: 'application/pdf' })
+    await api.files.upload('payment_proof', 'PPF-1', file, 'internal', 'same-upload-key')
+    await api.files.upload('payment_proof', 'PPF-1', file, 'internal', 'same-upload-key')
+    expect(calls[0].body).toBeInstanceOf(FormData)
+    expect(calls[0].headers['content-type']).toBeUndefined()
+    expect((calls[0].body as FormData).get('declaredMime')).toBe('application/pdf')
+    expect(calls.map(c => c.headers['idempotency-key'])).toEqual(['same-upload-key', 'same-upload-key'])
+  })
+  it('preserves binary download bytes and still renders JSON errors on missing private evidence', async () => {
+    const content = new Uint8Array([137, 80, 78, 71, 0, 255])
+    const fakeFetch = (() => Promise.resolve(new Response(content, { headers: { 'content-type': 'image/png' } }))) as typeof fetch
+    const client = createApiClient({ baseURL: '/api/v1', transport: fetchTransport(fakeFetch) })
+    expect(new Uint8Array(await (await client.download('/private-files/PFL-1/content')).arrayBuffer())).toEqual(content)
+    const failed = (() => Promise.resolve(new Response(JSON.stringify({ error: { code: 'PRIVATE_FILE_INTEGRITY', message: 'Pulihkan file asli.' }, meta: { requestId: 'r' } }), { status: 503, headers: { 'content-type': 'application/json' } }))) as typeof fetch
+    await expect(createApiClient({ baseURL: '', transport: fetchTransport(failed) }).download('/x')).rejects.toMatchObject({ status: 503, code: 'PRIVATE_FILE_INTEGRITY', message: 'Pulihkan file asli.' })
+  })
   it('returns the success envelope and sends JSON with idempotency and version headers', async () => {
     const { calls, transport } = fakeTransport(200, { data: { ok: true }, meta: { requestId: 'req_1' } })
     const client = createApiClient({ baseURL: '/api/v1', transport })
@@ -53,7 +72,11 @@ describe('createApiClient', () => {
   it('classifies 401/403/404/409 and retryable failures', async () => {
     const make = async (status: number) => {
       const { transport } = fakeTransport(status, { error: { code: 'X', message: 'm' }, meta: { requestId: 'r' } })
-      return await createApiClient({ baseURL: '', transport }).get('/x').catch(e => e as ApiError)
+      try { await createApiClient({ baseURL: '', transport }).get('/x') } catch (e) {
+        if (isApiError(e)) { return e }
+        throw e
+      }
+      throw new Error('Expected the request to reject')
     }
     expect((await make(401)).isUnauthenticated).toBe(true)
     expect((await make(403)).isForbidden).toBe(true)
@@ -67,13 +90,13 @@ describe('createApiClient', () => {
     const { transport } = fakeTransport(502, '<html>Bad gateway</html>', { 'x-request-id': 'req_proxy' })
     const error = await createApiClient({ baseURL: '', transport }).get('/x').catch(e => e as ApiError)
     expect(error).toMatchObject({ status: 502, code: 'UNEXPECTED_RESPONSE', requestId: 'req_proxy' })
-    expect(error.message).not.toContain('html')
+    expect(isApiError(error) && error.message).not.toContain('html')
   })
 
   it('reports a 200 without a data envelope as unexpected', async () => {
     const { transport } = fakeTransport(200, { hello: 'world' })
     const error = await createApiClient({ baseURL: '', transport }).get('/x').catch(e => e as ApiError)
-    expect(error.code).toBe('UNEXPECTED_RESPONSE')
+    expect(isApiError(error) && error.code).toBe('UNEXPECTED_RESPONSE')
   })
 
   it('maps network failures to NETWORK_ERROR but lets aborts through', async () => {

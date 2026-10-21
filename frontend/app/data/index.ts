@@ -40,7 +40,8 @@ import {
   NUMBERING_SCHEMES, DOCUMENT_TEMPLATES, READINESS_GATE_CONFIGS, ASSIGNMENT_RULES, ORGANIZATION_PROFILE,
   MILESTONE_TEMPLATES
 } from './master-data'
-import { isProjectNeedingAttention, isTaskUpcoming, isFollowUpUpcoming, isTravelerDocumentMissing, isInvoiceOverdue, isDocumentExpired, DEMO_REFERENCE_DATE, MINIMUM_DP_PERCENT } from '~/utils/attention'
+import type { BadgeTone } from '~/types/common'
+import { isProjectNeedingAttention, isTaskUpcoming, isFollowUpUpcoming, isTravelerDocumentMissing, isInvoiceOverdue, isDocumentExpired, DEMO_REFERENCE_DATE } from '~/utils/attention'
 import { formatCurrencyIdr, daysUntil, formatDateTime } from '~/utils/format'
 import { SERVICE_TYPES, findStatusOption, FLIGHT_BOOKING_STATUSES, HOTEL_BOOKING_STATUSES, TRANSPORT_BOOKING_STATUSES, MICE_EVENT_STATUSES, VEHICLE_TYPES, PROJECT_STATUSES, SUPPORT_TICKET_CATEGORIES, INVOICE_STATUSES } from '~/constants/status'
 import type { Project, ProjectStatus, ProjectCharacteristic, ServiceTypeKey, ServiceStatus, Traveler, TravelerGroup, ProjectOrderStatus, ProjectDetailTab, ItineraryItem, RoomAssignment, RoomType } from '~/types/project'
@@ -1460,7 +1461,8 @@ export function previewTravelerImportMock (projectId: string, count = 5): Travel
     const duplicateCandidate = i === 4 && count >= 4 ? existing[0] : undefined
     const row: TravelerImportPreviewRow = {
       name: isEmptyNameRow ? '' : `Peserta Import ${existing.length + i}`,
-      passportNumber: duplicateCandidate?.passportNumber
+      passportNumber: duplicateCandidate?.passportNumber,
+      errors: []
     }
     const errors: string[] = []
     if (!row.name.trim()) { errors.push('Nama kosong — wajib diisi') }
@@ -2127,7 +2129,7 @@ interface BookingDescriptor {
   sellPriceIdr?: number
   status: string
   statusLabel: string
-  statusTone: string
+  statusTone: BadgeTone
   domainExceptions: string[]
 }
 

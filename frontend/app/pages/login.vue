@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ArrowRight, ChevronDown, LayoutGrid, Loader2, ShieldCheck, Wallet } from 'lucide-vue-next'
 import type { Component } from 'vue'
 import { Input } from '~/components/ui/input'
@@ -17,6 +17,8 @@ definePageMeta({
 useHead({ title: 'Masuk' })
 
 const api = useApi()
+const hydrated = ref(false)
+onMounted(() => { hydrated.value = true })
 const { setCurrentUser } = useCurrentUser()
 const { showToast } = useToast()
 
@@ -195,7 +197,7 @@ async function handlePasswordLogin () {
             <button
               type="button"
               class="group flex w-full items-center gap-4 rounded-2xl border border-border bg-card p-4 text-left card-shadow transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60 disabled:hover:translate-y-0"
-              :disabled="pendingId !== null || isSubmitting"
+              :disabled="!hydrated || pendingId !== null || isSubmitting"
               :aria-busy="pendingId === account.id"
               :aria-label="`Masuk sebagai ${account.name}, ${account.roleLabel}`"
               @click="signInAs(account)"

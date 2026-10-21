@@ -123,10 +123,29 @@ describe('S6b: DP confirmation and order status', () => {
     expect((await get('finance', '/sales-orders/SLO-007/finance-summary')).json.data.orderStatus).toBe('paid')
   })
 
-  test('standalone and cancelled orders cannot get a DP or a participant invoice', async () => {
+  test('B2C standalone order (no project) is billed and paid on the order itself; no dummy project, no trip roster', async () => {
+    const travelersBefore = (await t.db.query('select count(*) as n from travelers'))[0]!.n
+    const projectsBefore = (await t.db.query('select count(*) as n from projects'))[0]!.n
+    const res = await confirm('finance', 'SLO-001', body(6_000_000n))
+    expect(res.status, res.text).toBe(201)
+    const [inv] = await t.db.query<{ project_id: string | null; party_id: string; sales_order_id: string; total_minor: string }>('select project_id, party_id, sales_order_id, total_minor from customer_invoices where id = $1', [res.json.data.invoiceId])
+    expect(inv).toEqual({ project_id: null, party_id: 'PTY-006', sales_order_id: 'SLO-001', total_minor: '18500000' })
+    expect((await t.db.query('select count(*) as n from projects'))[0]!.n).toBe(projectsBefore)
+    expect((await t.db.query('select count(*) as n from travelers'))[0]!.n).toBe(travelersBefore)
+    const s = (await get('finance', '/sales-orders/SLO-001/finance-summary')).json.data
+    expect(s).toMatchObject({ receivedMinor: '6000000', outstandingMinor: '12500000', paymentStatus: 'dp_received', orderStatus: 'paid' })
+    const detail = (await get('finance', `/finance/customer-invoices/${res.json.data.invoiceId}`)).json.data
+    expect(detail.project).toBeNull();expect(detail.salesOrderId).toBe('SLO-001')
+    expect((await get('finance', '/finance/overview')).status).toBe(200)
     expect((await confirm('finance', 'SLO-001', body(6_000_000n))).status).toBe(422)
-    const invoice = await req('POST', 'finance', '/finance/customer-invoices', { salesOrderId: 'SLO-001', invoiceType: 'dp', dueDate: TODAY, lines: [{ description: 'x', amountMinor: '1000' }] }, `gt-inv-${Date.now()}`)
-    expect(invoice.status).toBe(400) // the public invoice route takes no salesOrderId: participant invoices only come from confirm-dp
+  })
+  test('cancelled orders cannot get a DP; participant invoices only come from confirm-dp', async () => {
+    const invoice = await req('POST', 'finance', '/finance/customer-invoices', { salesOrderId: SLO.id, invoiceType: 'dp', dueDate: TODAY, lines: [{ description: 'x', amountMinor: '1000' }] }, `gt-inv-${Date.now()}`)
+    expect(invoice.status).toBe(400) // Group Trip base invoices still require confirm-dp; native retail is now supported separately.
+    expect(invoice.json.error.fieldErrors.salesOrderId).toBeDefined()
+    // SLO-001 is standalone (the old assertion called it a participant); its already-issued invoice cannot be duplicated either.
+    const native = await req('POST', 'finance', '/finance/customer-invoices', { salesOrderId: 'SLO-001', invoiceType: 'dp', dueDate: TODAY, lines: [{ description: 'x', amountMinor: '1000' }] }, `native-inv-${Date.now()}`)
+    expect(native.status).toBe(422)
     expect((await confirm('finance', 'SLO-010', body(minDp(3_500_000n)))).status).toBe(422)
   })
 })

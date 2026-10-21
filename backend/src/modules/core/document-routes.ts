@@ -7,6 +7,7 @@ import { requireIdempotencyKey, withIdempotency } from '../../shared/idempotency
 import { createDocument, listDocuments, listMessages, sendMessage } from './documents'
 import { isPortalActor } from './scope'
 import { clientDocument, clientMessage, forReader, readerScopeOf } from './client-scope'
+import {privateFileRoutes} from '../../files/routes'
 
 /** Document metadata and messages (S9). Internal roles read and send messages; `document.manage` uploads documents. */
 export function documentRoutes(deps: AppDeps, auth: AuthContext) {
@@ -23,7 +24,7 @@ export function documentRoutes(deps: AppDeps, auth: AuthContext) {
     return projectId
   }
 
-  return new Elysia({ prefix: '/api/v1' })
+  return new Elysia().use(privateFileRoutes(deps,auth)).use(new Elysia({ prefix: '/api/v1' })
     .get('/documents', async ({ request, query }) => {
       // A client reads only client-visible documents of its own party (S12a).
       const scope = readerScopeOf(await auth.requireActor(request))
@@ -51,5 +52,5 @@ export function documentRoutes(deps: AppDeps, auth: AuthContext) {
       if (result.replayed) set.headers['idempotent-replayed'] = 'true'
       set.status = 201
       return ok(request, (await listMessages(db, { id: result.data.id }))[0])
-    }, { body: t.Record(t.String(), t.Unknown()) })
+    }, { body: t.Record(t.String(), t.Unknown()) }))
 }

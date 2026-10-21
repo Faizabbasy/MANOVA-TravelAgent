@@ -15,7 +15,7 @@ import type { MiceEvent } from '~/types/mice'
  * menautkan ke `USR-002` (Lina Marlina, role `mice`, sudah ada di `PROJECTS[2].teamUserIds`) sebagai PIC
  * utama, konsisten `SFT-1032` (shift note existing) yang mencatat Lina menangani venue Hari 1.
  */
-export const MICE_EVENTS: MiceEvent[] = reactive([
+export const MICE_EVENTS: MiceEvent[] = reactive<MiceEvent[]>([
   {
     id: 'MICE-1035',
     projectId: 'PRJ-103',

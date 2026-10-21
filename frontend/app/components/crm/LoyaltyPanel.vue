@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { unref } from 'vue'
 import { computed, ref } from 'vue'
 import { Award, Coins, TrendingUp, Plus } from 'lucide-vue-next'
 import { cn } from '~/lib/utils'
@@ -20,7 +21,7 @@ const canManage = computed(() => can('crm.manage-follow-up'))
 
 const refreshKey = ref(0)
 const accounts = computed(() => {
-  void refreshKey.value
+  unref(refreshKey)
   return getLoyaltyLeaderboard()
 })
 

@@ -6,6 +6,7 @@
     "dev": "pnpm --dir frontend dev & (cd backend && bun run dev) & wait",
     "dev:frontend": "pnpm --dir frontend dev",
     "dev:backend": "cd backend && bun run dev",
+    "demo:year": "cd backend && bun run demo:year",
     "build:frontend": "pnpm --dir frontend build",
     "lint": "pnpm --dir frontend lint",
     "typecheck": "pnpm --dir frontend typecheck",

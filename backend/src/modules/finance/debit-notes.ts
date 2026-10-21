@@ -1,11 +1,14 @@
 import type { Actor } from '../../auth/rbac'
 import type { Queryable } from '../../db/client'
+import { postInvoiceSource } from '../accounting/invoice-source'
+import { getBook } from '../accounting/setup'
 import { errors } from '../../http/errors'
 import { recordAudit } from '../../shared/audit'
 import { isIsoDate } from '../../shared/dates'
 import { parseMovementAmount, rule, todayBusinessDate } from './common'
 import { validateReason } from './postings'
 import { lockInvoice } from './receivables'
+import { assertOrderBillable } from './order-scope'
 
 /**
  * Debit note — an extra charge on an issued customer invoice (extra room, admin fee…). Kept as a supplementary
@@ -15,7 +18,9 @@ import { lockInvoice } from './receivables'
  */
 export async function issueDebitNote (tx: Queryable, actor: Actor, originId: string,
   input: { amountMinor: string; reason: string; dueDate: string }, requestId: string) {
+  await getBook(tx, true)
   const origin = await lockInvoice(tx, originId)
+  await assertOrderBillable(tx,origin.sales_order_id)
   if (origin.status !== 'issued') throw rule('Debit note hanya untuk invoice yang sudah terbit.')
   if (origin.invoice_type === 'debit_note') throw rule('Debit note dibuat dari invoice asal, bukan dari debit note lain.')
   const amount = parseMovementAmount(input.amountMinor)
@@ -34,8 +39,8 @@ export async function issueDebitNote (tx: Queryable, actor: Actor, originId: str
   )
   await tx.query('insert into customer_invoice_lines (invoice_id, position, description, amount_minor) values ($1, 1, $2, $3)',
     [draft!.id, reason, amount.toString()])
-  const [ctx] = await tx.query<{ project_name: string; party_name: string }>(
-    'select p.name as project_name, pa.name as party_name from projects p, parties pa where p.id = $1 and pa.id = $2',
+  const [ctx] = await tx.query<{ project_name: string | null; party_name: string }>(
+    'select (select name from projects where id = $1) as project_name, pa.name as party_name from parties pa where pa.id = $2',
     [origin.project_id, origin.party_id])
   const [numbered] = await tx.query<{ number: string }>(
     `select 'DN-' || to_char($1::date, 'YYYY') || '-' || lpad(nextval('finance_debit_note_number_seq')::text, 5, '0') as number`, [issueDate])
@@ -49,5 +54,6 @@ export async function issueDebitNote (tx: Queryable, actor: Actor, originId: str
     action: 'finance.debit_note_issued', actorUserId: actor.userId, entityType: 'customer_invoice', entityId: draft!.id, requestId, reason,
     after: { adjustsInvoiceId: origin.id, number: numbered!.number, amountMinor: amount.toString(), dueDate: input.dueDate }
   })
+  await postInvoiceSource(tx, actor, 'customer_invoice', draft!.id, issueDate, requestId)
   return { id: draft!.id, number: numbered!.number }
 }

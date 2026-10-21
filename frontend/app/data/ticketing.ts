@@ -16,7 +16,7 @@ import type { FlightBooking } from '~/types/ticketing'
  * lewat transisi UI, diverifikasi lewat code review, konsisten pola Section 09/12 yang tidak mem-pre-seed
  * seluruh state).
  */
-export const FLIGHT_BOOKINGS: FlightBooking[] = reactive([
+export const FLIGHT_BOOKINGS: FlightBooking[] = reactive<FlightBooking[]>([
   {
     id: 'FLT-1011',
     projectId: 'PRJ-101',

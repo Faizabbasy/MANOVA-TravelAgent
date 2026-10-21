@@ -23,15 +23,9 @@ export const ROLES = computed<StatusOption<RoleId>[]>(() =>
  * keduanya sudah menangani alias modul lama dan bypass Super Admin.
  */
 export const ROLE_MODULE_ACCESS = computed<Record<RoleId, Record<ModuleKey, PermissionLevel>>>(() => {
-  const matrix: Record<RoleId, Record<ModuleKey, PermissionLevel>> = {}
-  for (const role of ROLE_DEFINITIONS) {
-    const row: Record<ModuleKey, PermissionLevel> = {}
-    for (const moduleKey of MODULE_KEYS) {
-      row[moduleKey] = getModuleLevel(role.id, moduleKey)
-    }
-    matrix[role.id] = row
-  }
-  return matrix
+  return Object.fromEntries(ROLE_DEFINITIONS.map(role => [role.id,
+    Object.fromEntries(MODULE_KEYS.map(moduleKey => [moduleKey, getModuleLevel(role.id, moduleKey)]))
+  ])) as Record<RoleId, Record<ModuleKey, PermissionLevel>>
 })
 
 /** Role yang boleh melihat breakdown finansial penuh (Budget/Actual/Margin). */

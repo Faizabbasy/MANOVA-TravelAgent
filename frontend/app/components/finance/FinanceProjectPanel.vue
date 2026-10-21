@@ -17,6 +17,9 @@ const api = useApi()
 const session = useServerSession()
 const today = todayJakarta()
 
+const accounting = useFinanceQuery(async () => (await api.accounting.projectSummary(props.projectId)).data, {
+  watch: [() => props.projectId], enabled: () => session.can('accounting.view-business-finance')
+})
 const summary = useFinanceQuery<ProjectFinanceSummaryDto>(async () => (await api.finance.projectSummary(props.projectId)).data, { watch: [() => props.projectId] })
 const plans = useFinanceQuery(async () => (await api.finance.listBillingSchedule({ projectId: props.projectId, status: 'planned' })).data, {
   watch: [() => props.projectId], enabled: () => session.can('finance.view-cash')
@@ -256,6 +259,11 @@ const showVendorCreate = ref(false)
           <FinanceVendorInvoiceRow v-for="inv in vendorInvoices" :key="inv.id" :invoice="inv" :today="today" @open="selectedVendorInvoice = inv.id" />
         </div>
       </section>
+
+      <!-- Owner accounting: recognised result, service facts and supplier recovery (same server facts as the ledger) -->
+      <AccountingProjectSummary v-if="accounting.data.value" :summary="accounting.data.value" />
+      <FinanceFulfillmentCard :project-id="projectId" />
+      <FinanceSupplierClaimsCard :project-id="projectId" />
 
       <!-- Closing -->
       <section v-if="settled !== undefined" class="rounded-xl border border-border bg-card p-5 shadow-sm">

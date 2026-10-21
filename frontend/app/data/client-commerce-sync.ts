@@ -158,7 +158,7 @@ function invoiceStatusOf (d: ClientInvoiceDto): InvoiceStatus {
 
 export const invoiceFromClientServer = (d: ClientInvoiceDto, partyId: string): Invoice => clean({
   id: d.id,
-  projectId: d.project.id,
+  projectId: d.project?.id ?? '', // B2C standalone order: no project
   billedPartyId: partyId,
   label: d.number ?? d.id,
   amountIdr: Number(d.totalMinor),
@@ -173,6 +173,7 @@ export const invoiceFromClientServer = (d: ClientInvoiceDto, partyId: string): I
   paymentProofStatus: d.paymentProof?.status,
   paymentProofUploadedAt: d.paymentProof?.submittedAt,
   paymentProofReference: d.paymentProof?.reference,
+  paymentProofId: d.paymentProof?.id,
   paymentProofAmountIdr: d.paymentProof ? Number(d.paymentProof.amountMinor) : undefined,
   paymentProofTransferDate: d.paymentProof?.transferDate,
   paymentProofSenderBank: opt(d.paymentProof?.senderBank),

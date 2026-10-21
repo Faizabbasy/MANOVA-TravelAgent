@@ -15,7 +15,7 @@ import type { Quotation } from '~/types/quotation'
  * dibiarkan tanpa `approvalStatus` (`draft`, default) — deal batal karena alasan klien (budget internal
  * dipotong), bukan penolakan komersial internal Management, jadi tidak tepat ditandai `rejected`.
  */
-export const QUOTATIONS: Quotation[] = reactive([
+export const QUOTATIONS: Quotation[] = reactive<Quotation[]>([
   { id: 'QUO-001', leadId: 'LED-009', amountIdr: 95_000_000, createdAt: '2026-06-25', accepted: true, version: 1, approvalStatus: 'approved', approvedBy: 'USR-003' },
   { id: 'QUO-002', leadId: 'LED-013', amountIdr: 345_000_000, createdAt: '2026-06-20', accepted: true, version: 1, approvalStatus: 'approved', approvedBy: 'USR-003' },
   { id: 'QUO-003', leadId: 'LED-014', amountIdr: 1_400_000_000, createdAt: '2026-06-05', accepted: true, version: 1, approvalStatus: 'approved', approvedBy: 'USR-003' },

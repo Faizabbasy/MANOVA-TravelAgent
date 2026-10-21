@@ -8,7 +8,7 @@ import type { Document, Message, Notification, DocumentComment } from '~/types/d
  * preview yang SUDAH ADA di codebase (Section 05/09/13-16) — diverifikasi manual terhadap file route aktual,
  * bukan ditebak.
  */
-export const DOCUMENT_RECORDS: Document[] = reactive([
+export const DOCUMENT_RECORDS: Document[] = reactive<Document[]>([
   { id: 'DOC-C001', entityType: 'project', entityId: 'PRJ-101', projectId: 'PRJ-101', name: 'Kontrak Kerjasama PRJ-101.pdf', category: 'Contract', version: 1, uploadedAt: '2026-06-20', accessLevel: 'internal', sourceType: 'uploaded', uploadedBy: 'USR-002' },
   { id: 'DOC-C002', entityType: 'quotation', entityId: 'QUO-001', projectId: 'PRJ-101', name: 'Quotation QUO-001 (Preview)', category: 'Quotation', version: 1, generatedAt: '2026-06-25', accessLevel: 'client', sourceType: 'generated', previewRoute: '/crm/opportunities/OPP-001/quotation-preview' },
   { id: 'DOC-C003', entityType: 'flight', entityId: 'FLT-1011', projectId: 'PRJ-101', name: 'E-Ticket FLT-1011', category: 'Travel Document', version: 1, generatedAt: '2026-06-26', accessLevel: 'client', sourceType: 'generated', previewRoute: '/ticketing/FLT-1011/eticket-preview' },
@@ -43,7 +43,7 @@ export const DOCUMENT_RECORDS: Document[] = reactive([
  * termasuk `failed`, minimal satu `mentions`. `deliveryStatus`/`deliveryChannel` label mock murni (D-006) —
  * TIDAK ADA integrasi email/WhatsApp nyata.
  */
-export const MESSAGE_RECORDS: Message[] = reactive([
+export const MESSAGE_RECORDS: Message[] = reactive<Message[]>([
   { id: 'MSG-001', entityType: 'project', entityId: 'PRJ-101', projectId: 'PRJ-101', channel: 'internal-note', senderId: 'USR-002', body: 'Reminder: konfirmasi manifest final sebelum keberangkatan H-3.', mentions: ['USR-002'], sentAt: '2026-07-20', deliveryStatus: 'sent' },
   { id: 'MSG-002', entityType: 'project', entityId: 'PRJ-102', projectId: 'PRJ-102', channel: 'client-message', senderId: 'USR-002', body: 'Update: jadwal reschedule sudah dikonfirmasi ke 22–26 Sep 2026, revised itinerary terlampir.', sentAt: '2026-07-09', deliveryStatus: 'delivered', deliveryChannel: 'email' },
   { id: 'MSG-003', entityType: 'project', entityId: 'PRJ-102', projectId: 'PRJ-102', channel: 'client-message', senderId: 'USR-002', body: 'Menginformasikan upgrade kamar ke Suite, mohon konfirmasi approval tambahan biaya.', sentAt: '2026-07-12', deliveryStatus: 'failed', deliveryChannel: 'whatsapp' },
@@ -68,7 +68,7 @@ export const MESSAGE_RECORDS: Message[] = reactive([
  * `updateProjectTask`) — lihat `docs/mockup-change-impact-log.md` CI-051. Fixture ini adalah SEED historis
  * (dibuat sebelum hook berjalan), bukan hasil hook — konsisten pola seed section lain (mis. `ACTIVITIES`).
  */
-export const NOTIFICATION_RECORDS: Notification[] = reactive([
+export const NOTIFICATION_RECORDS: Notification[] = reactive<Notification[]>([
   { id: 'NOT-001', userId: 'USR-002', type: 'mention', title: 'Anda disebut dalam catatan project PRJ-101', body: 'Doni Saputra menyebut Anda: "Reminder: konfirmasi manifest final sebelum keberangkatan H-3."', entityType: 'project', entityId: 'PRJ-101', createdAt: '2026-07-20', read: false },
   { id: 'NOT-002', userId: 'USR-002', type: 'escalation', title: 'Incident INC-001 dieskalasi kepada Anda', body: 'Insiden armada mogok (TRN-1034) dieskalasi ke Anda oleh Rudi Hartono.', entityType: 'incident', entityId: 'INC-001', createdAt: '2026-07-19', read: true },
   { id: 'NOT-003', userId: 'USR-003', type: 'change', title: 'Change Request CR-004 menunggu review Anda', body: 'Change Request CR-004 (upgrade armada) diajukan oleh Hasan Alfarizi, menunggu review/approval.', entityType: 'change-request', entityId: 'CR-004', createdAt: '2026-07-18', read: false },
@@ -97,4 +97,4 @@ export const NOTIFICATION_RECORDS: Notification[] = reactive([
 ])
 
 /** `DOCUMENT_COMMENTS` (Repair Phase Section 5, Wajib "Comment") — kosong, diisi lewat `addDocumentComment`. */
-export const DOCUMENT_COMMENTS: DocumentComment[] = reactive([])
+export const DOCUMENT_COMMENTS: DocumentComment[] = reactive<DocumentComment[]>([])

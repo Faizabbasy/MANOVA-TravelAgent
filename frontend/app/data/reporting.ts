@@ -8,7 +8,7 @@ import type { SavedView } from '~/types/reporting'
  * default saat didemokan — field `filters` memakai key generik (`status`/`type`/`client`/`owner`/`period`)
  * yang dipetakan balik ke ref filter existing masing-masing halaman saat `applySavedView` dipanggil.
  */
-export const SAVED_VIEWS: SavedView[] = reactive([
+export const SAVED_VIEWS: SavedView[] = reactive<SavedView[]>([
   {
     id: 'SVW-001',
     userId: 'USR-010',

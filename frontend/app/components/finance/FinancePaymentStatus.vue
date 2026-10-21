@@ -18,7 +18,7 @@ const api = useApi()
 const session = useServerSession()
 const today = todayJakarta()
 
-const status = useFinanceQuery<PaymentStatusView>(async () => {
+const status = useFinanceQuery<Omit<PaymentStatusView, 'view'> & { view: 'status' | 'full' }>(async () => {
   const s = props.subject
   const res = s.type === 'project'
     ? await api.finance.projectSummary(s.id)

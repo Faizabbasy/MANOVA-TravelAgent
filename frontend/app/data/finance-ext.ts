@@ -50,7 +50,7 @@ export const OPEX_STATUSES: StatusOption<OpexEntry['status']>[] = [
   { value: 'rejected', label: 'Ditolak', tone: 'destructive', order: 5 }
 ]
 
-export const OPEX_ENTRIES: OpexEntry[] = reactive([
+export const OPEX_ENTRIES: OpexEntry[] = reactive<OpexEntry[]>([
   { id: 'OPX-001', period: '2026-07', category: 'payroll', description: 'Gaji karyawan Juli 2026', amountIdr: 385_000_000, incurredAt: '2026-07-25', status: 'paid', submittedBy: 'USR-003', approvedBy: 'USR-003', approvedAt: '2026-07-24', paidAt: '2026-07-25' },
   { id: 'OPX-002', period: '2026-07', category: 'office', description: 'Sewa kantor & utilitas Juli', amountIdr: 62_500_000, incurredAt: '2026-07-05', status: 'paid', vendorName: 'PT Graha Sentosa', submittedBy: 'USR-008', approvedBy: 'USR-003', approvedAt: '2026-07-04', paidAt: '2026-07-05' },
   { id: 'OPX-003', period: '2026-07', category: 'marketing', description: 'Iklan digital Instagram & TikTok', amountIdr: 48_000_000, incurredAt: '2026-07-15', status: 'approved', vendorName: 'Meta Platforms', submittedBy: 'USR-001', approvedBy: 'USR-003', approvedAt: '2026-07-16' },
@@ -179,7 +179,7 @@ export const PROJECT_EXPENSE_CATEGORIES: StatusOption<ProjectExpenseCategoryKey>
   { value: 'other', label: 'Lain-lain', tone: 'neutral', order: 6 }
 ]
 
-export const PROJECT_EXPENSES: ProjectExpense[] = reactive([
+export const PROJECT_EXPENSES: ProjectExpense[] = reactive<ProjectExpense[]>([
   { id: 'PEX-001', projectId: 'PRJ-101', category: 'transportation', description: 'Taksi bandara ke hotel untuk rombongan', amountIdr: 850_000, incurredAt: '2026-08-20', recordedBy: 'USR-002' },
   { id: 'PEX-002', projectId: 'PRJ-101', category: 'meals', description: 'Makan siang tim selama meeting client', amountIdr: 1_450_000, incurredAt: '2026-08-21', recordedBy: 'USR-002' },
   { id: 'PEX-003', projectId: 'PRJ-103', category: 'supplies', description: 'Perlengkapan tambahan booth MICE (banner, ATK)', amountIdr: 3_200_000, incurredAt: '2026-08-10', recordedBy: 'USR-002' },

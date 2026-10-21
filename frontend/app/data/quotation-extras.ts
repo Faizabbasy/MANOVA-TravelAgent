@@ -7,5 +7,5 @@ import type { QuotationAttachment, QuotationComment } from '~/types/quotation'
  * yang butuh contoh attachment/comment sejak awal; keduanya terisi natural begitu Client berinteraksi
  * lewat `/client/quotations/[id]` (upload mock/komentar) atau lewat mock review Travel Request.
  */
-export const QUOTATION_ATTACHMENTS: QuotationAttachment[] = reactive([])
-export const QUOTATION_COMMENTS: QuotationComment[] = reactive([])
+export const QUOTATION_ATTACHMENTS: QuotationAttachment[] = reactive<QuotationAttachment[]>([])
+export const QUOTATION_COMMENTS: QuotationComment[] = reactive<QuotationComment[]>([])

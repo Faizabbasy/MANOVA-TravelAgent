@@ -41,9 +41,13 @@ export const CERTAINTY: Record<CashFlowCertainty, { label: string; hint: string;
 }
 
 export const SOURCE_LABEL: Record<CashFlowSource, string> = {
+  company_expense: 'Biaya kantor rutin/accrual',
   customer_invoice: 'Tagihan customer',
   vendor_invoice: 'Invoice vendor',
-  refund: 'Refund ke customer'
+  refund: 'Refund ke customer',
+  payroll: 'Gaji disetujui',
+  staff_reimbursement: 'Reimbursement staf',
+  commitment: 'Komitmen supplier (SO belum ditagih)'
 }
 
 export const EXCLUDED: Record<CashFlowExcludedCode, { title: string; detail: string; to: string }> = {
@@ -54,7 +58,9 @@ export const EXCLUDED: Record<CashFlowExcludedCode, { title: string; detail: str
   customer_advances: { title: 'Sisa uang muka customer', detail: 'Sudah ada di saldo, tapi customer-nya tidak punya tagihan terbuka untuk dikurangi.', to: '/finance/receivables' },
   vendor_deposits: { title: 'Deposit vendor belum dialokasikan', detail: 'Sudah keluar dari saldo. Tidak dikurangkan dari utang vendor agar perkiraan tetap hati-hati.', to: '/finance/payables' },
   incoming_after_horizon: { title: 'Tagihan setelah periode ini', detail: 'Jatuh tempo atau perkiraan bayarnya di luar rentang yang dipilih.', to: '/finance/receivables' },
-  outgoing_after_horizon: { title: 'Utang setelah periode ini', detail: 'Jatuh tempo atau rencana bayarnya di luar rentang yang dipilih.', to: '/finance/payables' }
+  outgoing_after_horizon: { title: 'Utang setelah periode ini', detail: 'Jatuh tempo atau rencana bayarnya di luar rentang yang dipilih.', to: '/finance/payables' },
+  loan_principal: { title: 'Sisa pokok pinjaman', detail: 'Jadwal cicilan belum tercatat sebagai tanggal; tidak ditebak ke minggu tertentu.', to: '/finance/funding' },
+  supplier_claims: { title: 'Klaim ke supplier belum diterima', detail: 'Waktu pengembalian belum pasti; tidak dihitung sebagai uang masuk.', to: '/finance/payables' }
 }
 
 /** Where a drill-down row leads: the sheet of that invoice or refund case. */

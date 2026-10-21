@@ -105,7 +105,7 @@ export const INVOICES_WITH_BALANCE = `
          coalesce((select sum(c.amount_minor) from credit_notes c where c.customer_invoice_id = i.id and c.status = 'issued' and c.effect = 'reduce_receivable' and c.refund_id is not null), 0) as cancel_writeoff_minor,
          (b.total_minor - b.paid_minor - b.credited_minor) as outstanding_minor
     from customer_invoices i
-    join projects p on p.id = i.project_id
+    left join projects p on p.id = i.project_id
     join parties pa on pa.id = i.party_id
     join v_customer_invoice_balances b on b.invoice_id = i.id`
 

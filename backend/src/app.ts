@@ -30,7 +30,12 @@ import { isFinancePath, mayReachFinanceRoute } from './modules/finance/access'
 import { financeRoutes } from './modules/finance/routes'
 import { arApRoutes } from './modules/finance/routes-ar-ap'
 import { refundRoutes } from './modules/finance/routes-refunds'
+import { fulfillmentRoutes } from './modules/finance/routes-fulfillment'
+import { staffFundRoutes } from './modules/finance/routes-staff-funds'
+import { fundingRoutes } from './modules/finance/routes-funding'
+import { bankRoutes } from './modules/finance/routes-bank'
 import { healthRoutes } from './modules/health/routes'
+import { accountingRoutes } from './modules/accounting/routes'
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
 const ALLOWED_HEADERS = 'content-type, idempotency-key, if-match, x-request-id'
@@ -155,13 +160,23 @@ export function createApp(deps: AppDeps) {
     })
     // Finance: who may reach the route is decided before the body is validated, so a caller without access
     // gets 401/403, never a 400 describing the fields. Handlers still check the exact capability.
-    .onTransform({ as: 'global' }, async ({ request }) => {
+    .onTransform({ as: 'global' }, async ({ request, set }) => {
       const pathname = new URL(request.url).pathname
+      if (pathname === '/api/v1/accounting' || pathname.startsWith('/api/v1/accounting/')) {
+        set.headers['cache-control'] = 'no-store'
+        await auth.requireCapability(request, 'accounting.view-business-finance')
+        if (request.method !== 'GET') {
+          if (pathname.endsWith('/lock-rehearsal') || pathname.endsWith('/close')) await auth.requireCapability(request, 'accounting.close-period')
+          else if (pathname.endsWith('/reopen-rehearsal')) await auth.requireCapability(request, 'accounting.reopen-period')
+          else await auth.requireCapability(request, 'accounting.manage-setup')
+        }
+      }
       if (!isFinancePath(pathname)) return
       const actor = await auth.requireActor(request)
       if (!mayReachFinanceRoute(actor.role, request.method, pathname)) throw errors.forbidden()
     })
     .use(healthRoutes(deps))
+    .use(accountingRoutes(deps, auth))
     .use(authRoutes(deps, auth))
     .use(coreRoutes(deps, auth))
     .use(salesRoutes(deps, auth))
@@ -188,6 +203,10 @@ export function createApp(deps: AppDeps) {
     .use(financeRoutes(deps, auth))
     .use(arApRoutes(deps, auth))
     .use(refundRoutes(deps, auth))
+    .use(fulfillmentRoutes(deps, auth))
+    .use(staffFundRoutes(deps, auth))
+    .use(fundingRoutes(deps, auth))
+    .use(bankRoutes(deps, auth))
 }
 
 export type App = ReturnType<typeof createApp>

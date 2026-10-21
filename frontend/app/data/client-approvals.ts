@@ -12,7 +12,7 @@ import type { Approval } from '~/types/client-approval'
  * `requestedBy: 'USR-002'` — Project Manager pemilik PRJ-204 (`app/data/projects.ts`), pihak yang meminta
  * keputusan Client atas dampak perubahan ini.
  */
-export const CLIENT_APPROVALS: Approval[] = reactive([
+export const CLIENT_APPROVALS: Approval[] = reactive<Approval[]>([
   {
     id: 'CAPP-001',
     projectId: 'PRJ-204',

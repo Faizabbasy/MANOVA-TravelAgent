@@ -14,7 +14,8 @@ export interface TransportRequest {
   method: HttpMethod
   url: string
   headers: Record<string, string>
-  body?: string
+  body?: string | FormData
+  responseType?: 'blob'
   signal?: AbortSignal
 }
 
@@ -29,6 +30,7 @@ export interface TransportResponse {
 export type Transport = (request: TransportRequest) => Promise<TransportResponse>
 
 export interface RequestOptions {
+  responseType?: 'blob'
   query?: Record<string, QueryValue>
   body?: unknown
   /** Sent as `Idempotency-Key` so a retried financial command is applied once. */
@@ -65,8 +67,10 @@ export function newIdempotencyKey (): string {
 export function createApiClient (options: ApiClientOptions) {
   async function request<T> (method: HttpMethod, path: string, opts: RequestOptions = {}): Promise<T> {
     const headers: Record<string, string> = { accept: 'application/json', ...options.headers?.() }
-    let body: string | undefined
-    if (opts.body !== undefined) {
+    let body: string | FormData | undefined
+    if (typeof FormData !== 'undefined' && opts.body instanceof FormData) {
+      body = opts.body // The browser supplies the multipart boundary; never serialise File into JSON.
+    } else if (opts.body !== undefined) {
       headers['content-type'] = 'application/json'
       body = JSON.stringify(opts.body)
     }
@@ -75,7 +79,7 @@ export function createApiClient (options: ApiClientOptions) {
 
     let response: TransportResponse
     try {
-      response = await options.transport({ method, url: buildUrl(options.baseURL, path, opts.query), headers, body, signal: opts.signal })
+      response = await options.transport({ method, url: buildUrl(options.baseURL, path, opts.query), headers, body, signal: opts.signal, ...(opts.responseType ? { responseType: opts.responseType } : {}) })
     } catch (cause) {
       if ((cause as { name?: string })?.name === 'AbortError') { throw cause }
       throw networkError(cause)
@@ -84,6 +88,10 @@ export function createApiClient (options: ApiClientOptions) {
     const requestId = response.headers.get('x-request-id')
     if (response.status < 200 || response.status >= 300) {
       throw toApiError(response.status, response.body, requestId)
+    }
+    if (opts.responseType === 'blob') {
+      if (!(response.body instanceof Blob)) { throw toApiError(response.status, null, requestId) }
+      return response.body as T
     }
     const payload = response.body as { data?: unknown } | null
     if (!payload || typeof payload !== 'object' || !('data' in payload)) {
@@ -94,6 +102,7 @@ export function createApiClient (options: ApiClientOptions) {
 
   return {
     request,
+    download: (path: string, opts?: RequestOptions) => request<Blob>('GET', path, { ...opts, responseType: 'blob' }),
     get: <T>(path: string, opts?: Omit<RequestOptions, 'body'>) => request<ApiSuccess<T>>('GET', path, opts),
     getList: <T>(path: string, opts?: Omit<RequestOptions, 'body'>) => request<ApiList<T>>('GET', path, opts),
     post: <T>(path: string, body?: unknown, opts?: RequestOptions) => request<ApiSuccess<T>>('POST', path, { ...opts, body }),
@@ -107,8 +116,9 @@ export type ApiClient = ReturnType<typeof createApiClient>
 
 /** Transport over the Fetch API (browser, Node ≥18, tests). Sends cookies for the session. */
 export function fetchTransport (fetchImpl: typeof fetch = globalThis.fetch): Transport {
-  return async ({ method, url, headers, body, signal }) => {
+  return async ({ method, url, headers, body, signal, responseType }) => {
     const res = await fetchImpl(url, { method, headers, body, signal, credentials: 'include' })
+    if (responseType === 'blob' && res.ok) { return { status: res.status, headers: res.headers, body: await res.blob() } }
     const text = await res.text()
     let parsed: unknown = text || null
     if (text && (res.headers.get('content-type') ?? '').includes('json')) {

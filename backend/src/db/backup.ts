@@ -43,7 +43,10 @@ async function run(cmd: string[], env: Record<string, string> = {}): Promise<voi
 
 export async function isDatabaseEmpty(db: Db): Promise<boolean> {
   const [row] = await db.query<{ n: number }>(
-    `select count(*)::int as n from information_schema.tables where table_schema = current_schema()`
+    `select ((select count(*) from pg_catalog.pg_class c join pg_catalog.pg_namespace n on n.oid=c.relnamespace
+       where n.nspname not in ('pg_catalog','information_schema') and n.nspname not like 'pg_toast%' and n.nspname not like 'pg_temp_%')
+      + (select count(*) from pg_catalog.pg_proc p join pg_catalog.pg_namespace n on n.oid=p.pronamespace
+       where n.nspname not in ('pg_catalog','information_schema') and n.nspname not like 'pg_toast%' and n.nspname not like 'pg_temp_%'))::int as n`
   )
   return (row?.n ?? 0) === 0
 }

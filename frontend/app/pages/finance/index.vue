@@ -336,7 +336,7 @@ function isNeutral (m: MovementDto) { return m.isInternalTransfer || !!m.reversa
                 +{{ formatMoneyMinor(projection.totals.incomingMinor) }} masuk · −{{ formatMoneyMinor(projection.totals.outgoingMinor) }} keluar
               </p>
             </template>
-            <p v-else-if="forecast.data.value && !forecast.data.value.available" class="mt-1 text-sm text-muted-foreground">
+            <p v-else-if="forecast.data.value?.available === false" class="mt-1 text-sm text-muted-foreground">
               Perkiraan belum tersedia — {{ forecast.data.value.reason === 'NO_ACCOUNTS' ? 'belum ada rekening' : 'saldo awal rekening belum lengkap' }}.
             </p>
             <p v-else-if="forecast.error.value" class="mt-1 text-sm text-muted-foreground">

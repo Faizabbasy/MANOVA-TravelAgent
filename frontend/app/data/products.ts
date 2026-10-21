@@ -20,7 +20,7 @@ import type { ProductTemplate, CostSheet } from '~/types/product'
  * dengan `Quotation.amountIdr` historis — nilai quotation final adalah hasil negosiasi AE, sementara Cost
  * Sheet adalah usulan Planner; variance kecil merefleksikan alur bisnis nyata, bukan bug data.
  */
-export const PRODUCT_TEMPLATES: ProductTemplate[] = reactive([
+export const PRODUCT_TEMPLATES: ProductTemplate[] = reactive<ProductTemplate[]>([
   {
     id: 'PRD-001',
     name: 'Manila Business Trip — Flight Only Package',
@@ -86,7 +86,7 @@ export const PRODUCT_TEMPLATES: ProductTemplate[] = reactive([
   }
 ])
 
-export const COST_SHEETS: CostSheet[] = reactive([
+export const COST_SHEETS: CostSheet[] = reactive<CostSheet[]>([
   {
     id: 'CS-001',
     name: 'Manila Business Trip Q3 2026 — Cost Sheet',

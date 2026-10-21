@@ -1,5 +1,6 @@
 import type { Actor } from '../../auth/rbac'
 import type { Db, Queryable } from '../../db/client'
+import { getBook } from '../accounting/setup'
 import { ID_PATTERN } from '../../http/envelope'
 import { errors } from '../../http/errors'
 import { parseMovementAmount, rule } from './common'
@@ -35,9 +36,10 @@ export function minimumDp (price: bigint): bigint {
 export interface ConfirmDpInput { bankAccountId: string; dpAmountMinor: string; effectiveDate: string; dueDate: string }
 
 export async function confirmGroupTripDp (tx: Queryable, actor: Actor, id: string, input: ConfirmDpInput, requestId: string) {
+  await getBook(tx, true)
   const so = await readSalesOrder(tx, id, true)
-  // S6b: a participant DP needs a Group Trip booking that is still open.
-  if (!so.project_id) throw rule('Sales order ini bukan booking Group Trip — DP peserta hanya untuk Group Trip.')
+  // S6b: a participant DP of a Group Trip booking; F4: the same DP/payment confirmation for a B2C standalone order
+  // (billed on the order itself, no project).
   if (so.status === 'cancelled') throw rule('Sales order ini sudah dibatalkan.')
   const price = BigInt(so.price_minor)
   const dp = parseMovementAmount(input.dpAmountMinor, 'dpAmountMinor')
@@ -52,7 +54,7 @@ export async function confirmGroupTripDp (tx: Queryable, actor: Actor, id: strin
     salesOrderId: so.id,
     invoiceType: 'dp',
     dueDate: input.dueDate,
-    lines: [{ description: `Booking Group Trip ${so.id}`, amountMinor: price.toString() }]
+    lines: [{ description: so.project_id ? `Booking Group Trip ${so.id}` : `Order ${so.id}`, amountMinor: price.toString() }]
   }, requestId)
   const issued = await issueInvoice(tx, actor, draft.id, { issueDate: effectiveDate, dueDate: input.dueDate }, requestId)
   const receipt = await postReceipt(tx, actor, {
@@ -60,7 +62,7 @@ export async function confirmGroupTripDp (tx: Queryable, actor: Actor, id: strin
     amountMinor: dp.toString(),
     effectiveDate,
     partyId: so.party_id,
-    projectId: so.project_id,
+    ...(so.project_id ? { projectId: so.project_id } : {}),
     reference: so.id,
     allocations: [{ invoiceId: draft.id, amountMinor: dp.toString() }]
   }, requestId)
@@ -68,8 +70,8 @@ export async function confirmGroupTripDp (tx: Queryable, actor: Actor, id: strin
   if (so.status === 'draft') {
     await tx.query("update sales_order_refs set status = 'paid', paid_on = $2::date, status_changed_at = now(), updated_at = now() where id = $1", [so.id, effectiveDate])
   }
-  // S7a: the booking's pax become travelers of the trip (once per order).
-  await createTravelersForOrder(tx, so.id)
+  // S7a: the booking's pax become travelers of the trip (once per order). A standalone order has no trip roster.
+  if (so.project_id) await createTravelersForOrder(tx, so.id)
   return {
     invoiceId: draft.id,
     invoiceNumber: issued.number,

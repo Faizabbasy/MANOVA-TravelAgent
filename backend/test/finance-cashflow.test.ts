@@ -164,7 +164,12 @@ async function approvedVendorInvoice(amount: string, dueDate: string, projectId?
 beforeAll(async () => {
   t = await makeTestApp()
   for (const [k, email] of Object.entries({ finance: DEMO.finance, superAdmin: DEMO.superAdmin, admin: DEMO.admin })) who[k] = await t.login(email)
+  // This file checks the AR/AP/refund mechanics on a clean slate; demo supplier commitments and the demo approved payroll
+  // (owner accounting F8 sources) are covered by 'other obligations' below.
+  demoCommitments = (await t.db.query<{ id: string }>("update service_orders set status = 'draft' where status in ('sent', 'acknowledged', 'amended', 'fulfilled') returning id")).map(r => r.id)
+  await t.db.query("update payroll_runs set status = 'draft', approved_by = null, approved_on = null where status = 'approved' and provenance = 'demo-fixture'")
 })
+let demoCommitments: string[] = []
 afterAll(() => t.cleanup())
 
 describe('access and validation', () => {
@@ -437,6 +442,40 @@ describe('company projection, step by step', () => {
     expect(f.periodStart).toBe(addDays(TODAY, 1))
     expect(f.rows.length === 3 || f.rows.length === 4).toBe(true)
     expect(f.rows.filter((r: Flow) => r.kind === 'month')).toHaveLength(3)
+  })
+})
+
+describe('other obligations (owner accounting F8)', () => {
+  test('a supplier commitment counts once: the approved part moves to payables, the remainder stays a commitment', async () => {
+    const [so] = await t.db.query<{ id: string; project_id: string; vendor_id: string; net_cost_minor: string }>(
+      "update service_orders set status = 'acknowledged' where id = $1 returning id, project_id, vendor_id, net_cost_minor", [demoCommitments[0]])
+    const before = await flow(`horizon=12m&projectId=${so!.project_id}`)
+    const commitment = itemOf(before, so!.id)
+    expect(commitment).toMatchObject({ source: 'commitment', direction: 'out', amountMinor: so!.net_cost_minor })
+    const part = (BigInt(so!.net_cost_minor) / 2n).toString()
+    const inv = await post('finance', '/finance/vendor-invoices', { vendorId: so!.vendor_id, vendorInvoiceNumber: `CF-SO-${++vendorSeq}`, serviceOrderId: so!.id, projectId: so!.project_id, invoiceDate: TODAY, dueDate: addDays(TODAY, 20), totalMinor: part })
+    expect(inv.status, inv.text).toBe(201)
+    const inReview = await flow(`horizon=12m&projectId=${so!.project_id}`)
+    expect(itemOf(inReview, so!.id).amountMinor).toBe(so!.net_cost_minor)
+    expect(BigInt(inReview.totals.outgoingMinor)).toBe(BigInt(before.totals.outgoingMinor))
+    expect((await post('finance', `/finance/vendor-invoices/${inv.json.data.id}/review`, { action: 'approve', matchStatus: 'matched' })).status).toBe(200)
+    const after = await flow(`horizon=12m&projectId=${so!.project_id}`)
+    expect(itemOf(after, so!.id).amountMinor).toBe((BigInt(so!.net_cost_minor) - BigInt(part)).toString())
+    expect(itemOf(after, inv.json.data.id).amountMinor).toBe(part)
+    expect(BigInt(after.totals.outgoingMinor)).toBe(BigInt(before.totals.outgoingMinor))
+  })
+  test('approved payroll and reimbursements owed to staff are company outgoings; loans and supplier claims are shown, not placed', async () => {
+    const [run] = await t.db.query<{ id: string }>("select id from payroll_runs where provenance = 'demo-fixture' and status = 'draft' limit 1")
+    expect((await post('finance', `/payroll-runs/${run!.id}/approve`, {})).status).toBe(200)
+    const [employee] = await t.db.query<{ id: string }>("select id from employees where status = 'active' order by id limit 1")
+    expect((await money('finance', '/finance/expense-claims', { employeeId: employee!.id, category: 'office', amountMinor: jt(1), spentOn: TODAY, evidenceRef: 'CF-NOTA-1', description: 'Talangan alat tulis' })).status).toBe(201)
+    await money('finance', '/finance/loans', { lender: 'Bank Uji', principalMinor: jt(50), receivedOn: TODAY, terms: 'Tenor 12 bulan, bunga tetap', bankAccountId: bank })
+    const f = await flow('horizon=3m')
+    const payroll = f.items.find((x: Flow) => x.source === 'payroll' && x.id === run!.id)
+    const [net] = await t.db.query<{ n: string }>('select sum(greatest(base_salary_minor + allowance_minor - deduction_minor, 0)) as n from payroll_lines where payroll_run_id = $1', [run!.id])
+    expect(payroll.amountMinor).toBe(net!.n)
+    expect(f.items.find((x: Flow) => x.source === 'staff_reimbursement' && x.id === employee!.id).amountMinor).toBe(jt(1))
+    expect(f.excluded.find((x: Flow) => x.code === 'loan_principal')).toMatchObject({ direction: 'out', amountMinor: jt(50) })
   })
 })
 

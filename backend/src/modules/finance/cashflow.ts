@@ -29,7 +29,8 @@ export type Horizon = (typeof HORIZONS)[number]
 const MONTHS: Record<Exclude<Horizon, '30d'>, number> = { '3m': 3, '6m': 6, '12m': 12 }
 
 export type Certainty = 'confirmed' | 'expected' | 'overdue'
-export type SourceType = 'customer_invoice' | 'vendor_invoice' | 'refund'
+/** Owner accounting F8 adds approved payroll, reimbursements owed to staff and supplier commitments not yet invoiced. */
+export type SourceType = 'customer_invoice' | 'vendor_invoice' | 'refund' | 'payroll' | 'staff_reimbursement' | 'commitment' | 'company_expense'
 
 export interface Period { startDate: string; endDate: string; kind: 'week' | 'rest_of_month' | 'month' }
 
@@ -227,7 +228,7 @@ async function openObligations(q: Queryable, projectId: string | null): Promise<
        from customer_invoices i
        join v_customer_invoice_balances b on b.invoice_id = i.id
        join parties pa on pa.id = i.party_id
-       join projects p on p.id = i.project_id
+       left join projects p on p.id = i.project_id
       where i.status = 'issued' and b.total_minor - b.paid_minor - b.credited_minor > 0${scope('i.project_id')}`,
     params
   )
@@ -251,11 +252,40 @@ async function openObligations(q: Queryable, projectId: string | null): Promise<
        from refunds r
        join v_refund_balances b on b.refund_id = r.id
        join parties pa on pa.id = r.party_id
-       join projects p on p.id = r.project_id
+       left join projects p on p.id = r.project_id
       where r.status = 'approved' and b.refundable_minor - b.settled_minor > 0${scope('r.project_id')}`,
     params
   )
-  return [...receivables, ...payables, ...refunds]
+  // Supplier commitments: active service orders minus what suppliers already billed and was approved (that part is a payable
+  // above). An invoice in review stays inside the commitment, so the same money is never counted twice.
+  const commitments = await q.query<SourceRow>(
+    `select 'commitment' as source, so.id, so.id as reference, ve.name as counterparty, null as party_id, so.project_id, p.name as project_name,
+            null as booking_type, null as booking_id, null as due_date, p.travel_start_date as expected_date, false as disputed,
+            (so.net_cost_minor - coalesce((select sum(v.total_minor) from vendor_invoices v where v.service_order_id = so.id and v.status = 'approved'), 0)) as outstanding_minor
+       from service_orders so join vendors ve on ve.id = so.vendor_id join projects p on p.id = so.project_id
+      where so.status in ('sent', 'acknowledged', 'amended', 'fulfilled') and so.net_cost_minor is not null and p.status not in ('cancelled')
+        and so.net_cost_minor > coalesce((select sum(v.total_minor) from vendor_invoices v where v.service_order_id = so.id and v.status = 'approved'), 0)${scope('so.project_id')}`,
+    params
+  )
+  if (projectId) return [...receivables, ...payables, ...refunds, ...commitments]
+  // Company-level obligations (no project): approved payroll not yet paid, and reimbursements owed to staff.
+  const payroll = await q.query<SourceRow>(
+    `select 'payroll' as source, r.id, r.id as reference, 'Gaji ' || r.period as counterparty, null as party_id, null as project_id, null as project_name,
+            null as booking_type, null as booking_id, (date_trunc('month', (r.period || '-01')::date) + interval '1 month - 1 day')::date::text as due_date,
+            null as expected_date, false as disputed,
+            (select coalesce(sum(greatest(l.base_salary_minor + l.allowance_minor - l.deduction_minor, 0)), 0) from payroll_lines l where l.payroll_run_id = r.id) as outstanding_minor
+       from payroll_runs r where r.status = 'approved'`
+  )
+  const reimbursements = await q.query<SourceRow>(
+    `select 'staff_reimbursement' as source, e.id, e.id as reference, e.name as counterparty, null as party_id, null as project_id, null as project_name,
+            null as booking_type, null as booking_id, null as due_date, null as expected_date, false as disputed, (-b.net_minor) as outstanding_minor
+       from v_employee_fund_balances b join employees e on e.id = b.employee_id where b.net_minor < 0`
+  )
+  const office = await q.query<SourceRow>(`select 'company_expense' as source,f.id,f.description as reference,v.name as counterparty,
+    null::text as party_id,null::text as project_id,null::text as project_name,null::text as booking_type,null::text as booking_id,
+    f.due_date::text as due_date,null::text as expected_date,false as disputed,f.planned as office_planned,f.amount_minor as outstanding_minor
+    from v_company_expense_forecast f join vendors v on v.id=f.vendor_id`)
+  return [...receivables, ...payables, ...refunds, ...commitments, ...payroll.filter(p => BigInt(p.outstanding_minor) > 0n), ...reimbursements, ...office]
 }
 
 /** Unallocated customer receipts per customer (reversed receipts are not in the view). */
@@ -277,7 +307,7 @@ async function advancePools(q: Queryable, projectId: string | null): Promise<{ p
 }
 
 type ExcludedCode = 'draft_invoices' | 'planned_billing' | 'vendor_invoices_in_review' | 'refunds_awaiting_decision'
-  | 'customer_advances' | 'vendor_deposits' | 'incoming_after_horizon' | 'outgoing_after_horizon'
+  | 'customer_advances' | 'vendor_deposits' | 'incoming_after_horizon' | 'outgoing_after_horizon' | 'loan_principal' | 'supplier_claims'
 
 interface Excluded {
   code: ExcludedCode
@@ -304,7 +334,12 @@ async function excludedFigures(q: Queryable, projectId: string | null): Promise<
        (select coalesce(sum(refundable_minor), 0) from refunds where status = 'requested'${scope('project_id')}) as refund_sum,
        (select count(*) from refunds where status = 'requested' and calculation = 'manual' and refundable_minor = 0${scope('project_id')}) as refund_open_n,
        (select count(*) from v_unallocated_payments where kind = 'vendor_payment' and unallocated_minor > 0${scope('project_id')}) as dep_n,
-       (select coalesce(sum(unallocated_minor), 0) from v_unallocated_payments where kind = 'vendor_payment' and unallocated_minor > 0${scope('project_id')}) as dep_sum`,
+       (select coalesce(sum(unallocated_minor), 0) from v_unallocated_payments where kind = 'vendor_payment' and unallocated_minor > 0${scope('project_id')}) as dep_sum,
+       (select count(*) from supplier_claims c join v_supplier_claim_balances b on b.claim_id = c.id where c.status = 'recorded' and b.amount_minor > b.settled_minor${scope('c.project_id')}) as claim_n,
+       (select coalesce(sum(b.amount_minor - b.settled_minor), 0) from supplier_claims c join v_supplier_claim_balances b on b.claim_id = c.id where c.status = 'recorded' and b.amount_minor > b.settled_minor${scope('c.project_id')}) as claim_sum,
+       ${projectId ? '0' : `(select count(*) from loans where status = 'open')`} as loan_n,
+       ${projectId ? '0' : `(select coalesce(sum(l.principal_minor - coalesce((select sum(p.principal_minor) from loan_repayments p join financial_transactions t on t.id = p.transaction_id
+         where p.loan_id = l.id and not exists (select 1 from financial_transactions x where x.reversal_of_id = t.id)), 0)), 0) from loans l where l.status = 'open')`} as loan_sum`,
     params
   )
   const r = row!
@@ -313,7 +348,10 @@ async function excludedFigures(q: Queryable, projectId: string | null): Promise<
     { code: 'planned_billing', direction: 'in', count: Number(r.plan_n), amountMinor: r.plan_sum! },
     { code: 'vendor_invoices_in_review', direction: 'out', count: Number(r.review_n), amountMinor: r.review_sum! },
     { code: 'refunds_awaiting_decision', direction: 'out', count: Number(r.refund_n), amountMinor: r.refund_sum!, undeterminedCount: Number(r.refund_open_n) },
-    { code: 'vendor_deposits', direction: null, count: Number(r.dep_n), amountMinor: r.dep_sum! }
+    { code: 'vendor_deposits', direction: null, count: Number(r.dep_n), amountMinor: r.dep_sum! },
+    // Timing not recorded as structured dates yet: shown, never guessed into a week.
+    { code: 'supplier_claims', direction: 'in', count: Number(r.claim_n), amountMinor: r.claim_sum! },
+    { code: 'loan_principal', direction: 'out', count: Number(r.loan_n), amountMinor: r.loan_sum! }
   ]
   return all.filter(e => e.count > 0)
 }
@@ -404,12 +442,12 @@ export async function cashFlow(db: Db, query: CashFlowQuery, now: Date = new Dat
     const sources = await openObligations(q, projectScope)
     const placed = sources.map((s) => {
       const planned = s.expected_date ?? s.due_date ?? periodStart
-      const certainty: Certainty = s.due_date !== null && s.due_date < asOf ? 'overdue' : s.expected_date !== null ? 'expected' : 'confirmed'
+      const certainty: Certainty = s.source==='company_expense' && s.office_planned ? 'expected' : s.due_date !== null && s.due_date < asOf ? 'overdue' : s.expected_date !== null ? 'expected' : 'confirmed'
       const forecastDate = planned <= asOf ? periodStart : planned
       const outstanding = BigInt(s.outstanding_minor)
       return {
         s, certainty, forecastDate, outstanding, amount: outstanding, advance: 0n,
-        movedToFirstPeriod: planned <= asOf || s.source === 'refund',
+        movedToFirstPeriod: planned <= asOf || s.source === 'refund' || s.source === 'staff_reimbursement',
         party: s.source === 'customer_invoice' ? s.party_id : null,
         order: `${forecastDate}|${s.id.length.toString().padStart(3, '0')}|${s.id}`
       }

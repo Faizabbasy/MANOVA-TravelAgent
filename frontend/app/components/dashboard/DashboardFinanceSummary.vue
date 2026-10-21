@@ -72,7 +72,7 @@ const gap = computed(() => (props.data?.forecast.available ? props.data.forecast
               Belum tersedia
             </p>
             <p class="mt-1 text-xs text-muted-foreground">
-              {{ data.forecast.reason === 'NO_ACCOUNTS' ? 'Belum ada rekening' : 'Menunggu verifikasi saldo awal' }}
+              {{ data.forecast.available === false && data.forecast.reason === 'NO_ACCOUNTS' ? 'Belum ada rekening' : 'Menunggu verifikasi saldo awal' }}
             </p>
           </template>
         </template>

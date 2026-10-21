@@ -1,5 +1,10 @@
 import type { Actor } from '../../auth/rbac'
 import type { Db, Queryable } from '../../db/client'
+import { postCashSource } from '../accounting/cash-source'
+import { postAllocationSource, postInvoiceSource } from '../accounting/invoice-source'
+import { getBook } from '../accounting/setup'
+import { standaloneSupplierOrder } from './order-scope'
+import { voidSupplierMatchesForSource } from './supplier-matching'
 import { ID_PATTERN } from '../../http/envelope'
 import { AppError, errors } from '../../http/errors'
 import { recordAudit } from '../../shared/audit'
@@ -24,6 +29,7 @@ export interface VendorInvoiceInput {
   vendorInvoiceNumber: string
   serviceOrderId?: string
   projectId?: string
+  salesOrderId?: string
   booking?: { type: string; id: string }
   invoiceDate: string
   dueDate: string
@@ -32,7 +38,7 @@ export interface VendorInvoiceInput {
   notes?: string
 }
 
-async function resolveVendorLinks(tx: Queryable, input: Pick<VendorInvoiceInput, 'vendorId' | 'serviceOrderId' | 'projectId' | 'booking'>) {
+async function resolveVendorLinks(tx: Queryable, input: Pick<VendorInvoiceInput, 'vendorId' | 'serviceOrderId' | 'projectId' | 'salesOrderId' | 'booking'>) {
   if (!input.vendorId || !ID_PATTERN.test(input.vendorId) || !(await tx.query('select 1 from vendors where id = $1', [input.vendorId])).length) {
     throw errors.validation({ vendorId: ['Vendor tidak ditemukan.'] })
   }
@@ -45,6 +51,8 @@ async function resolveVendorLinks(tx: Queryable, input: Pick<VendorInvoiceInput,
     if (projectId && so.project_id && projectId !== so.project_id) throw errors.validation({ projectId: [`Service order ini untuk project ${so.project_id}.`] })
     projectId = projectId ?? so.project_id ?? undefined
   }
+  const salesOrderId=await standaloneSupplierOrder(tx,input.salesOrderId,projectId)
+  if (salesOrderId && (input.booking || input.serviceOrderId)) throw errors.validation({salesOrderId:['Order mandiri tidak memakai booking/service order project.']})
   const refs = await resolveReferences(tx, { projectId, booking: input.booking })
   if (refs.bookingId) {
     const [b] = await tx.query<{ vendor_id: string | null }>(
@@ -53,7 +61,7 @@ async function resolveVendorLinks(tx: Queryable, input: Pick<VendorInvoiceInput,
     )
     if (b?.vendor_id && b.vendor_id !== input.vendorId) throw errors.validation({ booking: ['Booking ini dilayani vendor lain.'] })
   }
-  return refs
+  return {...refs,salesOrderId}
 }
 
 export async function createVendorInvoice(tx: Queryable, actor: Actor, input: VendorInvoiceInput, requestId: string) {
@@ -68,10 +76,10 @@ export async function createVendorInvoice(tx: Queryable, actor: Actor, input: Ve
   try {
     const [row] = await tx.query<{ id: string }>(
       `insert into vendor_invoices (vendor_id, vendor_invoice_number, service_order_id, project_id, booking_type, booking_id,
-         invoice_date, due_date, expected_date, total_minor, notes, created_by)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) returning id`,
+         invoice_date, due_date, expected_date, total_minor, notes, created_by,sales_order_id)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,$13) returning id`,
       [input.vendorId, number.slice(0, 80), input.serviceOrderId ?? null, refs.projectId, refs.bookingType, refs.bookingId,
-        invoiceDate, dueDate, expectedDate, total.toString(), trimOrNull(input.notes, 1000), actor.userId]
+        invoiceDate, dueDate, expectedDate, total.toString(), trimOrNull(input.notes, 1000), actor.userId,refs.salesOrderId]
     )
     await recordAudit(tx, {
       action: 'finance.vendor_invoice_recorded', actorUserId: actor.userId, entityType: 'vendor_invoice', entityId: row!.id, requestId,
@@ -100,7 +108,7 @@ export async function updateVendorInvoice(tx: Queryable, actor: Actor, id: strin
   const invoiceDate = input.invoiceDate === undefined ? inv.invoice_date : requireDate(input.invoiceDate, 'invoiceDate', { notFuture: true })
   const dueDate = input.dueDate === undefined ? inv.due_date : requireDate(input.dueDate, 'dueDate')
   if (dueDate < invoiceDate) throw errors.validation({ dueDate: ['Jatuh tempo tidak boleh sebelum tanggal invoice.'] })
-  if (input.vendorId || input.serviceOrderId || input.projectId || input.booking) {
+  if (input.vendorId || input.serviceOrderId || input.projectId || input.booking || input.salesOrderId) {
     throw errors.validation({ vendorId: ['Vendor, service order, dan project tidak bisa dipindah; catat ulang invoicenya.'] })
   }
   try {
@@ -122,6 +130,7 @@ export async function reviewVendorInvoice(
   tx: Queryable, actor: Actor, id: string,
   input: { action: string; note?: string; reason?: string; matchStatus?: string }, requestId: string
 ) {
+  await getBook(tx, true)
   const inv = await lockVendorInvoice(tx, id)
   const matchStatus = input.matchStatus ?? null
   if (matchStatus !== null && !['matched', 'unmatched', 'disputed'].includes(matchStatus)) {
@@ -153,17 +162,21 @@ export async function reviewVendorInvoice(
     actorUserId: actor.userId, entityType: 'vendor_invoice', entityId: id, requestId, reason: input.reason ?? null,
     before: { status: inv.status }, after: { matchStatus }
   })
+  if (input.action === 'approve') await postInvoiceSource(tx, actor, 'vendor_invoice', id, inv.invoice_date, requestId)
   return { id }
 }
 
 export async function voidVendorInvoice(tx: Queryable, actor: Actor, id: string, reasonInput: unknown, requestId: string) {
+  await getBook(tx, true)
   const reason = validateReason(reasonInput)
   const inv = await lockVendorInvoice(tx, id)
   if (inv.status !== 'approved') throw rule('Hanya invoice vendor yang sudah disetujui yang bisa di-void. Yang belum disetujui cukup ditolak.')
   const [b] = await tx.query<{ paid_minor: string }>('select paid_minor from v_vendor_invoice_balances where vendor_invoice_id = $1', [id])
   if (BigInt(b!.paid_minor) > 0n) throw rule('Invoice vendor ini sudah dibayar sebagian/penuh. Batalkan pembayarannya dulu.')
+  await voidSupplierMatchesForSource(tx,actor,'invoice',id,reason,requestId)
   await tx.query("update vendor_invoices set status = 'void', void_reason = $2, updated_at = now() where id = $1", [id, reason])
   await recordAudit(tx, { action: 'finance.vendor_invoice_voided', actorUserId: actor.userId, entityType: 'vendor_invoice', entityId: id, requestId, reason })
+  await postInvoiceSource(tx, actor, 'vendor_invoice', id, todayBusinessDate(), requestId, reason)
   return { id }
 }
 
@@ -184,7 +197,7 @@ export async function setVendorInvoiceExpectation(tx: Queryable, actor: Actor, i
 
 interface VendorAllocationInput { vendorInvoiceId: string; amountMinor: string }
 
-async function allocateToVendorInvoices(tx: Queryable, actor: Actor, payment: { id: string; vendor_id: string; unallocated: bigint }, allocations: VendorAllocationInput[]) {
+async function allocateToVendorInvoices(tx: Queryable, actor: Actor, payment: { id: string; vendor_id: string; unallocated: bigint }, allocations: VendorAllocationInput[], effectiveDate: string, requestId: string) {
   if (!Array.isArray(allocations)) return []
   const seen = new Set<string>()
   const parsed = allocations.map((a, i) => {
@@ -197,8 +210,8 @@ async function allocateToVendorInvoices(tx: Queryable, actor: Actor, payment: { 
   if (total > payment.unallocated) throw errors.validation({ allocations: [`Total alokasi (${total}) melebihi uang yang belum dialokasikan (${payment.unallocated}).`] })
   const results: { vendorInvoiceId: string; amountMinor: string; outstandingMinor: string }[] = []
   for (const a of [...parsed].sort((x, y) => x.id.localeCompare(y.id))) {
-    const [inv] = await tx.query<{ id: string; status: string; vendor_id: string; vendor_invoice_number: string }>(
-      'select id, status, vendor_id, vendor_invoice_number from vendor_invoices where id = $1 for update', [a.id]
+    const [inv] = await tx.query<{ id: string; status: string; vendor_id: string; vendor_invoice_number: string; invoice_date: string }>(
+      'select id, status, vendor_id, vendor_invoice_number, invoice_date from vendor_invoices where id = $1 for update', [a.id]
     )
     const field = `allocations.${a.index}.vendorInvoiceId`
     if (!inv) throw errors.validation({ [field]: ['Invoice vendor tidak ditemukan.'] })
@@ -207,8 +220,9 @@ async function allocateToVendorInvoices(tx: Queryable, actor: Actor, payment: { 
     const [b] = await tx.query<{ total_minor: string; paid_minor: string }>('select total_minor, paid_minor from v_vendor_invoice_balances where vendor_invoice_id = $1', [inv.id])
     const outstanding = BigInt(b!.total_minor) - BigInt(b!.paid_minor)
     if (a.amount > outstanding) throw errors.validation({ [`allocations.${a.index}.amountMinor`]: [`Melebihi sisa utang ${inv.vendor_invoice_number} (${outstanding}).`] })
-    await tx.query('insert into payment_allocations (transaction_id, target_type, target_id, amount_minor, created_by) values ($1, $2, $3, $4, $5)',
-      [payment.id, 'vendor_invoice', inv.id, a.amount.toString(), actor.userId])
+    const [allocation] = await tx.query<{ id: string }>('insert into payment_allocations (transaction_id, target_type, target_id, amount_minor, created_by, effective_date) values ($1, $2, $3, $4, $5, $6) returning id',
+      [payment.id, 'vendor_invoice', inv.id, a.amount.toString(), actor.userId, effectiveDate < inv.invoice_date ? inv.invoice_date : effectiveDate])
+    await postAllocationSource(tx, actor, allocation!.id, requestId)
     results.push({ vendorInvoiceId: inv.id, amountMinor: a.amount.toString(), outstandingMinor: (outstanding - a.amount).toString() })
   }
   return results
@@ -228,6 +242,7 @@ export interface VendorPaymentInput {
 
 /** Money out to a vendor. Unallocated remainder = vendor deposit, settled against later invoices. */
 export async function postVendorPayment(tx: Queryable, actor: Actor, input: VendorPaymentInput, requestId: string) {
+  await getBook(tx, true)
   const amount = parseMovementAmount(input.amountMinor)
   const effectiveDate = validateEffectiveDate(input.effectiveDate)
   if (!input.vendorId) throw errors.validation({ vendorId: ['Pilih vendor yang dibayar.'] })
@@ -241,7 +256,8 @@ export async function postVendorPayment(tx: Queryable, actor: Actor, input: Vend
     [account.id, amount.toString(), account.currency, effectiveDate, refs.projectId, input.vendorId,
       trimOrNull(input.counterparty, 200), trimOrNull(input.reference, 120), trimOrNull(input.memo), actor.userId]
   )
-  const allocations = await allocateToVendorInvoices(tx, actor, { id: row!.id, vendor_id: input.vendorId, unallocated: amount }, input.allocations ?? [])
+  await postCashSource(tx, actor, row!.id, requestId)
+  const allocations = await allocateToVendorInvoices(tx, actor, { id: row!.id, vendor_id: input.vendorId, unallocated: amount }, input.allocations ?? [], effectiveDate, requestId)
   const allocated = allocations.reduce((s, a) => s + BigInt(a.amountMinor), 0n)
   await recordAudit(tx, {
     action: 'finance.vendor_payment_posted', actorUserId: actor.userId, entityType: 'financial_transaction', entityId: row!.id, requestId,
@@ -251,6 +267,7 @@ export async function postVendorPayment(tx: Queryable, actor: Actor, input: Vend
 }
 
 export async function allocateVendorPayment(tx: Queryable, actor: Actor, transactionId: string, allocations: VendorAllocationInput[], requestId: string) {
+  await getBook(tx, true)
   if (!ID_PATTERN.test(transactionId)) throw errors.notFound('Pembayaran vendor')
   const [t] = await tx.query<{ id: string; kind: string; vendor_id: string; unallocated_minor: string | null }>(
     `select t.id, t.kind, t.vendor_id, u.unallocated_minor from financial_transactions t
@@ -262,7 +279,7 @@ export async function allocateVendorPayment(tx: Queryable, actor: Actor, transac
   await tx.query('select pg_advisory_xact_lock(hashtext($1))', [`alloc:${transactionId}`])
   const [fresh] = await tx.query<{ unallocated_minor: string }>('select unallocated_minor from v_unallocated_payments where transaction_id = $1', [transactionId])
   if (!fresh) throw rule('Pembayaran ini sudah dibatalkan.')
-  const result = await allocateToVendorInvoices(tx, actor, { id: t.id, vendor_id: t.vendor_id, unallocated: BigInt(fresh!.unallocated_minor) }, allocations)
+  const result = await allocateToVendorInvoices(tx, actor, { id: t.id, vendor_id: t.vendor_id, unallocated: BigInt(fresh!.unallocated_minor) }, allocations, todayBusinessDate(), requestId)
   const allocated = result.reduce((s, a) => s + BigInt(a.amountMinor), 0n)
   await recordAudit(tx, { action: 'finance.vendor_payment_allocated', actorUserId: actor.userId, entityType: 'financial_transaction', entityId: transactionId, requestId, after: { allocations: result } })
   return { transactionId, allocations: result, unallocatedMinor: (BigInt(fresh!.unallocated_minor) - allocated).toString() }
@@ -287,6 +304,7 @@ export function vendorInvoiceDto(r: Record<string, any>, today = todayBusinessDa
     vendorInvoiceNumber: r.vendor_invoice_number,
     serviceOrderId: r.service_order_id,
     project: r.project_id ? { id: r.project_id, name: r.project_name } : null,
+    salesOrderId:r.sales_order_id ?? null,
     booking: r.booking_id ? { type: r.booking_type, id: r.booking_id } : null,
     status: r.status,
     matchStatus: r.match_status,
@@ -335,7 +353,7 @@ export async function getVendorInvoice(db: Db, id: string) {
  *  - 'outstanding' (default): approved with money still owed, soonest due first
  *  - 'overdue' | 'paid' | 'review' (submitted + under_review) | 'all'
  */
-export async function listPayables(db: Db, filter: { view?: string; vendorId?: string; projectId?: string; dueTo?: string; limit: number; cursor?: string }) {
+export async function listPayables(db: Db, filter: { view?: string; vendorId?: string; projectId?: string; salesOrderId?:string;dueTo?: string; limit: number; cursor?: string }) {
   const today = todayBusinessDate()
   const view = filter.view ?? 'outstanding'
   const params: unknown[] = []
@@ -351,6 +369,7 @@ export async function listPayables(db: Db, filter: { view?: string; vendorId?: s
   }
   if (filter.vendorId) { if (!ID_PATTERN.test(filter.vendorId)) throw errors.validation({ vendorId: ['Vendor tidak valid.'] }); add('v.vendor_id = ?', filter.vendorId) }
   if (filter.projectId) { if (!ID_PATTERN.test(filter.projectId)) throw errors.validation({ projectId: ['Project tidak valid.'] }); add('v.project_id = ?', filter.projectId) }
+  if (filter.salesOrderId) { if (!ID_PATTERN.test(filter.salesOrderId)) throw errors.validation({salesOrderId:['Order tidak valid.']}); add('v.sales_order_id = ?',filter.salesOrderId) }
   if (filter.dueTo) { if (!isIsoDate(filter.dueTo)) throw errors.validation({ dueTo: ['Tanggal harus berformat YYYY-MM-DD.'] }); add('v.due_date <= ?', filter.dueTo) }
   const base = where.length ? where.join(' and ') : 'true'
 

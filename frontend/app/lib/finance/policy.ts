@@ -66,6 +66,7 @@ export function thresholdProblems (thresholds: number[], refundPercents: number[
 
 export const SUBJECT_LABEL: Record<ApiSubjectType, string> = {
   project: 'Project',
+  sales_order: 'Order',
   flight: 'Tiket pesawat',
   hotel: 'Hotel',
   transport: 'Transportasi',

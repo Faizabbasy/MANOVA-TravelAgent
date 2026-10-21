@@ -95,7 +95,7 @@ const displayValue = useCountUp(() => props.value, 80)
         {{ label }}
       </p>
       <p class="mt-1.5 text-[2.75rem] font-bold leading-none tabular-nums text-foreground">
-        {{ formatNumber(displayValue.value) }}
+        {{ formatNumber(displayValue) }}
       </p>
       <p v-if="subtitle" class="mt-2 text-sm text-muted-foreground">
         {{ subtitle }}

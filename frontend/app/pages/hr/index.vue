@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import { unref } from 'vue'
 import { computed, ref } from 'vue'
-import { Users, CalendarCheck, Wallet, Award, Search, TrendingUp, Plus, Pencil } from 'lucide-vue-next'
+import { Users, CalendarCheck, Wallet, Award, Search, Plus, Pencil } from 'lucide-vue-next'
 import { cn } from '~/lib/utils'
 import {
   EMPLOYEES,
@@ -8,6 +9,7 @@ import {
   EMPLOYEE_STATUSES,
   ATTENDANCE_STATUSES,
   PAYROLL_RUNS,
+  PAYROLL_LINES,
   PAYROLL_RUN_STATUSES,
   COMMISSION_STATUSES,
   COMMISSION_RECORDS,
@@ -179,7 +181,7 @@ async function submitEmployeeForm () {
 }
 
 const stats = computed(() => {
-  void refreshKey.value
+  unref(refreshKey)
   const active = EMPLOYEES.filter(employee => employee.status === 'active')
   const rates = EMPLOYEES.slice(0, 8).map(employee => getAttendanceSummary(employee.id, activePeriod.value).ratePercent)
   return {
@@ -195,12 +197,12 @@ const stats = computed(() => {
 const selectedPayrollRunId = ref(PAYROLL_RUNS.at(-1)?.id ?? '')
 const activePayrollRun = computed(() => PAYROLL_RUNS.find(run => run.id === selectedPayrollRunId.value) ?? PAYROLL_RUNS.at(-1))
 const payrollBreakdown = computed(() => {
-  void refreshKey.value
+  unref(refreshKey)
   return activePayrollRun.value ? getPayrollBreakdown(activePayrollRun.value.id) : []
 })
 
 const attendanceRows = computed(() => {
-  void refreshKey.value
+  unref(refreshKey)
   return EMPLOYEES.slice(0, 8).map(employee => ({
     employee,
     summary: getAttendanceSummary(employee.id, activePeriod.value)
@@ -208,7 +210,7 @@ const attendanceRows = computed(() => {
 })
 
 const commissions = computed(() => {
-  void refreshKey.value
+  unref(refreshKey)
   return [...COMMISSION_RECORDS].sort((a, b) => b.amountIdr - a.amountIdr)
 })
 
@@ -299,7 +301,7 @@ async function submitIncentiveForm () {
 
 const reviews = computed(() => getPerformanceReviews())
 const productivity = computed(() => {
-  void refreshKey.value
+  unref(refreshKey)
   return getProductivitySummary(activePeriod.value)
 })
 
@@ -308,10 +310,38 @@ const maxRevenueHandled = computed(() => Math.max(1, ...productivity.value.map(r
 async function setPayrollStatus (status: 'approved' | 'paid') {
   const run = activePayrollRun.value
   if (!run) { return }
-  const done = await save('Payroll Gagal Diperbarui', () => status === 'approved' ? approvePayrollRunOnServer(api, run.id) : payPayrollRunOnServer(api, run.id))
+  const done = await save('Payroll Gagal Diperbarui', () => approvePayrollRunOnServer(api, run.id))
   if (!done) { return }
   refreshKey.value += 1
   showToast('Payroll diperbarui', `Periode ${run.period} kini ${findStatusOption(PAYROLL_RUN_STATUSES, status).label}.`, 'success')
+}
+
+/* Bayar gaji (owner accounting F5): paid only through a real payment from a bank account, never a status flip. */
+const isPayPayrollOpen = ref(false)
+const payPayrollError = ref<string | null>(null)
+const payrollNetMinor = computed(() => {
+  const run = activePayrollRun.value
+  if (!run) { return '0' }
+  // Display only: the server computes and pays the exact net (base + allowance − deduction per line).
+  return PAYROLL_LINES.filter(l => l.payrollRunId === run.id)
+    .reduce((s, l) => s + Math.max(0, l.baseSalaryIdr + l.allowanceIdr - l.deductionIdr), 0).toString()
+})
+async function payPayroll (input: { bankAccountId: string; effectiveDate: string; idempotencyKey: string }) {
+  const run = activePayrollRun.value
+  if (!run) { return }
+  payPayrollError.value = null
+  const done = await save('Gaji Gagal Dibayar', async () => {
+    try {
+      return await payPayrollRunOnServer(api, run.id, { bankAccountId: input.bankAccountId, effectiveDate: input.effectiveDate }, input.idempotencyKey)
+    } catch (err) {
+      payPayrollError.value = err instanceof Error ? err.message : 'Pembayaran gaji gagal. Coba lagi.'
+      throw err
+    }
+  })
+  if (!done) { return }
+  isPayPayrollOpen.value = false
+  refreshKey.value += 1
+  showToast('Gaji dibayar', `Payroll ${run.period} dibayar dari rekening; jurnal pelunasan terbentuk bila accounting aktif.`, 'success')
 }
 
 /* Buat payroll periode baru (S11c) — server membuat baris untuk karyawan aktif bergaji; tunjangan & potongan diisi Finance. */
@@ -441,7 +471,7 @@ async function submitPayrollLineForm () {
         </TabsList>
 
         <TabsContent value="employees" class="pt-4">
-          <SectionCard compact content-class="p-0" titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Data Karyawan" :description="`${filteredEmployees.length} dari ${EMPLOYEES.length} karyawan`">
+          <SectionCard compact content-class="p-0" title-class="text-sm font-bold normal-case tracking-normal text-foreground" title="Data Karyawan" :description="`${filteredEmployees.length} dari ${EMPLOYEES.length} karyawan`">
             <template #actions>
               <div class="flex flex-wrap sm:flex-nowrap items-center gap-2">
                 <div class="relative w-full sm:w-64 shrink-0">
@@ -496,7 +526,9 @@ async function submitPayrollLineForm () {
                           </p>
                           <p class="text-xs text-muted-foreground">
                             {{ employee.position }}
-                            <template v-if="canManagePayroll && employee.commissionRatePercent"> · komisi {{ employee.commissionRatePercent }}%</template>
+                            <template v-if="canManagePayroll && employee.commissionRatePercent">
+                              · komisi {{ employee.commissionRatePercent }}%
+                            </template>
                           </p>
                         </TableCell>
                         <TableCell class="px-4 py-3 text-sm text-foreground">
@@ -543,7 +575,9 @@ async function submitPayrollLineForm () {
                         </p>
                         <p class="text-xs text-muted-foreground">
                           {{ employee.position }}
-                          <template v-if="canManagePayroll && employee.commissionRatePercent"> · komisi {{ employee.commissionRatePercent }}%</template>
+                          <template v-if="canManagePayroll && employee.commissionRatePercent">
+                            · komisi {{ employee.commissionRatePercent }}%
+                          </template>
                         </p>
                       </div>
                       <StatusBadge
@@ -598,7 +632,7 @@ async function submitPayrollLineForm () {
         </TabsContent>
 
         <TabsContent value="attendance" class="pt-4">
-          <SectionCard compact content-class="p-0" titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Absensi" :description="`Rekap kehadiran periode ${activePeriod}. Hadir dan remote sama-sama dihitung bekerja.`">
+          <SectionCard compact content-class="p-0" title-class="text-sm font-bold normal-case tracking-normal text-foreground" title="Absensi" :description="`Rekap kehadiran periode ${activePeriod}. Hadir dan remote sama-sama dihitung bekerja.`">
             <template #actions>
               <select v-model="selectedPeriod" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
                 <option v-for="period in periods" :key="period" :value="period">
@@ -743,7 +777,14 @@ async function submitPayrollLineForm () {
               Buat Payroll
             </Button>
           </div>
-          <SectionCard v-if="activePayrollRun" compact content-class="p-0" titleClass="text-sm font-bold normal-case tracking-normal text-foreground" :title="`Payroll ${activePayrollRun.period}`" :description="`Total ${formatCurrencyIdr(getPayrollTotalIdr(activePayrollRun.id))}`">
+          <SectionCard
+            v-if="activePayrollRun"
+            compact
+            content-class="p-0"
+            title-class="text-sm font-bold normal-case tracking-normal text-foreground"
+            :title="`Payroll ${activePayrollRun.period}`"
+            :description="`Total ${formatCurrencyIdr(getPayrollTotalIdr(activePayrollRun.id))}`"
+          >
             <template #actions>
               <div class="flex flex-wrap items-center gap-2">
                 <select v-model="selectedPayrollRunId" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
@@ -759,8 +800,8 @@ async function submitPayrollLineForm () {
                   <Button v-if="activePayrollRun.status === 'draft'" size="sm" :disabled="isSaving" @click="setPayrollStatus('approved')">
                     Setujui Payroll
                   </Button>
-                  <Button v-if="activePayrollRun.status === 'approved'" size="sm" :disabled="isSaving" @click="setPayrollStatus('paid')">
-                    Tandai Dibayar
+                  <Button v-if="activePayrollRun.status === 'approved'" size="sm" :disabled="isSaving" @click="payPayrollError = null; isPayPayrollOpen = true">
+                    Bayar Gaji
                   </Button>
                   <Button size="sm" variant="outline" @click="openCreatePayroll">
                     <Plus class="h-4 w-4 mr-1.5" />
@@ -886,7 +927,7 @@ async function submitPayrollLineForm () {
         </TabsContent>
 
         <TabsContent v-if="canManagePayroll" value="commissions" class="pt-4">
-          <SectionCard compact :content-class="commissions.length ? 'p-0' : ''" titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Komisi & Insentif" description="Komisi diturunkan dari nilai kontrak project yang dipegang karyawan dan tarif komisinya masing-masing. Insentif dicatat manual per project dan orangnya.">
+          <SectionCard compact :content-class="commissions.length ? 'p-0' : ''" title-class="text-sm font-bold normal-case tracking-normal text-foreground" title="Komisi & Insentif" description="Komisi diturunkan dari nilai kontrak project yang dipegang karyawan dan tarif komisinya masing-masing. Insentif dicatat manual per project dan orangnya.">
             <template v-if="canManagePayroll" #actions>
               <Button size="sm" @click="openAddIncentive">
                 <Plus class="h-4 w-4 mr-1.5" />
@@ -1033,7 +1074,7 @@ async function submitPayrollLineForm () {
         </TabsContent>
 
         <TabsContent value="performance" class="pt-4">
-          <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Performance" :description="canManagePerformance ? 'Hasil review periodik per karyawan.' : 'Anda hanya dapat melihat hasil review.'">
+          <SectionCard compact title-class="text-sm font-bold normal-case tracking-normal text-foreground" title="Performance" :description="canManagePerformance ? 'Hasil review periodik per karyawan.' : 'Anda hanya dapat melihat hasil review.'">
             <ul v-if="reviews.length" class="divide-y divide-border">
               <li v-for="review in reviews" :key="review.id" class="py-3 first:pt-0 last:pb-0">
                 <div class="flex flex-wrap items-start justify-between gap-3">
@@ -1079,7 +1120,7 @@ async function submitPayrollLineForm () {
         </TabsContent>
 
         <TabsContent value="productivity" class="pt-4">
-          <SectionCard compact content-class="p-0" titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Produktivitas" description="Seluruh angka diturunkan dari project dan task yang benar-benar dipegang karyawan — bukan input manual.">
+          <SectionCard compact content-class="p-0" title-class="text-sm font-bold normal-case tracking-normal text-foreground" title="Produktivitas" description="Seluruh angka diturunkan dari project dan task yang benar-benar dipegang karyawan — bukan input manual.">
             <div class="overflow-x-auto border-t border-border">
               <ResponsiveDataView :items="productivity" :get-key="row => row.employeeId">
                 <template #desktop="{ items }">
@@ -1212,9 +1253,9 @@ async function submitPayrollLineForm () {
         :description="employeeFormMode === 'edit' ? 'Perbarui data karyawan.' : 'Karyawan baru langsung masuk ke data karyawan MANOVA.'"
         content-class="max-w-md"
       >
-          <div class="space-y-3">
-            <!-- S11c: data karyawan diubah Admin; Finance hanya mengisi gaji & komisi di bawah. -->
-            <fieldset :disabled="!canManageEmployees" class="m-0 min-w-0 space-y-3 border-0 p-0 disabled:opacity-60">
+        <div class="space-y-3">
+          <!-- S11c: data karyawan diubah Admin; Finance hanya mengisi gaji & komisi di bawah. -->
+          <fieldset :disabled="!canManageEmployees" class="m-0 min-w-0 space-y-3 border-0 p-0 disabled:opacity-60">
             <div class="space-y-1.5">
               <Label>Nama Karyawan</Label>
               <Input v-model="employeeForm.name" placeholder="mis. Rani Kusuma" />
@@ -1261,42 +1302,52 @@ async function submitPayrollLineForm () {
                 <Input v-model="employeeForm.email" type="email" placeholder="nama@manova.id" />
               </div>
             </div>
-            </fieldset>
-            <p v-if="!canManagePayroll" class="text-xs text-muted-foreground">
-              Gaji pokok dan komisi diisi oleh Finance.
+          </fieldset>
+          <p v-if="!canManagePayroll" class="text-xs text-muted-foreground">
+            Gaji pokok dan komisi diisi oleh Finance.
+          </p>
+          <div v-if="canManagePayroll" class="space-y-1.5">
+            <label class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+              <Checkbox v-model="employeeForm.isProjectBased" />Gaji per proyek (tanpa nominal tetap)
+            </label>
+            <template v-if="!employeeForm.isProjectBased">
+              <Label>Gaji Pokok (IDR)</Label>
+              <CurrencyInput v-model="employeeForm.baseSalaryIdr" placeholder="0" />
+            </template>
+            <p v-else class="text-xs text-muted-foreground">
+              Karyawan ini dibayar per proyek — tidak ada gaji pokok tetap tiap bulan.
             </p>
-            <div v-if="canManagePayroll" class="space-y-1.5">
-              <label class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-                <Checkbox v-model="employeeForm.isProjectBased" />Gaji per proyek (tanpa nominal tetap)
-              </label>
-              <template v-if="!employeeForm.isProjectBased">
-                <Label>Gaji Pokok (IDR)</Label>
-                <CurrencyInput v-model="employeeForm.baseSalaryIdr" placeholder="0" />
-              </template>
-              <p v-else class="text-xs text-muted-foreground">
-                Karyawan ini dibayar per proyek — tidak ada gaji pokok tetap tiap bulan.
-              </p>
-            </div>
-            <div v-if="canManagePayroll" class="space-y-1.5">
-              <Label>Komisi % (opsional)</Label>
-              <Input v-model.number="employeeForm.commissionRatePercent" type="number" step="0.1" placeholder="mis. 2" />
-            </div>
           </div>
+          <div v-if="canManagePayroll" class="space-y-1.5">
+            <Label>Komisi % (opsional)</Label>
+            <Input v-model.number="employeeForm.commissionRatePercent" type="number" step="0.1" placeholder="mis. 2" />
+          </div>
+        </div>
 
-          <template #footer>
-            <Button variant="outline" @click="isEmployeeFormOpen = false">
-              Batal
-            </Button>
-            <Button :disabled="!isEmployeeFormValid || isSaving" @click="submitEmployeeForm">
-              Simpan
-            </Button>
-          </template>
+        <template #footer>
+          <Button variant="outline" @click="isEmployeeFormOpen = false">
+            Batal
+          </Button>
+          <Button :disabled="!isEmployeeFormValid || isSaving" @click="submitEmployeeForm">
+            Simpan
+          </Button>
+        </template>
       </ResponsiveFormSheet>
+
+      <FinancePayrollPayDialog
+        v-if="activePayrollRun"
+        v-model:open="isPayPayrollOpen"
+        :period="activePayrollRun.period"
+        :net-minor="payrollNetMinor"
+        :pending="isSaving"
+        :error="payPayrollError"
+        @submit="payPayroll"
+      />
 
       <ResponsiveFormSheet
         v-model:open="isCreatePayrollOpen"
         title="Buat Payroll"
-        description="Server membuat baris untuk setiap karyawan aktif bergaji. Tunjangan & potongan diisi sebelum payroll disetujui; pembayaran gaji tetap dicatat Finance di kas."
+        description="Server membuat baris untuk setiap karyawan aktif bergaji. Tunjangan & potongan diisi sebelum payroll disetujui; gaji baru berstatus dibayar setelah dibayar dari rekening (Bayar Gaji)."
         content-class="max-w-sm"
       >
         <div class="space-y-1.5">
@@ -1320,29 +1371,29 @@ async function submitPayrollLineForm () {
         description="Komisi diturunkan otomatis dari project dan tidak bisa diedit di sini."
         content-class="max-w-sm"
       >
-          <div class="space-y-3">
-            <div class="space-y-1.5">
-              <Label>Gaji Pokok (IDR)</Label>
-              <CurrencyInput v-model="payrollLineForm.baseSalaryIdr" placeholder="0" />
-            </div>
-            <div class="space-y-1.5">
-              <Label>Tunjangan (IDR)</Label>
-              <CurrencyInput v-model="payrollLineForm.allowanceIdr" placeholder="0" />
-            </div>
-            <div class="space-y-1.5">
-              <Label>Potongan (IDR)</Label>
-              <CurrencyInput v-model="payrollLineForm.deductionIdr" placeholder="0" />
-            </div>
+        <div class="space-y-3">
+          <div class="space-y-1.5">
+            <Label>Gaji Pokok (IDR)</Label>
+            <CurrencyInput v-model="payrollLineForm.baseSalaryIdr" placeholder="0" />
           </div>
+          <div class="space-y-1.5">
+            <Label>Tunjangan (IDR)</Label>
+            <CurrencyInput v-model="payrollLineForm.allowanceIdr" placeholder="0" />
+          </div>
+          <div class="space-y-1.5">
+            <Label>Potongan (IDR)</Label>
+            <CurrencyInput v-model="payrollLineForm.deductionIdr" placeholder="0" />
+          </div>
+        </div>
 
-          <template #footer>
-            <Button variant="outline" @click="isPayrollLineFormOpen = false">
-              Batal
-            </Button>
-            <Button :disabled="!isPayrollLineFormValid" @click="submitPayrollLineForm">
-              Simpan
-            </Button>
-          </template>
+        <template #footer>
+          <Button variant="outline" @click="isPayrollLineFormOpen = false">
+            Batal
+          </Button>
+          <Button :disabled="!isPayrollLineFormValid" @click="submitPayrollLineForm">
+            Simpan
+          </Button>
+        </template>
       </ResponsiveFormSheet>
 
       <ResponsiveFormSheet
@@ -1351,64 +1402,64 @@ async function submitPayrollLineForm () {
         description="Insentif manual untuk satu atau beberapa orang di sebuah project. Langsung berstatus disetujui."
         content-class="max-w-md"
       >
-          <div class="space-y-3">
-            <div class="space-y-1.5">
-              <Label>Project</Label>
-              <select v-model="incentiveForm.projectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                <option value="" disabled>
-                  Pilih project
-                </option>
-                <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
-                  {{ project.name }}
-                </option>
-              </select>
-            </div>
+        <div class="space-y-3">
+          <div class="space-y-1.5">
+            <Label>Project</Label>
+            <select v-model="incentiveForm.projectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+              <option value="" disabled>
+                Pilih project
+              </option>
+              <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
+                {{ project.name }}
+              </option>
+            </select>
+          </div>
 
-            <div v-if="incentiveForm.projectId" class="space-y-1.5">
-              <Label>Orang</Label>
-              <div v-if="incentiveCandidateEmployees.length" class="space-y-1.5 rounded-lg border border-border p-2.5 max-h-40 overflow-y-auto">
-                <label v-for="employee in incentiveCandidateEmployees" :key="employee.id" class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-                  <Checkbox
-                    :model-value="incentiveForm.selectedEmployeeIds.includes(employee.id)"
-                    @update:model-value="toggleIncentiveEmployee(employee.id)"
-                  />
-                  {{ employee.name }}
-                  <span class="text-xs text-muted-foreground">· {{ employee.position }}</span>
-                </label>
-              </div>
-              <p v-else class="text-xs text-muted-foreground">
-                Project ini belum punya owner/tim yang tertaut ke data karyawan.
+          <div v-if="incentiveForm.projectId" class="space-y-1.5">
+            <Label>Orang</Label>
+            <div v-if="incentiveCandidateEmployees.length" class="space-y-1.5 rounded-lg border border-border p-2.5 max-h-40 overflow-y-auto">
+              <label v-for="employee in incentiveCandidateEmployees" :key="employee.id" class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                <Checkbox
+                  :model-value="incentiveForm.selectedEmployeeIds.includes(employee.id)"
+                  @update:model-value="toggleIncentiveEmployee(employee.id)"
+                />
+                {{ employee.name }}
+                <span class="text-xs text-muted-foreground">· {{ employee.position }}</span>
+              </label>
+            </div>
+            <p v-else class="text-xs text-muted-foreground">
+              Project ini belum punya owner/tim yang tertaut ke data karyawan.
+            </p>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="space-y-1.5">
+              <Label>Periode</Label>
+              <Input v-model="incentiveForm.period" placeholder="2026-07" />
+            </div>
+            <div class="space-y-1.5">
+              <Label>Nominal per Orang (IDR)</Label>
+              <CurrencyInput v-model="incentiveForm.amountIdr" placeholder="0" />
+              <p v-if="incentiveRatePreview !== undefined" class="text-xs text-muted-foreground">
+                Setara {{ incentiveRatePreview }}% dari nilai kontrak project ({{ formatCurrencyIdr(incentiveSelectedProject?.quotationAmountIdr ?? 0) }}).
               </p>
-            </div>
-
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div class="space-y-1.5">
-                <Label>Periode</Label>
-                <Input v-model="incentiveForm.period" placeholder="2026-07" />
-              </div>
-              <div class="space-y-1.5">
-                <Label>Nominal per Orang (IDR)</Label>
-                <CurrencyInput v-model="incentiveForm.amountIdr" placeholder="0" />
-                <p v-if="incentiveRatePreview !== undefined" class="text-xs text-muted-foreground">
-                  Setara {{ incentiveRatePreview }}% dari nilai kontrak project ({{ formatCurrencyIdr(incentiveSelectedProject?.quotationAmountIdr ?? 0) }}).
-                </p>
-              </div>
-            </div>
-
-            <div class="space-y-1.5">
-              <Label>Catatan (opsional)</Label>
-              <Input v-model="incentiveForm.note" placeholder="mis. Bonus penutupan project tepat waktu" />
             </div>
           </div>
 
-          <template #footer>
-            <Button variant="outline" @click="isIncentiveFormOpen = false">
-              Batal
-            </Button>
-            <Button :disabled="!isIncentiveFormValid" @click="submitIncentiveForm">
-              Simpan
-            </Button>
-          </template>
+          <div class="space-y-1.5">
+            <Label>Catatan (opsional)</Label>
+            <Input v-model="incentiveForm.note" placeholder="mis. Bonus penutupan project tepat waktu" />
+          </div>
+        </div>
+
+        <template #footer>
+          <Button variant="outline" @click="isIncentiveFormOpen = false">
+            Batal
+          </Button>
+          <Button :disabled="!isIncentiveFormValid" @click="submitIncentiveForm">
+            Simpan
+          </Button>
+        </template>
       </ResponsiveFormSheet>
     </template>
   </div>

@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import type { VendorInvoiceDetailDto } from '~/types/api'
+import type { VendorInvoiceDetailDto, ServiceOrderDto } from '~/types/api'
 import { shiftDate, todayJakarta } from '~/lib/finance/dates'
 import { serviceOrderPickOptions } from '~/data/procurement-sync'
-import type { ServiceOrderDto } from '~/types/api'
 
 /**
  * Record an invoice received from a vendor (or correct one still under review). Recording it does not make it
  * payable: it must be reviewed and approved first, so a wrong or duplicate invoice is never paid.
  */
-const props = defineProps<{ open: boolean; invoice?: VendorInvoiceDetailDto | null; vendorId?: string | null; projectId?: string | null }>()
+const props = defineProps<{ open: boolean; invoice?: VendorInvoiceDetailDto | null; vendorId?: string | null; projectId?: string | null; salesOrderId?:string }>()
 const emit = defineEmits<{ 'update:open': [value: boolean]; saved: [invoice: VendorInvoiceDetailDto] }>()
 
 const api = useApi()
@@ -40,7 +39,7 @@ const serviceOrderOptions = computed(() => serviceOrderPickOptions(vendorOrders.
 watch(() => [props.open, form.vendorId] as const, async ([open, vendorId]) => {
   vendorOrders.value = []
   form.serviceOrderId = null
-  if (!open || isEdit.value || !vendorId) { return }
+  if (!open || isEdit.value || !vendorId || props.salesOrderId) { return }
   try {
     vendorOrders.value = (await api.core.listServiceOrders({ vendorId })).data
   } catch {
@@ -65,6 +64,7 @@ const action = useFinanceAction(async () => {
     invoiceDate: form.invoiceDate,
     dueDate: form.dueDate,
     totalMinor: form.amount,
+    ...(props.salesOrderId ? { salesOrderId: props.salesOrderId } : {}),
     projectId: form.projectId ?? undefined,
     serviceOrderId: form.serviceOrderId ?? undefined,
     notes: form.notes.trim() || undefined
@@ -123,7 +123,7 @@ async function submit () {
       <FinanceSelect id="vi-service-order" v-model="form.serviceOrderId" :options="serviceOrderOptions" clear-label="Tanpa service order" placeholder="Tanpa service order" />
     </FinanceField>
     <FinanceField
-      v-if="!isEdit"
+      v-if="!isEdit && !salesOrderId"
       id="vi-project"
       label="Untuk project"
       optional
@@ -132,6 +132,9 @@ async function submit () {
     >
       <FinanceSelect id="vi-project" v-model="form.projectId" :options="lookups.projectOptions.value" clear-label="Tanpa project" placeholder="Tanpa project" />
     </FinanceField>
+    <p v-if="salesOrderId" class="text-sm text-muted-foreground">
+      Invoice tertaut ke order {{ salesOrderId }}. Tidak memakai project tambahan.
+    </p>
     <FinanceField id="vi-notes" label="Catatan" optional>
       <FinanceTextarea id="vi-notes" v-model="form.notes" :rows="2" maxlength="1000" />
     </FinanceField>

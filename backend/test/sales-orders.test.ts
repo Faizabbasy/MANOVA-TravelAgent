@@ -49,9 +49,11 @@ describe('sales orders', () => {
   test('status follows draft to paid to ongoing to done; cancel needs a reason; done is final', async () => {
     const id = (await call('POST', '/sales-orders', 'admin', standalone(), key())).json.data.id as string
     expect((await call('POST', `/sales-orders/${id}/status`, 'admin', { to: 'ongoing' })).status).toBe(422)
-    const paid = (await call('POST', `/sales-orders/${id}/status`, 'admin', { to: 'paid' })).json.data
-    expect(paid.status).toBe('paid')
-    expect(paid.paidOn).toBeTruthy()
+    // Paid comes only from the Finance DP/payment confirmation (owner accounting F4), never a manual status.
+    const manual = await call('POST', `/sales-orders/${id}/status`, 'admin', { to: 'paid' })
+    expect(manual.status).toBe(422)
+    expect(manual.json.error.message).toContain('Finance')
+    await t.db.query("update sales_order_refs set status = 'paid', paid_on = current_date where id = $1", [id]) // stands in for the Finance confirmation
     expect((await call('POST', `/sales-orders/${id}/status`, 'admin', { to: 'cancelled' })).status).toBe(400)
     await call('POST', `/sales-orders/${id}/status`, 'admin', { to: 'ongoing' })
     expect((await call('POST', `/sales-orders/${id}/status`, 'admin', { to: 'done' })).json.data.status).toBe('done')

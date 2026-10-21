@@ -5,8 +5,8 @@ import { parseAmountMinor } from '../../shared/money'
 
 /** Shared rules and row shapes for the Finance money foundation (Phase 2). */
 
-export const IN_KINDS = ['customer_receipt', 'vendor_refund', 'other_income', 'transfer_in'] as const
-export const OUT_KINDS = ['vendor_payment', 'refund_settlement', 'expense', 'transfer_out', 'transfer_fee'] as const
+export const IN_KINDS = ['customer_receipt', 'vendor_refund', 'other_income', 'transfer_in', 'employee_advance_return', 'loan_proceeds', 'owner_contribution'] as const
+export const OUT_KINDS = ['vendor_payment', 'refund_settlement', 'expense', 'transfer_out', 'transfer_fee', 'employee_advance', 'employee_reimbursement', 'payroll_payment', 'asset_purchase', 'loan_repayment', 'owner_withdrawal', 'prepaid_opex'] as const
 export const TRANSACTION_KINDS = [...IN_KINDS, ...OUT_KINDS] as const
 export type TransactionKind = (typeof TRANSACTION_KINDS)[number]
 export const TRANSFER_KINDS: readonly TransactionKind[] = ['transfer_in', 'transfer_out', 'transfer_fee']

@@ -1,4 +1,4 @@
-import type { ID } from './common'
+import type { ID, BadgeTone } from './common'
 
 /**
  * Booking dan Service Orders (Section 18 — roadmap Section 00–24 baru). Consolidation/orchestration LAYER
@@ -93,7 +93,7 @@ export interface BookingTimelineEntry {
   startDate?: string
   deadlineDate?: string
   internalStatus: string
-  internalStatusTone: string
+  internalStatusTone: BadgeTone
   supplierVisibleStatus: string
   clientVisibleStatus: string
   detailHref: string

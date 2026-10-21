@@ -5,6 +5,10 @@ import { recordAudit } from '../../shared/audit'
 import { isIsoDate } from '../../shared/dates'
 import { nextId } from '../../shared/ids'
 import { parseAmountMinor } from '../../shared/money'
+import { postCashSource } from '../accounting/cash-source'
+import { getBook } from '../accounting/setup'
+import { postPayrollSource } from '../accounting/staff'
+import { assertOutflowFits, lockPostableAccount, validateEffectiveDate } from '../finance/postings'
 
 /**
  * Human resources (S11c). Admin manages employees' non-money data (`hr.manage-employee`). Salaries, payroll,
@@ -266,20 +270,51 @@ async function lockRun(tx: Queryable, id: string) {
   return r
 }
 
+/** Approval makes salary an expense of the payroll month and a payable to each employee; no money moves. */
 export async function approvePayrollRun(tx: Queryable, actor: Actor, id: string, today: string, requestId: string) {
   requirePay(actor)
+  await getBook(tx, true)
   const r = await lockRun(tx, id)
   if (r.status !== 'draft') throw rule('Hanya payroll draft yang bisa disetujui.')
   await tx.query("update payroll_runs set status = 'approved', approved_by = $2, approved_on = $3, changed_by_api_at = now(), updated_at = now() where id = $1", [id, actor.userId, today])
   await recordAudit(tx, { action: 'finance.payroll.approved', actorUserId: actor.userId, entityType: 'payroll_run', entityId: id, requestId })
+  await postPayrollSource(tx, actor, id, requestId)
 }
 
-export async function payPayrollRun(tx: Queryable, actor: Actor, id: string, today: string, requestId: string) {
+/**
+ * Paid = the net salaries actually left a bank account (one payroll payment in the cash book), settling the payable
+ * booked at approval. Never a status alone and never a second salary expense.
+ */
+export async function payPayrollRun(tx: Queryable, actor: Actor, id: string, input: Input, requestId: string) {
   requirePay(actor)
+  await getBook(tx, true)
+  const fe: FieldErrors = {}
+  unknownKeys(input, ['bankAccountId', 'effectiveDate', 'reference'], fe)
+  if (typeof input.bankAccountId !== 'string' || !input.bankAccountId) fe.bankAccountId = ['Pilih rekening pembayaran gaji.']
+  if (Object.keys(fe).length) throw errors.validation(fe)
+  const effectiveDate = validateEffectiveDate(input.effectiveDate)
   const r = await lockRun(tx, id)
-  if (r.status !== 'approved') throw rule('Payroll harus disetujui dulu sebelum ditandai dibayar.')
-  await tx.query("update payroll_runs set status = 'paid', paid_on = $2, changed_by_api_at = now(), updated_at = now() where id = $1", [id, today])
-  await recordAudit(tx, { action: 'finance.payroll.paid', actorUserId: actor.userId, entityType: 'payroll_run', entityId: id, requestId })
+  if (r.status !== 'approved') throw rule('Payroll harus disetujui dulu sebelum dibayar.')
+  const [standing] = await tx.query(`select 1 from financial_transactions t where t.payroll_run_id = $1 and t.reversal_of_id is null
+    and not exists (select 1 from financial_transactions x where x.reversal_of_id = t.id)`, [id])
+  if (standing) throw rule('Payroll ini sudah memiliki pembayaran.')
+  const [total] = await tx.query<{ net: string }>(`select coalesce(sum(greatest(base_salary_minor + allowance_minor - deduction_minor, 0)), 0)::text as net
+    from payroll_lines where payroll_run_id = $1`, [id])
+  const net = total!.net
+  if (BigInt(net) <= 0n) throw rule('Total gaji bersih payroll ini nol; tidak ada uang yang perlu dibayar.')
+  const account = await lockPostableAccount(tx, input.bankAccountId as string, effectiveDate)
+  await assertOutflowFits(tx, account, effectiveDate, BigInt(net))
+  const [period] = await tx.query<{ period: string }>('select period from payroll_runs where id = $1', [id])
+  const [row] = await tx.query<{ id: string }>(
+    `insert into financial_transactions (bank_account_id, direction, amount_minor, currency, kind, effective_date, payroll_run_id, reference, memo, created_by)
+     values ($1, 'out', $2, $3, 'payroll_payment', $4, $5, $6, $7, $8) returning id`,
+    [account.id, net, account.currency, effectiveDate, id, typeof input.reference === 'string' && input.reference.trim() ? input.reference.trim().slice(0, 120) : null,
+      `Gaji ${period!.period}`, actor.userId])
+  await postCashSource(tx, actor, row!.id, requestId)
+  await tx.query("update payroll_runs set status = 'paid', paid_on = $2, changed_by_api_at = now(), updated_at = now() where id = $1", [id, effectiveDate])
+  await recordAudit(tx, { action: 'finance.payroll.paid', actorUserId: actor.userId, entityType: 'payroll_run', entityId: id, requestId,
+    after: { transactionId: row!.id, accountId: account.id, amountMinor: net, effectiveDate } })
+  return { transactionId: row!.id }
 }
 
 export async function updatePayrollLine(tx: Queryable, actor: Actor, id: string, input: Input, requestId: string) {
@@ -313,8 +348,9 @@ export async function updatePayrollLine(tx: Queryable, actor: Actor, id: string,
 
 /**
  * Commission per project an employee owns (`projects.owner_user_id` → the linked employee with a rate): contract value ×
- * rate, in the month the trip starts; status follows the project (closed → paid, completed → approved, otherwise
- * accrued). Incentives are the manual entries, always approved.
+ * rate, in the month the trip starts; status follows the project (completed or closed → approved, otherwise accrued).
+ * Owner accounting F5: a closed project no longer reports a commission as "paid" — paid only ever comes from a recorded
+ * settlement (none is recorded for commissions yet; the basis/timing policy D06 is undecided). Incentives are manual, approved.
  */
 export async function listCommissions(db: Queryable, actor: Actor, incentiveId?: string) {
   requirePay(actor)
@@ -322,7 +358,7 @@ export async function listCommissions(db: Queryable, actor: Actor, incentiveId?:
     `select p.id as project_id, e.id as employee_id, to_char(coalesce(p.travel_start_date, p.created_at::date), 'YYYY-MM') as period,
             p.contract_value_minor as base, e.commission_rate_percent as rate,
             round(p.contract_value_minor * e.commission_rate_percent / 100)::bigint as amount,
-            case when p.closed_at is not null then 'paid' when p.status = 'completed' then 'approved' else 'accrued' end as status
+            case when p.closed_at is not null or p.status = 'completed' then 'approved' else 'accrued' end as status
        from projects p join employees e on e.user_id = p.owner_user_id
       where e.commission_rate_percent is not null and p.contract_value_minor is not null
       order by p.id`)

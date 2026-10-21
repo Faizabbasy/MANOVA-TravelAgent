@@ -1,4 +1,5 @@
 import { createApp } from '../src/app'
+import type {BlobStore} from '../src/files/blob-store'
 import { LoginThrottle } from '../src/auth/login-throttle'
 import { hashPassword } from '../src/auth/password'
 import { loadConfig, type AppConfig } from '../src/config/env'
@@ -57,12 +58,12 @@ interface CallOptions {
   headers?: Record<string, string>
 }
 
-export async function makeTestApp(options: { migrate?: boolean; seed?: boolean; config?: Partial<AppConfig> } = {}) {
+export async function makeTestApp(options: { migrate?: boolean; seed?: boolean; config?: Partial<AppConfig>;blobs?:BlobStore } = {}) {
   const { db, cleanup } = await makeTestDb()
   if (options.migrate !== false) await migrateUp(db)
   if (options.migrate !== false && options.seed !== false) await seedDemo(db, { appEnv: 'test', password: TEST_PASSWORD })
   const config = testConfig(options.config)
-  const app = createApp({ db, config, throttle: new LoginThrottle() })
+  const app = createApp({ db, config, throttle: new LoginThrottle(),blobs:options.blobs })
 
   async function call(method: string, path: string, opts: CallOptions = {}) {
     const headers: Record<string, string> = { ...opts.headers }

@@ -3,6 +3,13 @@ import { differenceInCalendarDays, parseISO } from 'date-fns'
 // Relative (not ~/) so the backend seed extract, which runs under bun without the Nuxt alias, can load this file.
 import { LEAD_SOURCES } from '../constants/status'
 import { DEMO_REFERENCE_DATE } from '../utils/attention'
+import { LEADS } from './leads'
+import { QUOTATIONS } from './quotations'
+import { PROJECTS } from './projects'
+import { PARTIES } from './parties'
+import { INVOICES } from './finance'
+import type { LeadSource } from '~/types/lead'
+import type { StatusOption } from '~/types/common'
 import type {
   Campaign,
   CampaignChannelSpend,
@@ -17,13 +24,6 @@ import type {
   ContentDevelopmentStage,
   ContentPlatform
 } from '~/types/marketing'
-import type { StatusOption } from '~/types/common'
-import type { LeadSource } from '~/types/lead'
-import { LEADS } from './leads'
-import { QUOTATIONS } from './quotations'
-import { PROJECTS } from './projects'
-import { PARTIES } from './parties'
-import { INVOICES } from './finance'
 
 /**
  * Marketing & Analysis (Revisi 9-Modul, modul 8).
@@ -75,15 +75,15 @@ export const CONTENT_DEVELOPMENT_STAGES: StatusOption<ContentDevelopmentStage>[]
   { value: 'ready', label: 'Siap Tayang', tone: 'success', order: 4 }
 ]
 
-export const CAMPAIGNS: Campaign[] = reactive([
+export const CAMPAIGNS: Campaign[] = reactive<Campaign[]>([
   { id: 'CMP-001', name: 'Corporate Retreat Season 2026', objective: 'lead-generation', status: 'running', startDate: '2026-05-01', endDate: '2026-08-31', budgetIdr: 180_000_000, spendIdr: 124_500_000, channels: ['instagram', 'website', 'email'], ownerId: 'USR-001', note: 'Menyasar HR dan GA perusahaan menengah-besar di Jabodetabek.' },
   { id: 'CMP-002', name: 'MICE Nusantara Expo', objective: 'awareness', status: 'completed', startDate: '2026-06-01', endDate: '2026-06-30', budgetIdr: 95_000_000, spendIdr: 92_800_000, channels: ['event', 'referral'], ownerId: 'USR-001', note: 'Sponsorship booth di travel fair nasional.' },
   { id: 'CMP-003', name: 'Referral Booster Q3', objective: 'retention', status: 'running', startDate: '2026-07-01', endDate: '2026-09-30', budgetIdr: 60_000_000, spendIdr: 21_400_000, channels: ['referral', 'whatsapp'], ownerId: 'USR-001', note: 'Insentif untuk klien lama yang merekomendasikan klien baru.' },
   { id: 'CMP-004', name: 'TikTok Travel Story', objective: 'awareness', status: 'running', startDate: '2026-07-10', endDate: '2026-10-10', budgetIdr: 75_000_000, spendIdr: 28_900_000, channels: ['tiktok', 'instagram'], ownerId: 'USR-001' },
-  { id: 'CMP-005', name: 'Outbound Korporat Q4', objective: 'conversion', status: 'planned', startDate: '2026-09-01', endDate: '2026-12-15', budgetIdr: 140_000_000, spendIdr: 0, channels: ['outreach', 'email'], ownerId: 'USR-001' }
+  { id: 'CMP-005', name: 'Outbound Korporat Q4', objective: 'conversion', status: 'planned', startDate: '2026-09-01', endDate: '2026-12-15', budgetIdr: 140_000_000, spendIdr: 0, channels: ['sales-outreach', 'email'], ownerId: 'USR-001' }
 ])
 
-export const CAMPAIGN_CHANNEL_SPEND: CampaignChannelSpend[] = reactive([
+export const CAMPAIGN_CHANNEL_SPEND: CampaignChannelSpend[] = reactive<CampaignChannelSpend[]>([
   { id: 'CCS-001', campaignId: 'CMP-001', channel: 'instagram', spendIdr: 62_000_000, impressions: 1_840_000, clicks: 41_200 },
   { id: 'CCS-002', campaignId: 'CMP-001', channel: 'website', spendIdr: 38_500_000, impressions: 620_000, clicks: 28_400 },
   { id: 'CCS-003', campaignId: 'CMP-001', channel: 'email', spendIdr: 24_000_000, impressions: 96_000, clicks: 12_800 },
@@ -99,7 +99,7 @@ export const CAMPAIGN_CHANNEL_SPEND: CampaignChannelSpend[] = reactive([
  * Promo dengan dua varian — inilah bentuk "A/B Testing Promo" yang bisa benar-benar dievaluasi: kode yang
  * sama dikirim dalam dua varian potongan, lalu redemption rate dan revenue per pengiriman dibandingkan.
  */
-export const PROMO_CODES: PromoCode[] = reactive([
+export const PROMO_CODES: PromoCode[] = reactive<PromoCode[]>([
   {
     id: 'PRM-001',
     code: 'CORP2026',

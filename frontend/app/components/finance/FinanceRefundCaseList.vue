@@ -8,13 +8,13 @@ import { refundTag, subjectLabel } from '~/lib/finance/refunds'
  * where the refund stands — never amounts (the server sends Admin the status view). Finance opens the case in
  * Finance › Refund & Pembatalan. With `projectId`, only the cases of that project (Project Detail).
  */
-const props = defineProps<{ projectId?: string }>()
+const props = defineProps<{ projectId?: string; salesOrderId?:string }>()
 const api = useApi()
 const session = useServerSession()
 const today = todayJakarta()
 const cases = useFinanceQuery(
-  async () => (await api.finance.refundStatuses({ view: 'all', limit: 100, projectId: props.projectId })).data,
-  { watch: [() => props.projectId] }
+  async () => (await api.finance.refundStatuses({ view: 'all', limit: 100, projectId: props.projectId, salesOrderId: props.salesOrderId })).data,
+  { watch: [() => props.projectId, () => props.salesOrderId] }
 )
 const isFinance = computed(() => session.can('finance.view-cash'))
 const hidden = computed(() => ['offline', 'signed-out'].includes(session.state.value.status) || !!cases.error.value?.isForbidden)
@@ -51,7 +51,7 @@ const hidden = computed(() => ['offline', 'signed-out'].includes(session.state.v
                 {{ r.party.name }} <span class="font-normal text-muted-foreground">· {{ r.id }}</span>
               </p>
               <p class="truncate text-xs text-muted-foreground">
-                {{ r.project.name }} · {{ subjectLabel(r.subject) }} · batal {{ formatBusinessDate(r.cancelDate, { short: true, today }) }}
+                {{ r.project?.name ?? r.salesOrderId }} · {{ subjectLabel(r.subject) }} · batal {{ formatBusinessDate(r.cancelDate, { short: true, today }) }}
               </p>
             </div>
             <StatusBadge v-bind="refundTag(r)" />

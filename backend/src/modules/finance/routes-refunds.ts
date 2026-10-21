@@ -144,7 +144,7 @@ export function refundRoutes(deps: AppDeps, auth: AuthContext) {
       const result = await listRefunds(db, { ...query, limit: parseLimit(query.limit) }, full)
       return { data: result.items, meta: { requestId: requestIdOf(request), pagination: result.pagination, summary: result.summary } }
     }, {
-      query: t.Object({ view: t.Optional(t.String()), projectId: t.Optional(t.String()), partyId: t.Optional(t.String()), cursor: t.Optional(t.String()), limit: t.Optional(t.String()) })
+      query: t.Object({ view: t.Optional(t.String()), projectId: t.Optional(t.String()),salesOrderId:t.Optional(t.String()), partyId: t.Optional(t.String()), cursor: t.Optional(t.String()), limit: t.Optional(t.String()) })
     })
     .get('/finance/refunds/:id', async ({ request, params }) => {
       const { full } = await canceller(request).catch(async () => ({ actor: await auth.requireCapability(request, 'finance.view-cash'), full: true }))

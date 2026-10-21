@@ -16,7 +16,7 @@ import type { Party, ContactPerson, PartyActivity } from '~/types/party'
  * existing di-backfill `accountOwnerId: 'USR-001'` (satu-satunya Account Executive demo) — bukan
  * perubahan kepemilikan Opportunity (`Opportunity.ownerId` tetap terpisah, historis tidak diubah).
  */
-export const PARTIES: Party[] = reactive([
+export const PARTIES: Party[] = reactive<Party[]>([
   { id: 'PTY-001', name: 'PT Cipta Distribusi Nusantara', lifecycleStatus: 'client', createdAt: '2026-05-20', accountOwnerId: 'USR-001', size: '201-500', city: 'Jakarta', phone: '021-5550-1001', creditLimitIdr: 500000000 },
   { id: 'PTY-002', name: 'PT Alam Raya Group', lifecycleStatus: 'client', createdAt: '2026-05-10', accountOwnerId: 'USR-001', size: '501-1000', city: 'Surabaya', phone: '031-5550-1002', creditLimitIdr: 750000000 },
   { id: 'PTY-003', name: 'PT Sinergi Korporindo', lifecycleStatus: 'client', createdAt: '2026-04-25', accountOwnerId: 'USR-001', size: '1000+', city: 'Jakarta', phone: '021-5550-1003', creditLimitIdr: 1000000000 },
@@ -107,7 +107,7 @@ export const PARTIES: Party[] = reactive([
   ...HISTORY_PARTIES
 ])
 
-export const CONTACTS: ContactPerson[] = reactive([
+export const CONTACTS: ContactPerson[] = reactive<ContactPerson[]>([
   { id: 'CP-001', partyId: 'PTY-001', name: 'Hendra Wijaya', title: 'Operations Manager', phone: '0812-3000-1001' },
   { id: 'CP-002', partyId: 'PTY-002', name: 'Sarah Amelia', title: 'HR Manager' },
   { id: 'CP-005', partyId: 'PTY-005', name: 'Dimas Pratama', title: 'Corporate Travel Coordinator', email: 'dimas.pratama@java-bhakti.example', phone: '0815-5000-5001' },
@@ -123,7 +123,7 @@ export const CONTACTS: ContactPerson[] = reactive([
  * `leadId` (Section 08, dulu `opportunityId`) ditambahkan pada baris yang memang terkait satu deal Lead
  * spesifik — backfill, bukan record baru — agar tampil juga di tab "Activity/Follow-up" Lead Detail.
  */
-export const PARTY_ACTIVITIES: PartyActivity[] = reactive([
+export const PARTY_ACTIVITIES: PartyActivity[] = reactive<PartyActivity[]>([
   { id: 'PACT-001', partyId: 'PTY-001', type: 'call', message: 'Follow-up kepuasan trip Manila Business Trip', ownerId: 'USR-001', createdAt: '2026-07-01' },
   { id: 'PACT-002', partyId: 'PTY-004', leadId: 'LED-005', type: 'meeting', message: 'Diskusi kebutuhan awal Bali Team Building 2026', ownerId: 'USR-001', createdAt: '2026-07-04' },
   { id: 'PACT-003', partyId: 'PTY-004', leadId: 'LED-005', type: 'email', message: 'Mengirimkan draft quotation Bali Team Building 2026', ownerId: 'USR-001', createdAt: '2026-07-18' },

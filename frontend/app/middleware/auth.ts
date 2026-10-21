@@ -1,6 +1,6 @@
 export default defineNuxtRouteMiddleware((to) => {
   // Check if running on client side
-  if (process.client) {
+  if (import.meta.client) {
     const isAuthenticated = localStorage.getItem('isAuthenticated')
 
     // If not authenticated and not going to login page, redirect to login

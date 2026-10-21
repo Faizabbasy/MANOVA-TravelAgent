@@ -677,6 +677,7 @@ async function submitActivity () {
 }
 /** S12b-2: the client's answer to the version it was sent (recorded on the server). */
 const CLIENT_RESPONSE_LABEL: Record<'accepted' | 'rejected' | 'revision-requested', string> = { accepted: 'Disetujui Client', rejected: 'Ditolak Client', 'revision-requested': 'Client Minta Revisi' }
+const qualServiceScopeLabel = computed(() => qualServiceScope.value.map(type => SERVICE_TYPES.find(t => t.value === type)?.label ?? type).join(', ') || '—')
 </script>
 
 <template>
@@ -941,7 +942,7 @@ const CLIENT_RESPONSE_LABEL: Record<'accepted' | 'rejected' | 'revision-requeste
               <div v-else class="space-y-1.5">
                 <Label>Service Scope</Label>
                 <p class="text-sm text-muted-foreground">
-                  Mengikuti layanan Project B2C: {{ qualServiceScope.map(type => SERVICE_TYPES.find(t => t.value === type)?.label ?? type).join(', ') || '—' }}
+                  Mengikuti layanan Project B2C: {{ qualServiceScopeLabel }}
                 </p>
               </div>
               <div class="space-y-1.5">

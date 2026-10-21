@@ -123,7 +123,7 @@ onMounted(async () => {
         pointRadius: 3.5,
         pointHoverRadius: 6,
         pointBackgroundColor: `hsl(${successHsl})`,
-        pointBorderColor: `hsl(0, 0%, 100%)`,
+        pointBorderColor: 'hsl(0, 0%, 100%)',
         pointBorderWidth: 2,
         fill: false,
         order: 1

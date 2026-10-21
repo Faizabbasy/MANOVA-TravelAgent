@@ -9,7 +9,7 @@ import type { Feedback } from '~/types/feedback'
  * Sengaja bervariasi: satu sudah di-acknowledge, satu berskor rendah dan menunggu tindak lanjut, satu baru
  * submitted — supaya antrean kerja tim CRM langsung terlihat hidup tanpa perlu mengarang data saat demo.
  */
-export const FEEDBACK_RECORDS: Feedback[] = reactive([
+export const FEEDBACK_RECORDS: Feedback[] = reactive<Feedback[]>([
   {
     id: 'FBK-001',
     projectId: 'PRJ-101',

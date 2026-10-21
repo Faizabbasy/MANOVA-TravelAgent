@@ -88,14 +88,19 @@ export async function monthlyReport(db: Db, query: { months?: string; from?: str
   )
   const spent = await bucket(
     `select to_char(t.effective_date, 'YYYY-MM') as m, sum(t.amount_minor) as total from financial_transactions t
-      where t.kind in ('expense', 'transfer_fee') and t.reversal_of_id is null and t.effective_date >= $1::date
+      where t.kind in ('expense', 'transfer_fee', 'payroll_payment') and t.reversal_of_id is null and t.effective_date >= $1::date
         and not exists (select 1 from financial_transactions r where r.reversal_of_id = t.id)
       group by 1`
+  )
+  // Staff spending counts when its evidence is recorded; the kasbon cash itself is not a cost.
+  const claimed = await bucket(
+    `select to_char(spent_on, 'YYYY-MM') as m, sum(amount_minor) as total from employee_expense_claims
+      where status = 'recorded' and spent_on >= $1::date group by 1`
   )
 
   const rows = months.map((month) => {
     const revenue = (invoiced.get(month) ?? 0n) - (credited.get(month) ?? 0n)
-    const cost = (vendor.get(month) ?? 0n) + (spent.get(month) ?? 0n)
+    const cost = (vendor.get(month) ?? 0n) + (spent.get(month) ?? 0n) + (claimed.get(month) ?? 0n)
     return {
       month,
       invoicedMinor: (invoiced.get(month) ?? 0n).toString(),

@@ -85,8 +85,8 @@ const canVoid = computed(() => !!rf.value && session.can('finance.approve-refund
           <p class="mt-3 text-base font-semibold leading-snug">
             {{ rf.party.name }}
           </p>
-          <NuxtLink :to="`/project-orders/${rf.project.id}`" class="text-sm text-primary hover:underline">
-            {{ rf.project.name }}
+          <NuxtLink :to="rf.salesOrderId ? `/sales-orders/${rf.salesOrderId}` : `/project-orders/${rf.project?.id}`" class="text-sm text-primary hover:underline">
+            {{ rf.salesOrderId ?? rf.project?.name }}
           </NuxtLink>
           <div class="mt-4 flex items-end justify-between gap-4">
             <div>
@@ -117,6 +117,7 @@ const canVoid = computed(() => !!rf.value && session.can('finance.approve-refund
       <FinanceErrorState v-if="detail.error.value && !rf" :error="detail.error.value" compact @retry="detail.refresh" />
 
       <div v-if="rf" class="flex-1 space-y-6 px-6 py-5">
+        <PrivateEvidencePanel source-type="refund" :source-id="rf.id" :can-upload="session.can('finance.post-cash')" />
         <div v-if="rf.status === 'rejected'" class="flex gap-2 rounded-lg bg-muted px-3 py-2.5 text-sm text-muted-foreground">
           <XCircle class="mt-0.5 h-4 w-4 shrink-0" /> Kasus dibatalkan — tagihan dipulihkan: “{{ rf.rejectReason }}”
         </div>

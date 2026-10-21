@@ -70,7 +70,8 @@ export async function seedFinanceDemo(rawDb: Db, options: { appEnv: AppEnv }): P
   if (options.appEnv === 'production') throw new SeedRefusedError('Finance demo seed is disabled in production (APP_ENV=production).')
   const [real] = await rawDb.query<{ n: string }>(
     `select (select count(*) from users where provenance <> 'demo-fixture')
-          + (select count(*) from projects where provenance <> 'demo-fixture') as n`
+          + (select count(*) from projects where provenance <> 'demo-fixture')
+          + (select count(*) from accounting_books) as n`
   )
   if (Number(real?.n ?? 0) > 0) throw new SeedRefusedError('This database holds non-demo data; the finance demo seed only runs on a demo/dev database.')
 

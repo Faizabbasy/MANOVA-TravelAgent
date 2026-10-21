@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { AlertTriangle, CalendarClock, FileText, Pencil, Scale, Send, Trash2, Undo2, Wallet } from 'lucide-vue-next'
 import type { CustomerInvoiceDetailDto } from '~/types/api'
-import { customerInvoiceTag, INVOICE_TYPE_LABEL } from '~/lib/finance/labels'
+import { customerInvoiceTag, INVOICE_TYPE_LABEL, invoiceSubjectLabel } from '~/lib/finance/labels'
 import { dueInfo, formatBusinessDate, formatBusinessDateLong, shiftDate, todayJakarta } from '~/lib/finance/dates'
 import { formatMoneyMinor } from '~/lib/money'
 
@@ -142,8 +142,8 @@ function openReason (kind: ReasonKind) {
           <p class="mt-3 text-base font-semibold leading-snug">
             {{ inv.party.name }}
           </p>
-          <NuxtLink :to="`/project-orders/${inv.project.id}`" class="text-sm text-primary hover:underline">
-            {{ inv.project.name }}
+          <NuxtLink :to="inv.project ? `/project-orders/${inv.project.id}` : `/sales-orders/${inv.salesOrderId}`" class="text-sm text-primary hover:underline">
+            {{ invoiceSubjectLabel(inv) }}
           </NuxtLink>
 
           <div class="mt-4 flex items-end justify-between gap-4">
@@ -179,6 +179,13 @@ function openReason (kind: ReasonKind) {
       <FinanceErrorState v-if="detail.error.value && !inv" :error="detail.error.value" compact @retry="detail.refresh" />
 
       <div v-if="inv" class="flex-1 space-y-6 px-6 py-5">
+        <AccountingSourceStatus source-type="customer_invoice" :source-id="inv.id" />
+        <PrivateEvidencePanel v-if="inv.status!=='draft'" source-type="customer_invoice" :source-id="inv.id" :can-upload="canPost" />
+        <p v-if="inv.changeRequestId" class="text-sm">
+          Draft mengikuti perubahan <NuxtLink :to="`/changes/${inv.changeRequestId}`" class="text-primary underline">
+            {{ inv.changeRequestId }}
+          </NuxtLink>. Koreksi nilai, pembagian atau hapus draft melalui rencana sumber.
+        </p>
         <div v-if="inv.status === 'void'" class="flex gap-2 rounded-lg bg-muted px-3 py-2.5 text-sm text-muted-foreground">
           <Undo2 class="mt-0.5 h-4 w-4 shrink-0" /> Dibatalkan: “{{ inv.voidReason }}”
         </div>
@@ -288,7 +295,7 @@ function openReason (kind: ReasonKind) {
           <Button class="w-full" @click="showIssue = true">
             <Send class="mr-2 h-4 w-4" /> Terbitkan invoice
           </Button>
-          <div class="grid grid-cols-2 gap-2">
+          <div v-if="!inv.changeBillingAllocationId" class="grid grid-cols-2 gap-2">
             <Button variant="outline" @click="showEdit = true">
               <Pencil class="mr-2 h-4 w-4" /> Ubah draft
             </Button>
@@ -340,7 +347,7 @@ function openReason (kind: ReasonKind) {
         <FinanceDateInput id="iss-date" v-model="issueForm.issueDate" :max="today" />
       </FinanceField>
       <FinanceField id="iss-due" label="Jatuh tempo" :error="issueAction.fieldError('dueDate')">
-        <FinanceDateInput id="iss-due" v-model="issueForm.dueDate" :min="issueForm.issueDate" />
+        <FinanceDateInput id="iss-due" v-model="issueForm.dueDate" :min="issueForm.issueDate" :disabled="!!inv?.changeBillingAllocationId" />
       </FinanceField>
     </div>
     <template #summary>
@@ -386,5 +393,5 @@ function openReason (kind: ReasonKind) {
   />
 
   <FinanceInvoiceDialog v-model:open="showEdit" :invoice="inv" />
-  <FinanceReceiptDialog v-model:open="showPayment" :party-id="inv?.party.id" :invoice-id="inv?.id" :project-id="inv?.project.id" />
+  <FinanceReceiptDialog v-model:open="showPayment" :party-id="inv?.party.id" :invoice-id="inv?.id" :project-id="inv?.project?.id" />
 </template>

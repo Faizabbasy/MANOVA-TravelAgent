@@ -1,5 +1,6 @@
 import type { Actor } from '../../auth/rbac'
 import type { Db, Queryable } from '../../db/client'
+import { getBook } from '../accounting/setup'
 import { AppError, errors, type FieldErrors } from '../../http/errors'
 import { recordAudit } from '../../shared/audit'
 import { isIsoDate } from '../../shared/dates'
@@ -124,6 +125,7 @@ async function lockProof(tx: Queryable, id: string) {
 
 /** Finance verify a proof by posting the receipt it describes (Finance sets the official amount and account). */
 export async function verifyPaymentProof(tx: Queryable, actor: Actor, id: string, input: { bankAccountId: string; amountMinor: string; effectiveDate: string; reference?: string }, requestId: string) {
+  await getBook(tx, true)
   const p = await lockProof(tx, id)
   const receipt = await postReceipt(tx, actor, {
     bankAccountId: input.bankAccountId, amountMinor: input.amountMinor, effectiveDate: input.effectiveDate, partyId: p.party_id, projectId: p.project_id,

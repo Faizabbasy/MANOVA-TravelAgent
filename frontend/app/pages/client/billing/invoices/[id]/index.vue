@@ -55,14 +55,12 @@ const proofReference = ref('')
 const proofAmount = ref(0)
 const proofDate = ref('')
 const proofBank = ref('')
-const proofFileName = ref('')
 const proofNote = ref('')
 function openProofDialog () {
   proofReference.value = ''
   proofAmount.value = outstanding.value
   proofDate.value = todayJakarta()
   proofBank.value = ''
-  proofFileName.value = ''
   proofNote.value = ''
   isProofOpen.value = true
 }
@@ -75,12 +73,11 @@ async function submitProof () {
     amountMinor: String(Math.round(proofAmount.value)),
     transferDate: proofDate.value,
     ...(proofBank.value.trim() ? { senderBank: proofBank.value.trim() } : {}),
-    ...(proofFileName.value.trim() ? { fileName: proofFileName.value.trim() } : {}),
     ...(proofNote.value.trim() ? { note: proofNote.value.trim() } : {})
   }))
   if (!saved) { return }
   isProofOpen.value = false
-  showToast('Bukti Pembayaran Terkirim', 'Tim Finance kami akan memverifikasi dalam waktu dekat.', 'success')
+  showToast('Referensi pembayaran tersimpan', 'Tambahkan file asli pada panel Bukti asli privat. Finance memverifikasi uang yang diterima.', 'success')
 }
 
 /* --- Raise dispute --- */
@@ -147,6 +144,7 @@ async function submitDispute () {
         </p>
       </SectionCard>
 
+      <PrivateEvidencePanel v-if="invoice.paymentProofId" source-type="payment_proof" :source-id="invoice.paymentProofId" :can-upload="invoice.paymentProofStatus==='submitted'" />
       <SectionCard v-if="invoice.paymentProofStatus === 'submitted' || invoice.paymentProofStatus === 'rejected'" title="Bukti Pembayaran">
         <DetailMetadataList
           :items="[
@@ -180,7 +178,7 @@ async function submitDispute () {
             v-if="canUploadProof"
             v-model:open="isProofOpen"
             title="Upload Payment Proof"
-            description="Data transfer Anda diverifikasi tim Finance kami. File bukti dicatat namanya saja untuk sementara."
+            description="Catat referensi transfer dahulu. Setelah tersimpan, lampirkan file asli melalui panel Bukti asli privat. Uang belum dianggap diterima sebelum verifikasi Finance."
             content-class="max-w-md"
             scroll
           >
@@ -205,10 +203,6 @@ async function submitDispute () {
               <div class="space-y-1.5">
                 <Label for="proof-bank">Bank Pengirim (opsional)</Label>
                 <Input id="proof-bank" v-model="proofBank" placeholder="mis. BCA" />
-              </div>
-              <div class="space-y-1.5">
-                <Label for="proof-file">Nama File Bukti (opsional)</Label>
-                <Input id="proof-file" v-model="proofFileName" placeholder="mis. bukti-transfer.jpg" />
               </div>
               <div class="space-y-1.5">
                 <Label for="proof-note">Catatan (opsional)</Label>

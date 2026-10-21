@@ -7,7 +7,7 @@ import type { TripAnnouncement } from '~/types/trip-center'
  * mengonfirmasi, mendemokan aksi "Confirm announcement"); PRJ-201 (Korea, pra-keberangkatan) — reminder
  * dokumen, informasional saja (`requiresConfirmation: false`).
  */
-export const TRIP_ANNOUNCEMENTS: TripAnnouncement[] = reactive([
+export const TRIP_ANNOUNCEMENTS: TripAnnouncement[] = reactive<TripAnnouncement[]>([
   {
     id: 'ANN-001',
     projectId: 'PRJ-202',

@@ -14,7 +14,7 @@ import type { Invoice, Payment, CreditNote, DebitNote } from '~/types/finance'
  * `reactive()` (mengikuti pola Section 07 dst.) — sebelumnya array polos karena belum ada mutator; Section 20
  * menambahkan `createInvoice`/`voidInvoice`/`recordPayment`, sehingga perubahan harus reaktif di seluruh UI.
  */
-export const INVOICES: Invoice[] = reactive([
+export const INVOICES: Invoice[] = reactive<Invoice[]>([
   { id: 'INV-1011', projectId: 'PRJ-101', label: 'Invoice Manila Business Trip', amountIdr: 95_000_000, issuedAt: '2026-06-26', dueAt: '2026-07-10', status: 'paid', currency: 'IDR', invoiceType: 'final' },
 
   { id: 'INV-1021', projectId: 'PRJ-102', label: 'Invoice Abu Dhabi (Termin Awal)', amountIdr: 310_000_000, issuedAt: '2026-06-21', dueAt: '2026-07-01', status: 'partially-paid', currency: 'IDR', invoiceType: 'dp' },
@@ -63,7 +63,7 @@ export const INVOICES: Invoice[] = reactive([
 ])
 
 /** `recordedBy` di-backfill ke `USR-008` (Budi Santoso, role `finance`) untuk seluruh payment existing — plausible, konsisten dengan `reviewedBy`/`recordedBy` internal user lain di codebase. `method` diisi `'bank-transfer'` (metode paling umum pada skenario B2B travel ini). */
-export const PAYMENTS: Payment[] = reactive([
+export const PAYMENTS: Payment[] = reactive<Payment[]>([
   { id: 'PAY-1011', invoiceId: 'INV-1011', amountIdr: 95_000_000, receivedAt: '2026-07-10', method: 'bank-transfer', recordedBy: 'USR-008' },
   { id: 'PAY-1021', invoiceId: 'INV-1021', amountIdr: 250_000_000, receivedAt: '2026-07-05', method: 'bank-transfer', recordedBy: 'USR-008' },
   { id: 'PAY-1031', invoiceId: 'INV-1031', amountIdr: 700_000_000, receivedAt: '2026-06-18', method: 'bank-transfer', recordedBy: 'USR-008' },
@@ -92,10 +92,10 @@ export const PAYMENTS: Payment[] = reactive([
  * sesudah `CN-001` (floor `Math.max(...,0)` di `getInvoiceOutstandingIdr`) — nol regresi. `DN-001` murni
  * informasional (Wajib, TIDAK mempengaruhi kalkulasi outstanding mana pun).
  */
-export const CREDIT_NOTES: CreditNote[] = reactive([
+export const CREDIT_NOTES: CreditNote[] = reactive<CreditNote[]>([
   { id: 'CN-001', invoiceId: 'INV-1011', amountIdr: 2_000_000, issuedAt: '2026-07-25', reason: 'Penyesuaian billing minor — kelebihan pembebanan airport tax pada invoice awal.', status: 'issued' }
 ])
 
-export const DEBIT_NOTES: DebitNote[] = reactive([
+export const DEBIT_NOTES: DebitNote[] = reactive<DebitNote[]>([
   { id: 'DN-001', projectId: 'PRJ-102', invoiceId: 'INV-1022', amountIdr: 5_000_000, issuedAt: '2026-07-20', reason: 'Biaya tambahan perubahan kamar melebihi kuota yang disepakati di quotation awal.', status: 'issued' }
 ])

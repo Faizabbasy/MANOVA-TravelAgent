@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "bun run db:migrate && bun run --watch src/index.ts",
     "start": "bun src/index.ts",
+    "demo:year": "bun scripts/owner-year-demo.ts",
     "test": "bun test --timeout 30000",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "check": "bun run typecheck && bun test --timeout 30000",

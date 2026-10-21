@@ -166,7 +166,7 @@ async function submitContact () {
 const isQuotationDialogOpen = ref(false)
 const quotationProjectId = ref('')
 const quotationServiceId = ref('')
-const quotationAmount = ref('')
+const quotationAmount = ref<number | null>(null)
 const quotationNotes = ref('')
 
 const quotationServiceOptions = computed(() => {
@@ -181,7 +181,7 @@ function resetQuotationForm () {
   quotationKey = newIdempotencyKey()
   quotationProjectId.value = ''
   quotationServiceId.value = ''
-  quotationAmount.value = ''
+  quotationAmount.value = null
   quotationNotes.value = ''
 }
 

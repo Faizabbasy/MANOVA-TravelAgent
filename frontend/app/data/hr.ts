@@ -54,7 +54,7 @@ export const COMMISSION_STATUSES: StatusOption<CommissionRecord['status']>[] = [
   { value: 'paid', label: 'Dibayar', tone: 'success', order: 3 }
 ]
 
-export const EMPLOYEES: Employee[] = reactive([
+export const EMPLOYEES: Employee[] = reactive<Employee[]>([
   { id: 'EMP-001', userId: 'USR-001', name: 'Rani Kusuma', position: 'Sales Executive', department: 'Sales', employmentType: 'full-time', status: 'active', joinedAt: '2023-03-01', baseSalaryIdr: 9_500_000, commissionRatePercent: 2, phone: '0812-1111-2201', email: 'rani.kusuma@manova.id' },
   { id: 'EMP-002', name: 'Galih Ramadhan', position: 'Account Executive', department: 'Sales', employmentType: 'full-time', status: 'active', joinedAt: '2022-08-15', baseSalaryIdr: 12_000_000, commissionRatePercent: 2.5, phone: '0812-1111-2202', email: 'galih.ramadhan@manova.id' },
   { id: 'EMP-003', userId: 'USR-002', name: 'Doni Saputra', position: 'Project Manager', department: 'Operations', employmentType: 'full-time', status: 'active', joinedAt: '2021-06-01', baseSalaryIdr: 15_000_000, commissionRatePercent: 1.5, phone: '0812-1111-2203', email: 'doni.saputra@manova.id' },
@@ -111,7 +111,7 @@ function buildAttendanceSeed (): AttendanceRecord[] {
 
 export const ATTENDANCE_RECORDS: AttendanceRecord[] = reactive(buildAttendanceSeed())
 
-export const PAYROLL_RUNS: PayrollRun[] = reactive([
+export const PAYROLL_RUNS: PayrollRun[] = reactive<PayrollRun[]>([
   { id: 'PRN-2026-06', period: '2026-06', status: 'paid', approvedBy: 'USR-003', approvedAt: '2026-06-24', paidAt: '2026-06-25' },
   { id: 'PRN-2026-07', period: '2026-07', status: 'approved', approvedBy: 'USR-003', approvedAt: '2026-07-24' }
 ])
@@ -163,7 +163,7 @@ function buildCommissions (): CommissionRecord[] {
 
 export const COMMISSION_RECORDS: CommissionRecord[] = reactive(buildCommissions())
 
-export const PERFORMANCE_REVIEWS: PerformanceReview[] = reactive([
+export const PERFORMANCE_REVIEWS: PerformanceReview[] = reactive<PerformanceReview[]>([
   { id: 'PRV-001', employeeId: 'EMP-002', period: '2026-H1', reviewerId: 'USR-003', deliveryScore: 5, qualityScore: 4, collaborationScore: 5, initiativeScore: 4, overallScore: 4.5, strengths: 'Konsisten menutup deal korporat besar dan menjaga hubungan klien.', improvements: 'Dokumentasi handover ke Operations bisa lebih rinci.', reviewedAt: '2026-07-05' },
   { id: 'PRV-002', employeeId: 'EMP-003', period: '2026-H1', reviewerId: 'USR-003', deliveryScore: 4, qualityScore: 5, collaborationScore: 4, initiativeScore: 4, overallScore: 4.25, strengths: 'Eksekusi project rapi, jarang meleset dari jadwal.', improvements: 'Delegasi ke koordinator perlu ditingkatkan agar tidak jadi bottleneck.', reviewedAt: '2026-07-06' },
   { id: 'PRV-003', employeeId: 'EMP-005', period: '2026-H1', reviewerId: 'USR-002', deliveryScore: 3, qualityScore: 4, collaborationScore: 4, initiativeScore: 3, overallScore: 3.5, strengths: 'Detail dan teliti pada koordinasi lapangan.', improvements: 'Respons terhadap perubahan mendadak perlu lebih cepat.', reviewedAt: '2026-07-08' },
@@ -284,8 +284,8 @@ export function getPayrollBreakdown (payrollRunId: string): PayrollLineComputed[
   return getPayrollLines(payrollRunId).map((line) => {
     const commissionIdr = run
       ? getCommissionsByPeriod(run.period)
-          .filter(record => record.employeeId === line.employeeId && record.status !== 'accrued')
-          .reduce((sum, record) => sum + record.amountIdr, 0)
+        .filter(record => record.employeeId === line.employeeId && record.status !== 'accrued')
+        .reduce((sum, record) => sum + record.amountIdr, 0)
       : 0
     return {
       ...line,

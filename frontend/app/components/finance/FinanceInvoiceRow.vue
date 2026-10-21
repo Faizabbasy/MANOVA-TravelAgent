@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { CalendarClock, ChevronRight } from 'lucide-vue-next'
 import type { CustomerInvoiceDto } from '~/types/api'
-import { customerInvoiceTag, INVOICE_TYPE_LABEL } from '~/lib/finance/labels'
+import { customerInvoiceTag, INVOICE_TYPE_LABEL, invoiceSubjectLabel } from '~/lib/finance/labels'
 import { dueInfo, formatBusinessDate } from '~/lib/finance/dates'
 
 /** One customer invoice in a worklist: who, which invoice, when, how much is left — and a paid-progress bar. */
@@ -33,7 +33,7 @@ const pct = computed(() => {
       </div>
       <p class="truncate text-xs text-muted-foreground">
         <template v-if="showParty">
-          {{ invoice.project.name }} · {{ INVOICE_TYPE_LABEL[invoice.invoiceType] }} · {{ invoice.number ?? 'Draft' }}
+          {{ invoiceSubjectLabel(invoice) }} · {{ INVOICE_TYPE_LABEL[invoice.invoiceType] }} · {{ invoice.number ?? 'Draft' }}
         </template>
         <template v-else>
           {{ invoice.issueDate ? `Terbit ${formatBusinessDate(invoice.issueDate, { short: true, today })}` : 'Belum diterbitkan' }}

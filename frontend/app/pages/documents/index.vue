@@ -73,18 +73,18 @@ function documentCategoryTone (category: string): BadgeTone {
 function documentUploaderName (document: AppDocument) {
   return document.uploadedBy ? (getUserById(document.uploadedBy)?.name ?? document.uploadedBy) : '—'
 }
-function handleDownloadDocument (document: { name: string }) {
-  showToast('Download (Mock)', `${document.name} — simulasi unduhan, tidak ada file nyata (D-006).`, 'info')
+function handleDownloadDocument (document: { id: string; name: string }) {
+  evidenceDocumentId.value = document.id
 }
-function handlePreviewDocument (document: { name: string; sourceType?: string; previewRoute?: string }) {
+function handlePreviewDocument (document: { id: string; name: string; sourceType?: string; previewRoute?: string }) {
   if (document.sourceType === 'generated' && document.previewRoute) {
-    void navigateTo(document.previewRoute, { open: { target: '_blank' } })
+    navigateTo(document.previewRoute, { open: { target: '_blank' } })
     return
   }
-  showToast('Preview (Mock)', `${document.name} — pratinjau belum tersedia untuk dokumen upload manual (D-006).`, 'info')
+  evidenceDocumentId.value = document.id
 }
-function handleDocumentMenu (document: { name: string }) {
-  showToast('Menu (Mock)', `Aksi lain untuk "${document.name}" — kelola versi/hapus lengkap dari sini.`, 'info')
+function handleDocumentMenu (document: { id: string; name: string }) {
+  evidenceDocumentId.value = document.id
 }
 
 type DocTab = 'documents' | 'messages' | 'notifications'
@@ -104,6 +104,7 @@ function entityLabel (entityType: DocumentEntityType, entityId: string): string 
 const docViewMode = ref<'list' | 'grid'>('grid')
 /** S12c-5: the client-visible document whose comment thread is open. */
 const commentDocument = ref<AppDocument | null>(null)
+const evidenceDocumentId = ref<string|null>(null)
 const docSearch = ref('')
 const docCategoryFilter = ref('all')
 const docAccessFilter = ref<'all' | DocumentAccessLevel>('all')
@@ -699,7 +700,10 @@ const dismissNotification = (id: string) => save('Notifikasi Gagal Dihapus', () 
                           <NuxtLink v-if="row.item.sourceType === 'generated' && row.item.previewRoute" :to="row.item.previewRoute" target="_blank" class="inline-flex items-center gap-1 text-xs text-primary hover:underline">
                             Preview <ExternalLink class="h-3 w-3" />
                           </NuxtLink>
-                          <span v-else class="text-xs text-muted-foreground">Uploaded</span>
+                          <span v-else class="text-xs text-muted-foreground">Metadata</span>
+                          <Button size="sm" variant="outline" class="ml-2" @click="evidenceDocumentId=row.item.id">
+                            File asli
+                          </Button>
                         </TableCell>
                       </TableRow>
                     </TableBody>
@@ -712,7 +716,7 @@ const dismissNotification = (id: string) => save('Notifikasi Gagal Dihapus', () 
             </p>
           </SectionCard>
 
-          <SectionCard v-else description="Dokumen 'uploaded' murni metadata mock; dokumen 'generated' menautkan ke halaman preview existing (tidak menduplikasi generator dokumen).">
+          <SectionCard v-else description="Metadata dan preview mengikuti dokumen sumber. Gunakan File asli untuk unggah atau unduh bukti privat.">
             <div v-if="documentRows.length > 0" class="space-y-5">
               <div v-for="group in documentGroups" :key="group.category ?? '_all'">
                 <p v-if="group.category" class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -889,6 +893,7 @@ const dismissNotification = (id: string) => save('Notifikasi Gagal Dihapus', () 
       </Tabs>
     </template>
     <!-- S12c-5: komentar client pada dokumen ber-akses client (server). -->
+    <PrivateEvidenceSheet v-model:source-id="evidenceDocumentId" source-type="document" :can-upload="canManageDocuments" :allow-sharing="true" />
     <ResponsiveFormSheet
       :open="commentDocument !== null"
       :title="commentDocument ? `Komentar — ${commentDocument.name}` : ''"

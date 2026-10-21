@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { unref } from 'vue'
 import { computed, ref } from 'vue'
 import { Package, Wrench, AlertTriangle, PackageCheck, Search, Undo2, Plus, Pencil, Eye, ChevronRight } from 'lucide-vue-next'
 import { cn } from '~/lib/utils'
@@ -50,12 +51,12 @@ const searchQuery = ref('')
 const categoryFilter = ref<'all' | AssetCategoryKey>('all')
 
 const summary = computed(() => {
-  void refreshKey.value
+  unref(refreshKey)
   return getInventorySummary()
 })
 
 const filteredAssets = computed(() => {
-  void refreshKey.value
+  unref(refreshKey)
   let result = ASSETS as Asset[]
   if (categoryFilter.value !== 'all') { result = result.filter(asset => asset.category === categoryFilter.value) }
   if (searchQuery.value.trim()) {
@@ -69,19 +70,19 @@ const filteredAssets = computed(() => {
 })
 
 const overdueMaintenance = computed(() => {
-  void refreshKey.value
+  unref(refreshKey)
   return getOverdueMaintenance()
 })
 const upcomingMaintenance = computed(() => {
-  void refreshKey.value
+  unref(refreshKey)
   return getUpcomingMaintenance()
 })
 const allMaintenance = computed(() => {
-  void refreshKey.value
+  unref(refreshKey)
   return [...MAINTENANCE_SCHEDULES].sort((a, b) => b.scheduledAt.localeCompare(a.scheduledAt))
 })
 const activeCheckouts = computed(() => {
-  void refreshKey.value
+  unref(refreshKey)
   return getActiveCheckouts()
 })
 const overdueCheckouts = computed(() => activeCheckouts.value.filter(checkout => checkout.status === 'overdue'))
@@ -94,7 +95,7 @@ function overdueDays (isoDate: string): number {
   return Math.max(1, Math.round((new Date(TODAY).getTime() - new Date(isoDate).getTime()) / 86400000))
 }
 const utilization = computed(() => {
-  void refreshKey.value
+  unref(refreshKey)
   return getAssetUtilization()
 })
 

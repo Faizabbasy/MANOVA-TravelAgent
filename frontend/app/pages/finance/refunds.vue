@@ -235,7 +235,7 @@ const POLICY_STATUS: Record<CancellationPolicyDto['status'], { label: string; to
                   <StatusBadge :label="refundTag(r).label" :tone="refundTag(r).tone" class="max-sm:hidden" />
                 </div>
                 <p class="truncate text-xs text-muted-foreground">
-                  {{ r.project.name }} · {{ subjectLabel(r.subject) }} · batal {{ formatBusinessDate(r.cancelDate, { short: true, today }) }}<template v-if="r.daysBefore !== null">
+                  {{ r.project?.name ?? r.salesOrderId }} · {{ subjectLabel(r.subject) }} · batal {{ formatBusinessDate(r.cancelDate, { short: true, today }) }}<template v-if="r.daysBefore !== null">
                     (H-{{ r.daysBefore }})
                   </template>
                 </p>

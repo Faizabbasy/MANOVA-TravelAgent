@@ -14,14 +14,14 @@ import type {
  */
 
 /** Tipe project (karakteristik) — sesuai PROJECT_CHARACTERISTICS (docs/route-and-role-matrix.md bagian 3). */
-export const MASTER_PROJECT_TYPES: MasterDataItem[] = reactive([
+export const MASTER_PROJECT_TYPES: MasterDataItem[] = reactive<MasterDataItem[]>([
   { id: 'PT-001', label: 'Normal Project', description: 'Perjalanan standar tanpa kompleksitas tinggi', isActive: true },
   { id: 'PT-002', label: 'High-Change Project', description: 'Perjalanan dengan banyak perubahan itinerary/pax selama proses', isActive: true },
   { id: 'PT-003', label: 'Complex Project', description: 'Perjalanan multi-destination, multi-vendor, atau multi-grup besar', isActive: true }
 ])
 
 /** Tipe layanan operasional — sesuai SERVICE_TYPES (docs/route-and-role-matrix.md bagian 4). */
-export const MASTER_SERVICE_TYPES: MasterDataItem[] = reactive([
+export const MASTER_SERVICE_TYPES: MasterDataItem[] = reactive<MasterDataItem[]>([
   { id: 'ST-001', label: 'Flight', description: 'Tiket pesawat dan penerbangan', isActive: true },
   { id: 'ST-002', label: 'Hotel', description: 'Akomodasi penginapan', isActive: true },
   { id: 'ST-003', label: 'Transportation', description: 'Transportasi darat, bus, shuttle, dll.', isActive: true },
@@ -30,7 +30,7 @@ export const MASTER_SERVICE_TYPES: MasterDataItem[] = reactive([
 ])
 
 /** Destinasi demo — konsisten dengan skenario PRJ-101/102/103 (docs/mockup-data-scenarios.md). */
-export const MASTER_DESTINATIONS: MasterDataItem[] = reactive([
+export const MASTER_DESTINATIONS: MasterDataItem[] = reactive<MasterDataItem[]>([
   { id: 'DST-001', label: 'Manila, Filipina', description: 'Asia Tenggara', isActive: true },
   { id: 'DST-002', label: 'Abu Dhabi, UAE', description: 'Timur Tengah', isActive: true },
   { id: 'DST-003', label: 'Palu, Indonesia', description: 'Domestik — Sulawesi Tengah', isActive: true },
@@ -41,7 +41,7 @@ export const MASTER_DESTINATIONS: MasterDataItem[] = reactive([
 ])
 
 /** Kategori vendor — sesuai jenis layanan yang dikerjakan vendor (docs/mockup-data-scenarios.md bagian 0.2). */
-export const MASTER_VENDOR_CATEGORIES: MasterDataItem[] = reactive([
+export const MASTER_VENDOR_CATEGORIES: MasterDataItem[] = reactive<MasterDataItem[]>([
   { id: 'VC-001', label: 'Maskapai / Airline', description: 'Vendor tiket pesawat', isActive: true },
   { id: 'VC-002', label: 'Hotel / Penginapan', description: 'Vendor akomodasi', isActive: true },
   { id: 'VC-003', label: 'Transportasi Darat', description: 'Vendor bus, shuttle, rental kendaraan', isActive: true },
@@ -55,7 +55,7 @@ export const MASTER_VENDOR_CATEGORIES: MasterDataItem[] = reactive([
  * ditautkan sebagai foreign key ke `FlightBooking`/`HotelBooking` (Section 13-14, LOCKED) — kedua entitas
  * tsb tetap memakai field bebas teks/bisnis apa adanya (lihat D-080).
  */
-export const AIRPORTS: Airport[] = reactive([
+export const AIRPORTS: Airport[] = reactive<Airport[]>([
   { id: 'APT-001', iataCode: 'CGK', name: 'Soekarno-Hatta International Airport', city: 'Jakarta', isActive: true },
   { id: 'APT-002', iataCode: 'MNL', name: 'Ninoy Aquino International Airport', city: 'Manila', isActive: true },
   { id: 'APT-003', iataCode: 'AUH', name: 'Abu Dhabi International Airport', city: 'Abu Dhabi', isActive: true },
@@ -64,7 +64,7 @@ export const AIRPORTS: Airport[] = reactive([
   { id: 'APT-006', iataCode: 'SIN', name: 'Singapore Changi Airport', city: 'Singapura', isActive: true }
 ])
 
-export const AIRLINES: Airline[] = reactive([
+export const AIRLINES: Airline[] = reactive<Airline[]>([
   { id: 'ALN-001', iataCode: 'GA', name: 'Garuda Indonesia', isActive: true },
   { id: 'ALN-002', iataCode: 'JT', name: 'Lion Air', isActive: true },
   { id: 'ALN-003', iataCode: 'QG', name: 'Citilink', isActive: true },
@@ -72,7 +72,7 @@ export const AIRLINES: Airline[] = reactive([
   { id: 'ALN-005', iataCode: 'EY', name: 'Etihad Airways', isActive: true }
 ])
 
-export const MASTER_HOTELS: Hotel[] = reactive([
+export const MASTER_HOTELS: Hotel[] = reactive<Hotel[]>([
   { id: 'MHTL-001', name: 'Grand Manila Hotel', city: 'Manila', starRating: 5, isActive: true },
   { id: 'MHTL-002', name: 'Abu Dhabi Corniche Hotel', city: 'Abu Dhabi', starRating: 5, isActive: true },
   { id: 'MHTL-003', name: 'Palu Bay Resort', city: 'Palu', starRating: 4, isActive: true },
@@ -84,19 +84,19 @@ export const MASTER_HOTELS: Hotel[] = reactive([
  * (Section 20, `app/types/finance.ts`) — nilai `code` sengaja mencakup keempatnya (`IDR`/`USD`/`SGD`/`EUR`)
  * agar cek "in-use" (`getMasterDataUsageCount`, `app/data/index.ts`) terhadap `INVOICES` bermakna.
  */
-export const MASTER_CURRENCIES: MasterCurrency[] = reactive([
+export const MASTER_CURRENCIES: MasterCurrency[] = reactive<MasterCurrency[]>([
   { id: 'CUR-001', code: 'IDR', name: 'Rupiah Indonesia', symbol: 'Rp', isActive: true },
   { id: 'CUR-002', code: 'USD', name: 'US Dollar', symbol: '$', isActive: true },
   { id: 'CUR-003', code: 'SGD', name: 'Singapore Dollar', symbol: 'S$', isActive: true },
   { id: 'CUR-004', code: 'EUR', name: 'Euro', symbol: '€', isActive: true }
 ])
 
-export const TAX_RULES: TaxRule[] = reactive([
+export const TAX_RULES: TaxRule[] = reactive<TaxRule[]>([
   { id: 'TAX-001', name: 'PPN 11%', ratePercent: 11, appliesTo: 'Seluruh layanan kena pajak standar', isActive: true },
   { id: 'TAX-002', name: 'PPh 23 (Jasa Vendor)', ratePercent: 2, appliesTo: 'Pembayaran jasa ke vendor/supplier', isActive: true }
 ])
 
-export const PAYMENT_TERMS: PaymentTerm[] = reactive([
+export const PAYMENT_TERMS: PaymentTerm[] = reactive<PaymentTerm[]>([
   { id: 'PTM-001', label: 'DP 50% / Pelunasan H-7', daysDue: 7, isActive: true },
   { id: 'PTM-002', label: 'Net 14', daysDue: 14, isActive: true },
   { id: 'PTM-003', label: 'Net 30', daysDue: 30, isActive: true }
@@ -106,7 +106,7 @@ export const PAYMENT_TERMS: PaymentTerm[] = reactive([
  * `appliesToBookingType` — referensi/konfigurasi SAJA, TIDAK menggerbangi guard `CancellationRecord`/
  * `update*BookingStatus` (Section 13-19, LOCKED) mana pun.
  */
-export const CANCELLATION_RULES: CancellationRule[] = reactive([
+export const CANCELLATION_RULES: CancellationRule[] = reactive<CancellationRule[]>([
   { id: 'CXR-001', name: 'Flight — Pembatalan H-14+', daysBeforeDeparture: 14, penaltyPercent: 10, appliesToBookingType: 'flight', isActive: true },
   { id: 'CXR-002', name: 'Flight — Pembatalan H-7 s.d. H-13', daysBeforeDeparture: 7, penaltyPercent: 50, appliesToBookingType: 'flight', isActive: true },
   { id: 'CXR-003', name: 'Hotel — Pembatalan H-3+', daysBeforeDeparture: 3, penaltyPercent: 0, appliesToBookingType: 'hotel', isActive: true },
@@ -118,33 +118,33 @@ export const CANCELLATION_RULES: CancellationRule[] = reactive([
  * bisnis nyata (`nextSequentialId`, departure-readiness derivation, lead-routing mutator, seluruhnya
  * LOCKED, lihat `app/types/master-data.ts` dan D-080).
  */
-export const NUMBERING_SCHEMES: NumberingScheme[] = reactive([
+export const NUMBERING_SCHEMES: NumberingScheme[] = reactive<NumberingScheme[]>([
   { id: 'NUM-001', entityType: 'Invoice', prefix: 'INV-', nextNumberPreview: 'INV-1042 (preview)', isActive: true },
   { id: 'NUM-002', entityType: 'Project', prefix: 'PRJ-', nextNumberPreview: 'PRJ-105 (preview)', isActive: true },
   { id: 'NUM-003', entityType: 'Quotation', prefix: 'QUO-', nextNumberPreview: 'QUO-011 (preview)', isActive: true }
 ])
 
-export const DOCUMENT_TEMPLATES: DocumentTemplate[] = reactive([
+export const DOCUMENT_TEMPLATES: DocumentTemplate[] = reactive<DocumentTemplate[]>([
   { id: 'DTPL-001', name: 'Template Quotation Standar', category: 'Quotation', appliesToDocumentCategory: 'Quotation', bodyPreview: 'Kepada [Nama Client], berikut penawaran perjalanan untuk [Destinasi]...', isActive: true },
   { id: 'DTPL-002', name: 'Template E-Ticket', category: 'Ticketing', appliesToDocumentCategory: 'E-Ticket', bodyPreview: 'E-Ticket a.n. [Nama Traveler], PNR [Kode PNR]...', isActive: true },
   { id: 'DTPL-003', name: 'Template Voucher Hotel', category: 'Accommodation', appliesToDocumentCategory: 'Voucher', bodyPreview: 'Voucher menginap a.n. [Nama Traveler] di [Nama Hotel]...', isActive: true }
 ])
 
-export const READINESS_GATE_CONFIGS: ReadinessGateConfig[] = reactive([
+export const READINESS_GATE_CONFIGS: ReadinessGateConfig[] = reactive<ReadinessGateConfig[]>([
   { id: 'RGC-001', name: 'Flight Confirmed', description: 'Seluruh FlightBooking project berstatus confirmed/issued', appliesToModule: 'ticketing', isActive: true },
   { id: 'RGC-002', name: 'Hotel Confirmed', description: 'Seluruh HotelBooking project berstatus confirmed', appliesToModule: 'accommodation', isActive: true },
   { id: 'RGC-003', name: 'Traveler Documents Verified', description: 'Seluruh dokumen traveler wajib sudah diverifikasi', appliesToModule: 'project', isActive: true },
   { id: 'RGC-004', name: 'Outstanding Invoice Lunas', description: 'Tidak ada invoice project dengan outstanding > 0', appliesToModule: 'finance', isActive: true }
 ])
 
-export const ASSIGNMENT_RULES: AssignmentRule[] = reactive([
+export const ASSIGNMENT_RULES: AssignmentRule[] = reactive<AssignmentRule[]>([
   { id: 'ASR-001', name: 'Lead Sumber Website → Sales Rotasi', description: 'Lead dari sumber Website ditugaskan bergilir ke tim Sales', triggerCondition: 'source = website', targetRole: 'sales', isActive: true },
   { id: 'ASR-002', name: 'Lead Urgency Tinggi → Sales Senior', description: 'Lead dengan urgency tinggi diprioritaskan ke Sales senior', triggerCondition: 'urgency = high', targetRole: 'sales', isActive: true },
   { id: 'ASR-003', name: 'Lead Won → PM Rotasi', description: 'Project baru dari Lead Won ditugaskan bergilir ke Project Manager', triggerCondition: 'lead.projectId is set', targetRole: 'project-manager', isActive: true }
 ])
 
 /** Milestone Template — daftar milestone standar siap pakai untuk `applyMilestoneTemplate`. */
-export const MILESTONE_TEMPLATES: MilestoneTemplate[] = reactive([
+export const MILESTONE_TEMPLATES: MilestoneTemplate[] = reactive<MilestoneTemplate[]>([
   {
     id: 'MTPL-001',
     label: 'Standard Corporate Trip',

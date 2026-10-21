@@ -599,7 +599,12 @@ function submitActivity () {
               </div>
               <div class="space-y-1.5">
                 <Label for="edit-quo-discount">Discount (%)</Label>
-                <Input id="edit-quo-discount" v-model.number="editQuotationDiscountPercent" type="number" min="0" max="100" step="0.1" />
+                <Input id="edit-quo-discount"
+v-model.number="editQuotationDiscountPercent"
+type="number"
+min="0"
+max="100"
+step="0.1" />
                 <p v-if="editQuotationDiscount" class="text-xs text-muted-foreground">
                   &asymp; {{ formatCurrencyIdr(editQuotationDiscount) }}
                 </p>

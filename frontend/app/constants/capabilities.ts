@@ -28,6 +28,11 @@ export function serviceCapabilityKey (serviceType: ServiceTypeKey): string {
 }
 
 export const CAPABILITIES: CapabilityDefinition[] = [
+  { key: 'accounting.view-business-finance', label: 'Baca laporan accounting', group: CAPABILITY_GROUPS.finance },
+  { key: 'accounting.view-posting-detail', label: 'Periksa jurnal dan sumber', group: CAPABILITY_GROUPS.finance },
+  { key: 'accounting.manage-setup', label: 'Konfigurasi accounting (tanpa aktivasi)', group: CAPABILITY_GROUPS.finance },
+  { key: 'accounting.close-period', label: 'Kunci periode rehearsal', group: CAPABILITY_GROUPS.finance },
+  { key: 'accounting.reopen-period', label: 'Buka kembali periode accounting', group: CAPABILITY_GROUPS.finance },
   // Project Order — menggantikan gerbang halus di app/pages/projects/[id]/index.vue
   { key: 'project-order.accept-handover', label: 'Terima / tolak handover Project Order', group: CAPABILITY_GROUPS.projectOrder },
   { key: 'project-order.manage-operations', label: 'Kelola operasional project (service, vendor, booking)', group: CAPABILITY_GROUPS.projectOrder },

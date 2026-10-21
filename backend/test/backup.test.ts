@@ -2,7 +2,7 @@ import { afterAll, describe, expect, test } from 'bun:test'
 import { appendFileSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { BackupError, backupDatabase, restoreDatabase } from '../src/db/backup'
+import { BackupError, backupDatabase, restoreDatabase,isDatabaseEmpty } from '../src/db/backup'
 import { openDb } from '../src/db/client'
 import { migrateUp } from '../src/db/migrator'
 import { rehearseMigrations } from '../src/db/rehearsal'
@@ -13,6 +13,20 @@ const work = mkdtempSync(join(tmpdir(), 'manova-backup-'))
 afterAll(() => rmSync(work, { recursive: true, force: true }))
 
 describe('backup and restore (PGlite)', () => {
+  test('an object outside the current schema or a function still makes a restore target occupied',async()=>{
+    const db=await openDb('pglite://memory')
+    try{
+      expect(await isDatabaseEmpty(db)).toBe(true)
+      await db.exec('create schema protected_user_data; create table protected_user_data.keep_me(id integer primary key); insert into protected_user_data.keep_me values(71)')
+      expect(await isDatabaseEmpty(db)).toBe(false)
+      expect((await db.query<{id:number}>('select id from protected_user_data.keep_me'))[0]!.id).toBe(71)
+    }finally{await db.close()}
+    const functions=await openDb('pglite://memory')
+    try{
+      await functions.exec('create function public.keep_me() returns integer language sql as $$ select 71 $$')
+      expect(await isDatabaseEmpty(functions)).toBe(false)
+    }finally{await functions.close()}
+  })
   test('full rehearsal: fresh → up → seed → down to 0 → up → backup → restore → identical', async () => {
     const steps = await rehearseMigrations({
       appEnv: 'test',

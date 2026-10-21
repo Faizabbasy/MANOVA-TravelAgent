@@ -127,7 +127,12 @@ const CAPABILITY_GRANTS = {
   /** Contract value after creation (ADR-007: owned by Project, corrected by Finance with a reason). */
   'finance.edit-contract-value': ['finance'],
   /** Customer credit limit (ADR-007: Finance owns money figures). */
-  'finance.edit-credit-limit': ['finance']
+  'finance.edit-credit-limit': ['finance'],
+  'accounting.view-business-finance': ['finance'],
+  'accounting.view-posting-detail': ['finance'],
+  'accounting.manage-setup': [],
+  'accounting.close-period': ['finance'],
+  'accounting.reopen-period': []
 } satisfies Record<string, GrantedTo>
 
 export type CapabilityKey = keyof typeof CAPABILITY_GRANTS

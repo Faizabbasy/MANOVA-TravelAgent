@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { Building2, FolderKanban } from 'lucide-vue-next'
 import {
   LEADS, QUOTATIONS, PARTIES, PROJECTS,
-  getLeadsByOwner, getProjectsByAccountExecutive, getPartiesByAccountOwner, getQuotationByLead
+  getLeadsByOwner, getProjectsByAccountExecutive, getPartiesByAccountOwner
 } from '~/data'
 import { LEAD_STAGES, QUOTATION_APPROVAL_STATUSES } from '~/constants/status'
 import { formatPercentage } from '~/utils/format'
